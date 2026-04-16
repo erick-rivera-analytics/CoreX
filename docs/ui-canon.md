@@ -26,23 +26,23 @@
 </div>
 ```
 
-## Reglas
+## Contrato obligatorio
 
-- Root de vista: `space-y-4`.
-- Filtros arriba de KPIs y dentro de `FilterPanel`.
-- KPIs solo con `MetricTile`.
-- Charts dentro de `ChartSection > ChartSurface`.
-- Recharts usa `RechartsTooltipAdapter` y axis config compartida.
-- Tablas con `ScrollFadeTable`; sorting con `SortableHeader`.
-- Estados vacios con `EmptyState`.
-- Overlays con `DialogShell` o `SheetShell`.
-- Numeros y fechas con `@/shared/lib/format`.
-- Sombras y colores nuevos por tokens CSS.
+- Root de explorer/page visible: `space-y-4`
+- Explorer canonico: `SectionPageShell > FilterPanel > KpiGrid`
+- Charts: `ChartSection > ChartSurface`
+- Tablas: `ScrollFadeTable`; sorting con `SortableHeader`
+- Recharts: `RechartsTooltipAdapter` + `axisConfig`
+- Filtros visibles: solo `src/shared/filters/*`
+- Numeros y fechas: solo `@/shared/lib/format`
+- Fetch cliente: solo `@/lib/fetch-json`
+- Overlays nuevos: `DialogShell` o `SheetShell`
+- Sombras y colores nuevos: tokens CSS o excepcion documentada
 
 ## Excepciones validas
 
-- Campo/Leaflet puede usar colores directos porque `L.PathOptions` requiere valores concretos.
-- Programaciones usa paletas categoricas en `src/config/programaciones-palettes.ts`.
-- Comparison puede no usar `KpiGrid`; su layout de batalla es el resumen.
-- `fenograma-block-modal.tsx` conserva `MetricPill` local por comportamiento clickeable de dominio.
-- `person-detail-sheet.tsx` puede usar `space-y-6` dentro del overlay.
+- Campo/Leaflet puede usar colores directos porque `L.PathOptions` requiere valores concretos
+- Programaciones usa paletas categoricas en `src/config/programaciones-palettes.ts`
+- Comparison puede no usar `KpiGrid`; su layout de batalla es el resumen
+- `MetricPill` de Fenograma es una excepcion de dominio valida y vive en el split del modal
+- `person-detail-sheet.tsx` puede usar `space-y-6` dentro del overlay

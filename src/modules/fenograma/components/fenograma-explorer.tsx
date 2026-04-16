@@ -6,10 +6,10 @@ import { Skeleton } from "@/shared/ui/skeleton";
 import useSWR from "swr";
 import { toast } from "sonner";
 
-import { BlockProfileModal } from "@/components/dashboard/fenograma-block-modal";
-import { FenogramaPivotTable } from "@/components/dashboard/fenograma-pivot-table";
-import { FenogramaWeeklyBarsChart } from "@/components/dashboard/fenograma-weekly-bars-chart";
+import { BlockProfileModal } from "@/modules/fenograma/components/block-profile-modal";
 import { useBlockProfileModal } from "@/hooks/use-block-profile-modal";
+import { FenogramaPivotTable } from "@/modules/fenograma/components/fenograma-pivot-table";
+import { FenogramaWeeklyBarsChart } from "@/modules/fenograma/components/fenograma-weekly-bars-chart";
 import { Button } from "@/shared/ui/button";
 import { formatDate, formatInteger } from "@/shared/lib/format";
 import { MultiSelectField } from "@/shared/filters/multi-select-field";

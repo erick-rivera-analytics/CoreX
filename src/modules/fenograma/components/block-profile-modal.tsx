@@ -6,12 +6,32 @@ import { createPortal } from "react-dom";
 import { ChevronDown, ChevronRight, LineChart, LoaderCircle, Rows3, Sprout, X } from "lucide-react";
 import useSWRImmutable from "swr/immutable";
 
-import { HarvestCurvePanel } from "@/components/dashboard/harvest-curve-panel";
-import { MortalityCurvePanel } from "@/components/dashboard/mortality-curve-panel";
-import { PersonMedicalPanel } from "@/components/dashboard/person-medical-panel";
+import {
+  DetailBadges as DetailBadgesPrimitive,
+  HoursPerformanceDonut as HoursPerformanceDonutPrimitive,
+  InfoField as InfoFieldPrimitive,
+  MetricPill as MetricPillPrimitive,
+} from "@/modules/fenograma/components/block-profile-primitives";
+import {
+  buildCycleHoursPersonRequest as buildCycleHoursPersonRequestHelper,
+  buildCycleHoursRequest as buildCycleHoursRequestHelper,
+  buildMortalityBadge as buildMortalityBadgeHelper,
+  computeHorasCama as computeHorasCamaHelper,
+  computeProgrammedPlantsAcrossCycles as computeProgrammedPlantsAcrossCyclesHelper,
+  deriveCycleOperationalStatus as deriveCycleOperationalStatusHelper,
+  deriveCyclePhase as deriveCyclePhaseHelper,
+  formatProductivity as formatProductivityHelper,
+  getBedSortValue as getBedSortValueHelper,
+  getValveDisplayName as getValveDisplayNameHelper,
+  getTrailingSegment as getTrailingSegmentHelper,
+  resolveAggregatedOperationalStatus as resolveAggregatedOperationalStatusHelper,
+  swrHoursFetcher as swrHoursFetcherHelper,
+} from "@/modules/fenograma/components/block-profile-utils";
+import { HarvestCurvePanel } from "@/modules/fenograma/components/harvest-curve-panel";
+import { MortalityCurvePanel } from "@/modules/mortality/components/mortality-curve-panel";
+import { PersonMedicalPanel } from "@/modules/fenograma/components/person-medical-panel";
 import { Badge } from "@/shared/ui/badge";
 import { Button } from "@/shared/ui/button";
-import { fetchJson } from "@/lib/fetch-json";
 import {
   formatDateSlash as formatDate,
   formatFlexibleNumber as formatNumber,
@@ -20,7 +40,7 @@ import {
 
 const ProcessViewerOverlay = dynamic(
   () =>
-    import("@/components/dashboard/process-viewer-overlay").then(
+    import("@/modules/fenograma/components/process-viewer-overlay").then(
       (mod) => mod.ProcessViewerOverlay,
     ),
   { ssr: false },
@@ -50,32 +70,15 @@ import type { SelectedMortalityCurveState } from "@/hooks/use-block-profile-moda
 
 // Wrapper with custom fallback behavior
 function formatProductivity(value: number | null, fallback = "-") {
-  if (value === null) {
-    return fallback;
-  }
-
-  return formatNumber(value);
+  return formatProductivityHelper(value, fallback);
 }
 
 function getTrailingSegment(value: string) {
-  const normalized = value.trim();
-
-  if (!normalized) {
-    return "-";
-  }
-
-  const parts = normalized.split("-");
-  return parts[parts.length - 1] || normalized;
+  return getTrailingSegmentHelper(value);
 }
 
 function getValveDisplayName(valveName: string | null | undefined, valveId: string | null | undefined) {
-  const normalizedName = valveName?.trim();
-
-  if (normalizedName) {
-    return normalizedName;
-  }
-
-  return getTrailingSegment(valveId ?? "");
+  return getValveDisplayNameHelper(valveName, valveId);
 }
 
 /**
@@ -87,21 +90,7 @@ function getValveDisplayName(valveName: string | null | undefined, valveId: stri
  * Si el status raw es "planned" o similar, se fuerza Planificado.
  */
 function deriveCycleOperationalStatus(cycle: CycleProfileCard): string {
-  const rawStatus = cycle.status?.toLowerCase().trim() ?? "";
-
-  if (rawStatus === "planned" || rawStatus === "planificado") {
-    return "Planificado";
-  }
-
-  if (cycle.isCurrent && cycle.isValid) {
-    return "Activo";
-  }
-
-  if (!cycle.isCurrent && cycle.isValid) {
-    return "Cerrado";
-  }
-
-  return "Planificado";
+  return deriveCycleOperationalStatusHelper(cycle);
 }
 
 /**
@@ -114,33 +103,7 @@ function deriveCycleOperationalStatus(cycle: CycleProfileCard): string {
  * Si no coincide, se devuelve capitalizado.
  */
 function deriveCyclePhase(cycle: CycleProfileCard): string {
-  const rawStatus = cycle.status?.toLowerCase().trim() ?? "";
-
-  if (rawStatus.includes("harvest") || rawStatus.includes("cosecha")) {
-    return "Cosecha";
-  }
-
-  if (rawStatus === "active" || rawStatus === "activo") {
-    return "Vegetativo";
-  }
-
-  if (rawStatus === "closed" || rawStatus === "cerrado") {
-    return "Cerrado";
-  }
-
-  if (rawStatus === "planned" || rawStatus === "planificado") {
-    return "Planificado";
-  }
-
-  if (cycle.isCurrent) {
-    return "Vegetativo";
-  }
-
-  if (!cycle.isCurrent && cycle.isValid) {
-    return "Cerrado";
-  }
-
-  return "Planificado";
+  return deriveCyclePhaseHelper(cycle);
 }
 
 /** Camas 30 m² = superficie / 30. Retorna null si no hay superficie confiable. */
@@ -153,39 +116,19 @@ function computeCamas30(bedArea: number | null): number | null {
 }
 
 function computeHorasCama(effectiveHours: number | null, bedArea: number | null): number | null {
-  const camas30 = computeCamas30(bedArea);
-
-  if (effectiveHours === null || camas30 === null || camas30 <= 0) {
-    return null;
-  }
-
-  return Math.round((effectiveHours / camas30) * 100) / 100;
+  return computeHorasCamaHelper(effectiveHours, bedArea);
 }
 
 function buildCycleHoursRequest(cycleKey: string | null) {
-  if (!cycleKey) {
-    return null;
-  }
-
-  return [
-    `/api/fenograma/cycle/${encodeURIComponent(cycleKey)}/hours`,
-    "No se pudo cargar el detalle de horas del ciclo.",
-  ] as const;
+  return buildCycleHoursRequestHelper(cycleKey);
 }
 
 function buildCycleHoursPersonRequest(cycleKey: string, personId: string | null) {
-  if (!personId) {
-    return null;
-  }
-
-  return [
-    `/api/fenograma/cycle/${encodeURIComponent(cycleKey)}/hours/person/${encodeURIComponent(personId)}`,
-    "No se pudo cargar la ficha de horas del personal.",
-  ] as const;
+  return buildCycleHoursPersonRequestHelper(cycleKey, personId);
 }
 
 async function swrHoursFetcher<T>([url, fallbackMessage]: readonly [string, string]) {
-  return fetchJson<T>(url, fallbackMessage);
+  return swrHoursFetcherHelper<T>([url, fallbackMessage]);
 }
 
 /**
@@ -193,13 +136,7 @@ async function swrHoursFetcher<T>([url, fallbackMessage]: readonly [string, stri
  * Suma programmedPlants de todos los ciclos.
  */
 function computeProgrammedPlantsAcrossCycles(cycles: CycleProfileCard[]): number | null {
-  const values = cycles.map((c) => c.programmedPlants).filter((v): v is number => v !== null);
-
-  if (!values.length) {
-    return null;
-  }
-
-  return values.reduce((sum, v) => sum + v, 0);
+  return computeProgrammedPlantsAcrossCyclesHelper(cycles);
 }
 
 /**
@@ -207,27 +144,11 @@ function computeProgrammedPlantsAcrossCycles(cycles: CycleProfileCard[]): number
  * Prioridad: Activo > Cosecha > Vegetativo > Planificado > Cerrado.
  */
 function resolveAggregatedOperationalStatus(cycles: CycleProfileCard[]): string {
-  if (!cycles.length) {
-    return "-";
-  }
-
-  const statuses = cycles.map(deriveCycleOperationalStatus);
-
-  if (statuses.includes("Activo")) {
-    return "Activo";
-  }
-
-  if (statuses.includes("Planificado")) {
-    return "Planificado";
-  }
-
-  return "Cerrado";
+  return resolveAggregatedOperationalStatusHelper(cycles);
 }
 
 function getBedSortValue(bedId: string) {
-  const trailingSegment = getTrailingSegment(bedId);
-  const numericValue = Number(trailingSegment);
-  return Number.isFinite(numericValue) ? numericValue : Number.MAX_SAFE_INTEGER;
+  return getBedSortValueHelper(bedId);
 }
 
 function MetricPill({
@@ -241,41 +162,7 @@ function MetricPill({
   onClick?: () => void;
   hint?: string;
 }) {
-  const sharedClassName = cn(
-    "block h-full w-full rounded-lg border border-border/50 bg-card px-3.5 py-3 text-left shadow-[0_1px_3px_rgba(0,0,0,0.04)]",
-    onClick && "cursor-pointer transition-all hover:border-slate-700/30 hover:shadow-md active:scale-[0.987]",
-  );
-
-  const content = (
-    <>
-      <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/65">
-        {label}
-      </p>
-      <p className="mt-1 break-words text-[15px] font-semibold tabular-nums leading-tight">{value}</p>
-      {hint ? <p className="mt-0.5 text-[10px] text-muted-foreground/55">{hint}</p> : null}
-    </>
-  );
-
-  if (onClick) {
-    return (
-      <button
-        type="button"
-        onClick={(event) => {
-          event.stopPropagation();
-          onClick();
-        }}
-        className={sharedClassName}
-      >
-        {content}
-      </button>
-    );
-  }
-
-  return (
-    <div className={sharedClassName}>
-      {content}
-    </div>
-  );
+  return <MetricPillPrimitive label={label} value={value} onClick={onClick} hint={hint} />;
 }
 
 function DetailBadges({
@@ -283,15 +170,7 @@ function DetailBadges({
 }: {
   items: string[];
 }) {
-  return (
-    <div className="flex flex-wrap gap-2">
-      {items.map((item) => (
-        <Badge key={item} variant="outline" className="rounded-full px-3 py-1">
-          {item}
-        </Badge>
-      ))}
-    </div>
-  );
+  return <DetailBadgesPrimitive items={items} />;
 }
 
 function InfoField({
@@ -301,14 +180,7 @@ function InfoField({
   label: string;
   value: string;
 }) {
-  return (
-    <div className="rounded-2xl border border-border/60 bg-muted/18 px-4 py-3">
-      <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/65">
-        {label}
-      </p>
-      <p className="mt-2 text-sm font-medium text-foreground">{value}</p>
-    </div>
-  );
+  return <InfoFieldPrimitive label={label} value={value} />;
 }
 
 function HoursPerformanceDonut({
@@ -316,39 +188,7 @@ function HoursPerformanceDonut({
 }: {
   percentage: number | null;
 }) {
-  const hasPercentage = percentage !== null;
-  const normalizedPercentage = Math.max(0, Math.min(percentage ?? 0, 100));
-  const chartStyle = {
-    background: `conic-gradient(rgb(13 148 136) 0 ${normalizedPercentage}%, rgb(226 232 240) ${normalizedPercentage}% 100%)`,
-  } as const;
-
-  return (
-    <div className="rounded-2xl border border-border/60 bg-card px-4 py-4 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
-      <div className="flex items-center gap-4">
-        <div
-          className="relative h-28 w-28 shrink-0 rounded-full shadow-inner"
-          style={chartStyle}
-          aria-hidden="true"
-        >
-          <div className="absolute inset-[16px] flex items-center justify-center rounded-full border border-border/50 bg-card text-center text-xs font-semibold tabular-nums text-foreground">
-            {hasPercentage ? formatPercent(percentage) : "Sin dato"}
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/65">
-            % Horas rendimiento
-          </p>
-          <p className="text-2xl font-semibold tabular-nums">
-            {formatPercent(percentage)}
-          </p>
-          <p className="max-w-[18rem] text-xs text-muted-foreground">
-            Horas presenciales con medida distinta de H. Normales sobre el total de horas presenciales.
-          </p>
-        </div>
-      </div>
-    </div>
-  );
+  return <HoursPerformanceDonutPrimitive percentage={percentage} />;
 }
 
 function PersonHoursOverlay({
@@ -1483,19 +1323,7 @@ function HarvestCurveOverlay({
 }
 
 function buildMortalityBadge(data: MortalityCurvePayload | null, selectedCurve: SelectedMortalityCurveState) {
-  if (data?.label) {
-    return data.label;
-  }
-
-  if (selectedCurve.entityType === "valve") {
-    return selectedCurve.valveId;
-  }
-
-  if (selectedCurve.entityType === "bed") {
-    return selectedCurve.bedId;
-  }
-
-  return selectedCurve.cycleKey;
+  return buildMortalityBadgeHelper(data, selectedCurve);
 }
 
 function MortalityCurveOverlay({

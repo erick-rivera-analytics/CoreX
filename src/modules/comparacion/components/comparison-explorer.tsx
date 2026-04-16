@@ -5,7 +5,7 @@ import { ArrowLeftRight, Search, ShieldAlert, Swords, Trophy } from "lucide-reac
 import useSWR from "swr";
 import { toast } from "sonner";
 
-import { ComparisonRadarPanel } from "@/components/dashboard/comparison-radar-panel";
+import { ComparisonRadarPanel } from "@/modules/comparacion/components/comparison-radar-panel";
 import { formatDate, formatInteger } from "@/shared/lib/format";
 import { SectionPageShell } from "@/shared/layout/section-page-shell";
 import { FilterPanel } from "@/shared/layout/filter-panel";

@@ -1,64 +1,93 @@
 # Reuse Index
 
-Regla: antes de crear algo nuevo, buscar aqui. Si nada aplica, justificar la excepcion en el PR o documento de modulo.
+Regla operativa: antes de crear algo nuevo, buscar primero aqui. Si existe algo parecido en `src/shared/*` o en el modulo actual, no se crea otro componente/helper. Si nada aplica, la excepcion debe quedar escrita en el PR o en la documentacion del modulo.
 
-## Layout
+## Layout y shell
 
-- `SectionPageShell`: encabezado canonico de toda vista explorer.
-- `FilterPanel`: contenedor de filtros, KPIs y estados inline.
-- `KpiGrid`: grid de KPIs, con `columns`.
-- `ChartSection`: bloque para graficos.
-- `DetailSection`: bloque para tablas y detalle.
-- `AppShell`: sidebar, header y area principal.
+| Necesidad | Reutilizar |
+| --- | --- |
+| Header de explorer | `SectionPageShell` |
+| Filtros + KPIs + estados inline | `FilterPanel` + `KpiGrid` |
+| Bloque de charts | `ChartSection` + `ChartSurface` |
+| Bloque de detalle/tablas | `DetailSection` + `ScrollFadeTable` |
+| Shell global | `AppShell` |
 
 ## Datos y feedback
 
-- `MetricTile`: unico KPI compartido. Usar `accent` para success/warning/danger.
-- `ChartSurface`: superficie canonica para charts o visualizaciones tipo chart.
-- `EmptyState`: unico estado vacio.
+| Necesidad | Reutilizar |
+| --- | --- |
+| KPI compartido | `MetricTile` |
+| Estado vacio | `EmptyState` |
+| Error/loader server-side | `DashboardRouteError` + `loadProtectedPageData` |
 
 ## Filtros
 
-- `MultiSelectField`: seleccion multiple con search y badges.
-- `SingleSelectField`: seleccion unica.
-- `DateField`: fecha.
-- `WeekField`: semana.
-- `ToggleChipGroup`: toggles compactos.
+| Necesidad | Reutilizar |
+| --- | --- |
+| Seleccion multiple | `MultiSelectField` |
+| Seleccion unica | `SingleSelectField` |
+| Fecha | `DateField` |
+| Semana | `WeekField` |
+| Toggle compacto | `ToggleChipGroup` |
 
-## Tablas
+## Tablas y sorting
 
-- `ScrollFadeTable`: overflow horizontal con gradientes.
-- `StandardTable`, `StandardTh`, `StandardTd`: tabla simple.
-- `SortableHeader`: header sortable compartido.
+| Necesidad | Reutilizar |
+| --- | --- |
+| Overflow horizontal canonico | `ScrollFadeTable` |
+| Tabla simple | `StandardTable`, `StandardTh`, `StandardTd` |
+| Header sortable | `SortableHeader` |
 
 ## Charts
 
-- `RechartsTooltipAdapter`: tooltip canonico de Recharts.
-- `ChartTooltip`: contenido visual de tooltip.
-- `axisConfig`, `axisTickStyle`, `gridConfig`, `tooltipCursorStyle`: config compartida.
+| Necesidad | Reutilizar |
+| --- | --- |
+| Tooltip Recharts | `RechartsTooltipAdapter` |
+| Cuerpo visual de tooltip | `ChartTooltip` |
+| Ejes/grilla/cursor | `axisConfig`, `axisTickStyle`, `gridConfig`, `tooltipCursorStyle` |
 
-## Overlays
+## Overlays y navegacion
 
-- `DialogShell`: dialog z-index 60.
-- `SheetShell`: sheet z-index 70.
-
-## Navegacion
-
-- `NavCard` y `SectionHeader`: home/dashboard hub.
-- `src/config/module-catalog.ts`: fuente de verdad de rutas, titulos, estado y recursos RBAC.
+| Necesidad | Reutilizar |
+| --- | --- |
+| Dialog | `DialogShell` |
+| Sheet | `SheetShell` |
+| Hub de navegacion | `NavCard`, `SectionHeader` |
 
 ## Datos, auth y fetch
 
-- `loadProtectedPageData`: loader server canonico para paginas dashboard.
-- `DashboardRouteError`: error visual para loader server.
-- `requirePageAccess`: acceso server-side por recurso.
-- `requireAuth`: auth + RBAC para APIs.
-- `@/lib/fetch-json`: fetcher canonico cliente.
-- `@/shared/lib/format`: unica fuente de numeros, fechas, horas y porcentajes.
+| Necesidad | Reutilizar |
+| --- | --- |
+| Catalogo de modulos | `src/config/module-catalog.ts` |
+| Acceso server-side a paginas | `requirePageAccess`, `loadProtectedPageData` |
+| Acceso a API | `requireAuth` |
+| Fetch cliente | `@/lib/fetch-json` |
+| Formatters | `@/shared/lib/format` |
 
 ## Seguridad y operacion
 
-- `src/lib/access-control.ts`: toda API con `requireAuth()` debe tener regla explicita.
-- `src/server/security/rate-limit.ts`: rate limit por identidad IP/usuario.
-- `src/lib/logger.ts`: logging estructurado sin secretos.
-- `src/lib/api-error.ts`: errores `{ message, error, requestId }` cuando aplique.
+| Necesidad | Reutilizar |
+| --- | --- |
+| Regla API protegida | `src/lib/access-control.ts` |
+| Rate limit | `src/server/security/rate-limit.ts` |
+| Logging estructurado | `src/lib/logger.ts` |
+| Error API con `requestId` | `src/lib/api-error.ts` |
+
+## Cuando SI crear algo nuevo
+
+| Caso valido | Condicion |
+| --- | --- |
+| Dominio irreducible | El comportamiento pertenece solo a un modulo y no contamina shared |
+| Reusable real | La misma pieza aparece o aparecera en al menos 2 modulos |
+| Limitacion tecnica documentada | El componente actual no soporta un caso necesario y la extension seria peor que una pieza nueva |
+
+## Que NO inventar
+
+- headers de explorer
+- filtros custom si ya existe uno en `src/shared/filters`
+- formatters locales simples
+- fetchers alternos a `@/lib/fetch-json`
+- KPIs alternos a `MetricTile`
+- wrappers nuevos en `src/components/dashboard`
+- tooltips Recharts fuera de `RechartsTooltipAdapter`
+- tablas con sorting propio si `SortableHeader` cubre el caso

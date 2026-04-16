@@ -1,3 +1,5 @@
+> LEGACY / reference only.
+
 # APIs internas
 
 ## 1. Convenciones generales
@@ -417,3 +419,4 @@ El patron actual es deliberadamente simple.
 3. devolver nombres pensados para UI, no columnas crudas si se puede evitar
 4. mantener el contrato consistente con `message` para errores
 5. documentar la nueva ruta en este archivo y en el README
+> LEGACY / reference only. Ver `docs/security-ops.md` y el codigo como fuente vigente.

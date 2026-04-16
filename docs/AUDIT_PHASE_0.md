@@ -1,3 +1,5 @@
+> LEGACY / reference only.
+
 # Auditoria Fase 0
 
 Linea base para la primera ola de pulimiento conservador del sistema.
@@ -40,3 +42,4 @@ Linea base para la primera ola de pulimiento conservador del sistema.
 # LEGACY / reference only
 
 Este documento es historico. Para reglas vigentes usar `docs/reuse-index.md`, `docs/extender-modulos.md`, `docs/ui-canon.md` y `docs/security-ops.md`.
+> LEGACY / reference only. No usar este documento como fuente viva de crecimiento.

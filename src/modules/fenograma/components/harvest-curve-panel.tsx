@@ -12,7 +12,7 @@ type HarvestCurvePanelProps = {
 
 const HarvestCurveChart = dynamic(
   () =>
-    import("@/components/dashboard/harvest-curve-chart").then(
+    import("@/modules/fenograma/components/harvest-curve-chart").then(
       (mod) => mod.HarvestCurveChart,
     ),
   { ssr: false },

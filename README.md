@@ -48,6 +48,7 @@ npm run canon:check
 npm run typecheck
 npm run lint
 npm run test
+npm run test:coverage
 npm run e2e:smoke
 ```
 
@@ -106,6 +107,13 @@ Piezas importantes:
 - `src/lib/api-auth.ts`: `requirePageAccess()` y `requireAuth()`
 - `src/modules/shared/server-page.tsx`: helper comun para loaders server-side
 
+Estado estructural actual:
+
+- la UI visible vive en `src/modules/*`
+- `src/components/dashboard/*` queda congelado y reducido a placeholder/chatbot/notas internas
+- `src/lib/fenograma.ts` y `src/lib/postcosecha-balanzas.ts` son fachadas temporales; la logica pesada vive en `*-core.ts` y debe seguir partiendose por dominio
+- el solver de clasificacion en blanco y Talento Humano ya estan divididos en piezas de modulo pequeñas
+
 ## Seguridad operativa
 
 - Las paginas `/dashboard/*` requieren sesion valida.
@@ -118,6 +126,9 @@ Piezas importantes:
 
 ## Referencias
 
+- Regla corta: si vas a crear algo nuevo, primero demuestra por que no sirve lo existente en `docs/reuse-index.md`.
+- `src/components/dashboard/*` es legacy congelado; crecimiento nuevo va en `src/modules/*`.
+- Para crear o extender modulos usa `docs/extender-modulos.md`; no inventes shell, fetchers, filtros, KPIs, tablas ni formatters si existen en `docs/reuse-index.md`.
 - `docs/reuse-index.md`: indice obligatorio antes de crear componentes o helpers
 - `docs/extender-modulos.md`: flujo canonico para agregar pantallas y APIs
 - `docs/ui-canon.md`: reglas visuales y excepciones UX/UI

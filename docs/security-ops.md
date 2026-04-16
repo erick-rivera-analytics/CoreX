@@ -32,6 +32,7 @@ Origenes permitidos:
 Usar `src/server/security/rate-limit.ts`.
 
 - Identidad canonica: IP real via `x-forwarded-for`/`x-real-ip` + sufijo opcional.
+- Si no existe IP real en produccion, usar fallback estable derivado de headers seguros; no colapsar todo a `local`.
 - Backend actual: memory.
 - Variables preparadas: `RATE_LIMIT_BACKEND`, `REDIS_URL`.
 

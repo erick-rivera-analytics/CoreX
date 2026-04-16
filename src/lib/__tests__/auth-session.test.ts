@@ -39,4 +39,15 @@ describe("session secret and token rotation", () => {
 
     expect(verifyToken(token)).toBe("erick.rivera");
   });
+
+  it("derives a stable development secret when production is disabled", () => {
+    setEnv("NODE_ENV", "development");
+    delete process.env.SESSION_SECRET;
+
+    const first = resolveSessionSecret();
+    const second = resolveSessionSecret();
+
+    expect(first).toBe(second);
+    expect(first.length).toBeGreaterThanOrEqual(32);
+  });
 });

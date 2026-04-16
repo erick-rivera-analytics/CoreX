@@ -4,10 +4,10 @@ import type { ReactNode } from "react";
 import { LoaderCircle, UserRound } from "lucide-react";
 import useSWRImmutable from "swr/immutable";
 
-import { SheetShell } from "@/shared/overlays/sheet-shell";
-import { fetchJson } from "@/shared/lib/fetch-json";
-import { formatDate, formatInteger } from "@/shared/lib/format";
+import { fetchJson } from "@/lib/fetch-json";
 import type { TalentoPersonProfile } from "@/lib/talento-humano";
+import { SheetShell } from "@/shared/overlays/sheet-shell";
+import { formatDate, formatInteger } from "@/shared/lib/format";
 
 const profileFetcher = (url: string) =>
   fetchJson<TalentoPersonProfile>(url, "No se pudo cargar el perfil.");

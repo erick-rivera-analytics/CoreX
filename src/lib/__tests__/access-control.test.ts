@@ -6,6 +6,9 @@ import {
   getApiAccessRule,
   getBaseAllowedResources,
   matchesApiPrefix,
+  parsePermissionOverridesInput,
+  resolveAllowedResources,
+  sanitizePermissionOverrides,
 } from "@/lib/access-control";
 
 describe("access control", () => {
@@ -41,5 +44,27 @@ describe("access control", () => {
     for (const catalogModule of ALL_MANAGED_MODULES.filter((entry) => entry.status === "hidden")) {
       expect(visibleResources.has(catalogModule.href)).toBe(false);
     }
+  });
+
+  it("applies sanitized overrides on top of base permissions", () => {
+    const activeViewerResource = ACTIVE_MODULES.find((module) => module.navigationGroup !== "Administracion")!.href;
+    const hiddenAdminResource = "/dashboard/admin/seguridad/usuarios";
+
+    const overrides = sanitizePermissionOverrides([
+      { resourceKey: activeViewerResource, canView: false },
+      { resourceKey: hiddenAdminResource, canView: true },
+      { resourceKey: hiddenAdminResource, canView: true },
+    ]);
+
+    const resolved = resolveAllowedResources("viewer", overrides);
+
+    expect(resolved).not.toContain(activeViewerResource);
+    expect(resolved).toContain(hiddenAdminResource);
+  });
+
+  it("rejects malformed permission override payloads", () => {
+    expect(parsePermissionOverridesInput([{ resourceKey: "/dashboard/unknown", canView: true }])).toBeNull();
+    expect(parsePermissionOverridesInput([{ resourceKey: ACTIVE_MODULES[0]!.href, canView: "yes" }])).toBeNull();
+    expect(parsePermissionOverridesInput("invalid")).toBeNull();
   });
 });

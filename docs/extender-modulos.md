@@ -1,56 +1,89 @@
 # Extender Modulos
 
-Flujo unico para agregar o ampliar una pantalla visible.
+Flujo unico, obligatorio y secuencial para agregar o ampliar una pantalla visible.
 
-## 1. Catalogo primero
+## Flujo oficial
 
-Agregar o modificar el modulo en `src/config/module-catalog.ts`.
+### 1. Catalogo primero
 
-Campos obligatorios: `key`, `label`, `title`, `eyebrow`, `summary`, `href`, `icon`, `navigationGroup`, `trail`, `accessSection`, `status`.
+Registrar o modificar el modulo en `src/config/module-catalog.ts` antes de crear UI.
 
-No mostrar placeholders como modulos listos. Si aun no esta funcional, usar `status: "hidden"`.
+Campos obligatorios:
+- `key`
+- `label`
+- `title`
+- `eyebrow`
+- `summary`
+- `href`
+- `icon`
+- `navigationGroup`
+- `trail`
+- `accessSection`
+- `status`
 
-## 2. Page server
+Regla: si aun no esta listo, usar `status: "hidden"`. No introducir placeholders como si fueran modulos productivos.
 
-La ruta `src/app/(dashboard)/dashboard/**/page.tsx` debe usar:
+### 2. Ruta `page.tsx`
 
-- `loadProtectedPageData` si carga datos.
-- `requirePageAccess` si no carga datos.
-- `DashboardRouteError` para errores de loader.
+La ruta visible vive en `src/app/(dashboard)/dashboard/**/page.tsx`.
 
-## 3. Loader
+Debe usar exactamente uno de estos caminos:
+- `loadProtectedPageData` si hay carga inicial de datos
+- `requirePageAccess` si solo necesita validar acceso
 
-El loader vive en `src/modules/*` o `src/lib/*` segun responsabilidad.
+Si el loader puede fallar, usar `DashboardRouteError`.
 
-- Queries e infraestructura: `src/lib`.
-- Orquestacion de pantalla: `src/modules/<modulo>`.
-- UI reutilizable: `src/shared`.
+### 3. Loader y orquestacion
 
-## 4. UI
+Distribucion obligatoria:
+- queries e infraestructura: `src/lib`
+- orquestacion server y mapping de pantalla: `src/modules/<modulo>`
+- UI reusable: `src/shared`
 
-La UI nueva vive en `src/modules/<modulo>/components`.
+No mezclar queries pesadas dentro del explorer.
 
-No crear explorers nuevos en `src/components/dashboard`.
+### 4. UI del modulo
 
-## 5. APIs
+La UI visible nueva vive en:
 
-Toda API con `requireAuth(request)` debe tener regla en `src/lib/access-control.ts`.
+```text
+src/modules/<modulo>/components
+src/modules/<modulo>/hooks
+src/modules/<modulo>/server
+src/modules/<modulo>/index.ts   # solo si hace falta exponer contrato publico
+```
 
-La respuesta de error conserva `{ message, error }`; para rutas nuevas preferir tambien `requestId`.
+Reglas:
+- no crear explorers nuevos en `src/components/dashboard`
+- no importar desde `@/components/dashboard/*`
+- reutilizar primero `src/shared/*`
 
-## 6. Tests y QA
+### 5. API y seguridad
 
-Agregar pruebas de:
+Si el modulo agrega una API protegida:
+- debe llamar `requireAuth(request)`
+- debe tener regla explicita en `src/lib/access-control.ts`
+- debe responder errores compatibles `{ message, error }`
+- si es ruta nueva o modernizada, debe incluir `requestId`
 
-- catalogo/RBAC si aparece nueva ruta visible;
-- acceso API si aparece nueva API protegida;
-- formatter/parser si aparece logica reusable;
-- smoke visual manual si cambia una pantalla critica.
+### 6. Tests minimos
 
-## Checklist rapido
+Agregar lo que aplique:
+- test de catalogo/RBAC si aparece ruta visible nueva
+- test de acceso API si aparece API protegida
+- test de formatter/parser si nace logica reusable
+- smoke visual manual si cambia una pantalla critica
 
+### 7. Validacion obligatoria
+
+Antes de cerrar el lote:
+- `npm run check`
 - `npm run canon:check`
-- `npm run typecheck`
-- `npm run lint`
-- `npm run test`
-- `npm run build`
+
+## Checklist de no romper crecimiento
+
+- no importar desde `@/components/dashboard/*`
+- no usar `@/shared/lib/fetch-json`
+- no crear componentes >350 lineas sin plan de split documentado
+- no crear archivos de dominio/query >700 lineas sin plan de split documentado
+- no introducir excepciones UX/UI sin documentarlas en `docs/ui-canon.md`

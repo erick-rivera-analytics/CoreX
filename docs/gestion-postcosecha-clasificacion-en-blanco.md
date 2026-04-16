@@ -1,3 +1,5 @@
+> LEGACY / reference only.
+
 # Clasificacion En Blanco En CoreX
 
 ## Objetivo
@@ -147,3 +149,4 @@ Resultado:
 - Los nombres tecnicos de PostgreSQL permanecen en ingles.
 - El solver actual no persiste corridas; por ahora es una vista de captura y resolucion.
 - El siguiente paso natural es guardar escenarios o historico de corridas si el negocio lo pide.
+> LEGACY / reference only. La fuente vigente es el codigo del modulo y los docs oficiales.

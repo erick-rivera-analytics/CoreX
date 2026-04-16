@@ -2,7 +2,7 @@
 
 import { AlertCircle } from "lucide-react";
 
-import { ProgramacionesExplorer } from "@/components/dashboard/programaciones-explorer";
+import { ProgramacionesExplorer } from "@/modules/programaciones/components/programaciones-explorer";
 import type { ProgramacionRecord } from "@/lib/programaciones";
 
 export function ProgramacionesPage({

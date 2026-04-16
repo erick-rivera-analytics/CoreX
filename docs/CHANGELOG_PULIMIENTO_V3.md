@@ -1,3 +1,5 @@
+> LEGACY / reference only.
+
 # CoreX — Pulimiento V3 aplicado
 
 ## Alcance real de esta intervención
@@ -130,3 +132,4 @@ Esta versión V3 no maquilla el repo. Prioriza convergencia real sobre tres fren
 # LEGACY / reference only
 
 Este changelog es historico. Para reglas vigentes usar `docs/reuse-index.md`, `docs/extender-modulos.md`, `docs/ui-canon.md` y `docs/security-ops.md`.
+> LEGACY / reference only. No usar este documento como fuente viva de crecimiento.

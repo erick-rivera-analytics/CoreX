@@ -1,3 +1,5 @@
+> LEGACY / reference only.
+
 # CoreX — reorganización aplicada
 
 Se dejó una base nueva para escalar sin seguir duplicando componentes.
@@ -24,3 +26,4 @@ Se dejó una base nueva para escalar sin seguir duplicando componentes.
 ## Compatibilidad
 
 Se dejaron archivos legacy como fachadas para no romper imports existentes mientras migras el resto de módulos.
+> LEGACY / reference only. No usar este documento como fuente viva de crecimiento.

@@ -1,3 +1,5 @@
+> LEGACY / reference only.
+
 # Gestion Poscosecha: Maestro de SKU y nueva navegacion
 
 ## Resumen
@@ -181,3 +183,4 @@ Con esta base ya se puede avanzar a la migracion del solver:
 - usar el maestro SKU de PostgreSQL como fuente oficial
 - crear la vista funcional de `Clasificacion en blanco`
 - reemplazar lectura directa de CSV por consultas al dominio SCD2
+> LEGACY / reference only. La fuente vigente es el codigo del modulo y los docs oficiales.

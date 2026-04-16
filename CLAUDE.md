@@ -14,6 +14,7 @@ npm run docs:check
 npm run typecheck
 npm run lint
 npm run test
+npm run test:coverage
 npx vitest run src/lib/__tests__/server-cache.test.ts
 ```
 
@@ -99,7 +100,7 @@ Rutas ocultas:
 1. `page.tsx` valida acceso con `requirePageAccess()` directa o indirectamente via `loadProtectedPageData()`.
 2. El loader server usa `src/modules/shared/server-page.tsx`.
 3. La UI del modulo entra por `src/modules/*`.
-4. Los explorers en `src/components/dashboard/*` son legacy/transicionales.
+4. `src/components/dashboard/*` es legacy congelado; la UI visible vive en `src/modules/*`.
 5. SWR revalida contra `src/app/api/*`.
 6. Las APIs llaman `src/lib/*` y responden JSON normalizado.
 
@@ -136,6 +137,8 @@ Casos importantes:
 
 ## Docs anti-invencion
 
+- Regla corta: si vas a crear algo nuevo, primero demuestra por que no sirve lo existente en `docs/reuse-index.md`.
+- `src/components/dashboard/*` es legacy congelado; todo crecimiento visible nuevo vive en `src/modules/*`.
 - `docs/reuse-index.md`: buscar aqui antes de crear componentes/helpers.
 - `docs/extender-modulos.md`: flujo unico catalogo -> page server -> loader -> UI -> API rule -> tests -> QA.
 - `docs/ui-canon.md`: reglas visuales y excepciones.
@@ -211,10 +214,11 @@ Excepciones documentadas:
 
 ## Deuda arquitectonica conocida
 
-- `src/components/dashboard/` sigue siendo legacy/transicional. No crear archivos nuevos alli.
-- Varias entradas de `src/modules/*` todavia importan explorers legacy desde `src/components/dashboard/*`.
+- `src/components/dashboard/` queda reducido a placeholder/chatbot/notas. No crear archivos nuevos alli.
 - `fenograma-block-modal.tsx` sigue siendo un componente masivo y debe partirse por subdominios antes de crecer mas.
-- `postcosecha-clasificacion-en-blanco-explorer.tsx` aun tiene headers/cards legacy y debe migrar a `SectionPageShell`.
+- `src/lib/fenograma.ts` y `src/lib/postcosecha-balanzas.ts` son fachadas temporales; no agregar logica nueva ahi.
+- `src/lib/fenograma-core.ts` y `src/lib/postcosecha-balanzas-core.ts` siguen siendo monolitos de dominio y deben partirse por loaders/mappers/graph/table/options.
+- Clasificacion en blanco y Talento Humano ya tienen split de modulo; mantener sus barrels/orquestadores pequenos.
 - El canon UX/UI de explorers principales queda cerrado; nuevas divergencias deben documentarse como excepcion antes de crecer.
 - El build puede emitir warning de Turbopack/NFT por rutas dinamicas del solver de postcosecha; mantenerlo vigilado.
 

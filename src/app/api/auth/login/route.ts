@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import { z } from "zod/v4";
 
+import { apiJsonError } from "@/lib/api-error";
 import { validateCredentials, setSessionCookie } from "@/lib/auth";
+import { logEvent } from "@/lib/logger";
+import { getRequestId } from "@/lib/request-id";
 import { checkRequestRateLimit, getClientIdentity, getEnvNumber, resetRateLimit } from "@/server/security/rate-limit";
 
 export const dynamic = "force-dynamic";
@@ -25,17 +28,15 @@ function isLoginDebugEnabled() {
 
 function logLogin(event: string, details: Record<string, unknown>) {
   if (!isLoginDebugEnabled()) return;
-  console.info("[AUTH_LOGIN]", event, details);
+  logEvent("info", `auth.login.${event}`, details);
 }
 
-function jsonError(message: string, status: number, headers?: HeadersInit) {
-  return NextResponse.json(
-    { message, error: message },
-    { status, headers },
-  );
+function jsonError(message: string, status: number, requestId: string, headers?: HeadersInit) {
+  return apiJsonError(message, status, requestId, headers);
 }
 
 export async function POST(req: Request) {
+  const requestId = getRequestId(req);
   const clientKey = getClientIdentity(req);
 
   let body: unknown;
@@ -43,15 +44,15 @@ export async function POST(req: Request) {
     body = await req.json();
   } catch {
     const message = "Datos de inicio de sesion invalidos.";
-    logLogin("invalid-json", { clientKey });
-    return jsonError(message, 400);
+    logLogin("invalid-json", { requestId, clientKey });
+    return jsonError(message, 400, requestId);
   }
 
   const parsed = loginSchema.safeParse(body);
   if (!parsed.success) {
     const message = "Datos de inicio de sesion invalidos.";
-    logLogin("invalid-payload", { clientKey });
-    return jsonError(message, 400);
+    logLogin("invalid-payload", { requestId, clientKey });
+    return jsonError(message, 400, requestId);
   }
 
   const { username, password } = parsed.data;
@@ -69,27 +70,28 @@ export async function POST(req: Request) {
       const retryAfterSeconds = Math.max(ipGate.retryAfterSeconds, userGate.retryAfterSeconds);
       const message = "Demasiados intentos de inicio de sesion. Intenta nuevamente en un momento.";
       logLogin("rate-limited", {
+        requestId,
         clientKey,
         username: normalizedUsername,
         ipRemaining: ipGate.remaining,
         userRemaining: userGate.remaining,
         retryAfterSeconds,
       });
-      return jsonError(message, 429, { "Retry-After": String(retryAfterSeconds) });
+      return jsonError(message, 429, requestId, { "Retry-After": String(retryAfterSeconds) });
     }
   }
 
-  logLogin("attempt", { clientKey, username: normalizedUsername });
+  logLogin("attempt", { requestId, clientKey, username: normalizedUsername });
   const isValid = await validateCredentials(username, password);
-  logLogin("validated", { clientKey, username: normalizedUsername, isValid });
+  logLogin("validated", { requestId, clientKey, username: normalizedUsername, isValid });
 
   if (!isValid) {
     const message = "Credenciales incorrectas";
-    return jsonError(message, 401);
+    return jsonError(message, 401, requestId);
   }
 
   await setSessionCookie(username);
   resetRateLimit(userRateKey);
-  logLogin("session-set", { clientKey, username: normalizedUsername });
+  logLogin("session-set", { requestId, clientKey, username: normalizedUsername });
   return NextResponse.json({ ok: true });
 }

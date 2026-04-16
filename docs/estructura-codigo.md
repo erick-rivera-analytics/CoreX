@@ -1,3 +1,5 @@
+> LEGACY / reference only.
+
 # Estructura del codigo activo
 
 ## 1. Objetivo de este documento
@@ -329,3 +331,4 @@ Estos archivos merecen mas cuidado porque concentran comportamiento de negocio o
 - `src/components/dashboard/balanzas-explorer.tsx`
 
 Un cambio mal planteado aqui afecta toda la experiencia del dashboard o rompe el modulo principal.
+> LEGACY / reference only. Ver `docs/module-contracts.md` para la frontera vigente.

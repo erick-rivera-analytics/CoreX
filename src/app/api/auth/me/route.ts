@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
+
 import { getCurrentUserAccess } from "@/lib/api-auth";
+import { apiJsonError, handleApiError } from "@/lib/api-error";
+import { getRequestId } from "@/lib/request-id";
 
 export const dynamic = "force-dynamic";
 
@@ -8,16 +11,13 @@ export const dynamic = "force-dynamic";
  * Returns the current authenticated user's username.
  * Returns 401 if not authenticated.
  */
-export async function GET() {
+export async function GET(request: Request) {
+  const requestId = getRequestId(request);
   try {
     const access = await getCurrentUserAccess();
 
     if (!access) {
-      const message = "Not authenticated";
-      return NextResponse.json(
-        { message, error: message },
-        { status: 401 }
-      );
+      return apiJsonError("Not authenticated", 401, requestId);
     }
 
     return NextResponse.json({
@@ -31,11 +31,6 @@ export async function GET() {
       authenticatedAt: new Date().toISOString(),
     });
   } catch (error) {
-    console.error("[AUTH_ME_ERROR]", error);
-    const message = "Failed to get session";
-    return NextResponse.json(
-      { message, error: message },
-      { status: 500 }
-    );
+    return handleApiError(error, "Failed to get session", requestId);
   }
 }

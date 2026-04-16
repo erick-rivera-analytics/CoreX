@@ -1,3 +1,5 @@
+> LEGACY / reference only.
+
 # Changelog pulimiento V4
 
 ## Cambios principales
@@ -58,3 +60,4 @@
 # LEGACY / reference only
 
 Este changelog es historico. Para reglas vigentes usar `docs/reuse-index.md`, `docs/extender-modulos.md`, `docs/ui-canon.md` y `docs/security-ops.md`.
+> LEGACY / reference only. No usar este documento como fuente viva de crecimiento.

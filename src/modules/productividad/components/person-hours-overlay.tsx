@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import { LoaderCircle } from "lucide-react";
 import useSWRImmutable from "swr/immutable";
 
-import { PersonMedicalPanel } from "@/components/dashboard/person-medical-panel";
+import { PersonMedicalPanel } from "@/modules/fenograma/components/person-medical-panel";
 import { Badge } from "@/shared/ui/badge";
 import { MetricTile } from "@/shared/data-display/metric-tile";
 import { SheetShell } from "@/shared/overlays/sheet-shell";

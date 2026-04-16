@@ -2,17 +2,19 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { isRoleCode, parsePermissionOverridesInput } from "@/lib/access-control";
 import { requireAuth } from "@/lib/api-auth";
-import { handleApiError } from "@/lib/api-error";
+import { apiJsonError, handleApiError } from "@/lib/api-error";
+import { getRequestId } from "@/lib/request-id";
 import { createUser, getUserByUsername, listUsers } from "@/lib/users";
-import { checkRateLimit } from "@/server/security/rate-limit";
+import { checkRequestRateLimit, getEnvNumber } from "@/server/security/rate-limit";
 
 export const dynamic = "force-dynamic";
 
-function jsonError(message: string, status: number, headers?: HeadersInit) {
-  return NextResponse.json({ message, error: message }, { status, headers });
+function jsonError(message: string, status: number, requestId: string, headers?: HeadersInit) {
+  return apiJsonError(message, status, requestId, headers);
 }
 
 export async function GET(request: NextRequest) {
+  const requestId = getRequestId(request);
   const authError = await requireAuth(request);
   if (authError) return authError;
 
@@ -20,22 +22,26 @@ export async function GET(request: NextRequest) {
     const users = await listUsers();
     return NextResponse.json({ users });
   } catch (error) {
-    return handleApiError(error, "No se pudo obtener la lista de usuarios.");
+    return handleApiError(error, "No se pudo obtener la lista de usuarios.", requestId);
   }
 }
 
 export async function POST(request: NextRequest) {
+  const requestId = getRequestId(request);
   const authError = await requireAuth(request);
   if (authError) return authError;
 
-  const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
-    || request.headers.get("x-real-ip")
-    || "local";
-  const rl = checkRateLimit(`admin-users:${ip}`, 10, 60_000);
+  const rl = checkRequestRateLimit({
+    request,
+    scope: "admin-users",
+    limit: getEnvNumber("ADMIN_USERS_RATE_LIMIT", 10),
+    windowMs: getEnvNumber("ADMIN_USERS_RATE_LIMIT_WINDOW_MS", 60_000),
+  });
   if (!rl.allowed) {
     return jsonError(
       "Demasiados intentos. Intenta nuevamente en un momento.",
       429,
+      requestId,
       { "Retry-After": String(rl.retryAfterSeconds) },
     );
   }
@@ -45,25 +51,25 @@ export async function POST(request: NextRequest) {
     const { username, password, isActive, roleCode, permissionOverrides } = body;
 
     if (!username || typeof username !== "string" || username.trim().length < 3) {
-      return jsonError("El nombre de usuario debe tener al menos 3 caracteres.", 400);
+      return jsonError("El nombre de usuario debe tener al menos 3 caracteres.", 400, requestId);
     }
 
     if (!password || typeof password !== "string" || password.length < 6) {
-      return jsonError("La contrasena debe tener al menos 6 caracteres.", 400);
+      return jsonError("La contrasena debe tener al menos 6 caracteres.", 400, requestId);
     }
 
     if (roleCode !== undefined && !isRoleCode(roleCode)) {
-      return jsonError("El rol seleccionado no es valido.", 400);
+      return jsonError("El rol seleccionado no es valido.", 400, requestId);
     }
 
     const parsedPermissionOverrides = parsePermissionOverridesInput(permissionOverrides);
     if (parsedPermissionOverrides === null) {
-      return jsonError("Los accesos enviados no son validos.", 400);
+      return jsonError("Los accesos enviados no son validos.", 400, requestId);
     }
 
     const existing = await getUserByUsername(username.trim().toLowerCase());
     if (existing) {
-      return jsonError("El nombre de usuario ya existe.", 409);
+      return jsonError("El nombre de usuario ya existe.", 409, requestId);
     }
 
     const user = await createUser({
@@ -76,6 +82,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ user }, { status: 201 });
   } catch (error) {
-    return handleApiError(error, "No se pudo crear el usuario.");
+    return handleApiError(error, "No se pudo crear el usuario.", requestId);
   }
 }

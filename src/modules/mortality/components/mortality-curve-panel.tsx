@@ -10,7 +10,7 @@ type MortalityCurvePanelProps = {
 
 const MortalityCurveChart = dynamic(
   () =>
-    import("@/components/dashboard/mortality-curve-chart").then(
+    import("@/modules/mortality/components/mortality-curve-chart").then(
       (mod) => mod.MortalityCurveChart,
     ),
   { ssr: false },

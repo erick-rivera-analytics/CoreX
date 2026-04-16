@@ -1,3 +1,5 @@
+> LEGACY / reference only.
+
 # CoreX — Pulimiento V2 aplicado
 
 Cambios incorporados en este paquete:
@@ -24,3 +26,4 @@ Archivos nuevos clave:
 # LEGACY / reference only
 
 Este changelog es historico. Para reglas vigentes usar `docs/reuse-index.md`, `docs/extender-modulos.md`, `docs/ui-canon.md` y `docs/security-ops.md`.
+> LEGACY / reference only. No usar este documento como fuente viva de crecimiento.

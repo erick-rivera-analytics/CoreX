@@ -1,3 +1,5 @@
+> LEGACY / reference only.
+
 # Trazabilidad de `A-4`
 
 ## Hallazgo
@@ -30,3 +32,4 @@ El valor todavía podía aparecer en Fenograma porque el flujo no estaba cerrado
 No era un hardcode visual aislado.
 No era únicamente PostgreSQL.
 La causa visible estaba en la transformación del backend de Fenograma al construir los datos que consume el frontend.
+> LEGACY / reference only. No usar este documento como fuente viva de crecimiento.

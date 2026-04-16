@@ -1,6 +1,6 @@
 "use client";
 
-import { PoscosechaSkusExplorer } from "@/components/dashboard/postcosecha-skus-explorer";
+import { PoscosechaSkusExplorer } from "@/modules/postcosecha/components/skus-explorer";
 import type { PoscosechaSkuRecord } from "@/lib/postcosecha-sku-types";
 
 export function SkusPage({

@@ -1,3 +1,5 @@
+> LEGACY / reference only.
+
 # Arquitectura del proyecto
 
 ## Objetivo
@@ -119,3 +121,4 @@ Ocultos hasta estar listos:
 - registros
 - programaciones de postcosecha
 - plan de trabajo
+> LEGACY / reference only. Ver `docs/module-contracts.md` y `docs/extender-modulos.md` para crecimiento vigente.

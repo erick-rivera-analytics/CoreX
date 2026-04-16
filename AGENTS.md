@@ -13,6 +13,7 @@ npm run canon:check
 npm run typecheck
 npm run lint
 npm run test
+npm run test:coverage
 npm run docs:check
 npx vitest run src/lib/__tests__/server-cache.test.ts
 ```
@@ -32,7 +33,7 @@ src/app -> src/modules -> src/shared + src/lib
 1. `page.tsx` server valida acceso y carga datos iniciales.
 2. El loader server reutiliza helpers de `src/modules/shared/server-page.tsx`.
 3. La UI de pantalla vive en `src/modules/*`.
-4. Los explorers legacy en `src/components/dashboard/*` quedan como piezas de UI internas o transicionales.
+4. `src/components/dashboard/*` queda congelado y reducido a placeholder/chatbot/notas; no es fuente de UI visible.
 5. Las APIs llaman `requireAuth()` y quedan protegidas por reglas explicitas en `src/lib/access-control.ts`.
 
 ### Fuente de verdad de modulos
@@ -85,6 +86,9 @@ Las rutas placeholder siguen existiendo solo como rutas ocultas; no deben volver
 
 - No introducir placeholders visibles como si fueran modulos listos.
 - Antes de crear UI/helper nuevo, revisar `docs/reuse-index.md`.
+- `src/components/dashboard/*` es legacy congelado; no crear crecimiento nuevo ahi.
+- `src/lib/fenograma.ts` y `src/lib/postcosecha-balanzas.ts` son fachadas temporales; agrega logica nueva en subarchivos de dominio, no en la fachada.
+- Para crear modulos nuevos sigue `docs/extender-modulos.md` de punta a punta.
 - Si una pagina nueva nace, debe registrarse primero en `src/config/module-catalog.ts`.
 - Si una API nueva usa `requireAuth()`, debe quedar mapeada en `src/lib/access-control.ts`.
 - Mantener errores API en shape compatible `{ message, error }`.

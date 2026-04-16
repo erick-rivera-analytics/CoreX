@@ -18,7 +18,7 @@ type ComparisonRadarPanelProps = {
 
 const ComparisonRadarChart = dynamic(
   () =>
-    import("@/components/dashboard/comparison-radar-chart").then(
+    import("@/modules/comparacion/components/comparison-radar-chart").then(
       (mod) => mod.ComparisonRadarChart,
     ),
   { ssr: false },

@@ -15,7 +15,7 @@ import {
   useMap,
 } from "react-leaflet";
 
-import { CampoCycleSelectorModal } from "@/components/dashboard/campo-cycle-selector";
+import { CampoCycleSelectorModal } from "@/modules/campo/components/campo-cycle-selector";
 import {
   CampoBaseTiles,
   CampoInteractionHint,
@@ -24,7 +24,7 @@ import {
   CampoRasterOverlay,
   type ActiveLayer,
   type RasterBounds,
-} from "@/components/dashboard/campo-map";
+} from "@/modules/campo/components/campo-map";
 import { Button } from "@/shared/ui/button";
 
 type SubMapMode = "valves" | "beds";

@@ -13,7 +13,7 @@ import {
   CampoRasterOverlay,
   type ActiveLayer,
   type RasterBounds,
-} from "@/components/dashboard/campo-map";
+} from "@/modules/campo/components/campo-map";
 import { cn } from "@/lib/utils";
 
 type Props = {

@@ -5,10 +5,10 @@ import { Activity, LoaderCircle, RefreshCcw } from "lucide-react";
 import useSWR from "swr";
 import { toast } from "sonner";
 
-import { BlockProfileModal } from "@/components/dashboard/fenograma-block-modal";
-import { MortalityCurvePanel } from "@/components/dashboard/mortality-curve-panel";
-import { MortalityTable } from "@/components/dashboard/mortality-table";
+import { BlockProfileModal } from "@/modules/fenograma/components/block-profile-modal";
 import { useBlockProfileModal } from "@/hooks/use-block-profile-modal";
+import { MortalityCurvePanel } from "@/modules/mortality/components/mortality-curve-panel";
+import { MortalityTable } from "@/modules/mortality/components/mortality-table";
 import { Button } from "@/shared/ui/button";
 import { MultiSelectField } from "@/shared/filters/multi-select-field";
 import { SectionPageShell } from "@/shared/layout/section-page-shell";

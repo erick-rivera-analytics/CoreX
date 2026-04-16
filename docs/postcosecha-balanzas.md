@@ -1,3 +1,5 @@
+> LEGACY / reference only.
+
 # Poscosecha Balanzas
 
 ## 1. Objetivo
@@ -154,3 +156,4 @@ npm run typecheck
 npm run lint
 npm run build
 ```
+> LEGACY / reference only. La fuente vigente es el codigo del modulo y los docs oficiales.

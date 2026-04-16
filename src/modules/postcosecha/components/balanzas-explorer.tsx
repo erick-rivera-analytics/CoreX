@@ -12,8 +12,8 @@ import {
 import useSWR from "swr";
 import { toast } from "sonner";
 
-import { BalanzasGroupedTable } from "@/components/dashboard/balanzas-grouped-table";
-import { BalanzasProcessViewer } from "@/components/dashboard/balanzas-process-viewer";
+import { BalanzasGroupedTable } from "@/modules/postcosecha/components/balanzas-grouped-table";
+import { BalanzasProcessViewer } from "@/modules/postcosecha/components/balanzas-process-viewer";
 import { Badge } from "@/shared/ui/badge";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";

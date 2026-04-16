@@ -5,8 +5,8 @@ import { Clock, ChevronDown, ChevronRight, LoaderCircle, RefreshCcw } from "luci
 import useSWR from "swr";
 import { toast } from "sonner";
 
-import { BlockProfileModal } from "@/components/dashboard/fenograma-block-modal";
-import { PersonHoursOverlay } from "@/components/dashboard/person-hours-overlay";
+import { BlockProfileModal } from "@/modules/fenograma/components/block-profile-modal";
+import { PersonHoursOverlay } from "@/modules/productividad/components/person-hours-overlay";
 import { useBlockProfileModal } from "@/hooks/use-block-profile-modal";
 import { Badge } from "@/shared/ui/badge";
 import { Button } from "@/shared/ui/button";

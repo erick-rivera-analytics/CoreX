@@ -6,7 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Map as MapIcon } from "lucide-react";
 import useSWRImmutable from "swr/immutable";
 
-import { BlockProfileModal } from "@/components/dashboard/fenograma-block-modal";
+import { BlockProfileModal } from "@/modules/fenograma/components/block-profile-modal";
 import { SectionPageShell } from "@/shared/layout/section-page-shell";
 import { FilterPanel } from "@/shared/layout/filter-panel";
 import { Badge } from "@/shared/ui/badge";
@@ -15,13 +15,13 @@ import { EmptyState } from "@/shared/data-display/empty-state";
 import { formatInteger } from "@/shared/lib/format";
 import { useBlockProfileModal } from "@/hooks/use-block-profile-modal";
 import { fetchJson } from "@/lib/fetch-json";
-import type { ActiveLayer, RasterBounds } from "@/components/dashboard/campo-map";
+import type { ActiveLayer, RasterBounds } from "@/modules/campo/components/campo-map";
 import type { CampoDashboardData, CampoMapFeature } from "@/lib/campo";
 
 const DEFAULT_RASTER_OPACITY = 0.9;
 
 const CampoLeafletMap = dynamic(
-  () => import("@/components/dashboard/campo-map").then((module) => ({ default: module.CampoLeafletMap })),
+  () => import("@/modules/campo/components/campo-map").then((module) => ({ default: module.CampoLeafletMap })),
   {
     ssr: false,
     loading: () => (
@@ -31,18 +31,18 @@ const CampoLeafletMap = dynamic(
 );
 
 const CampoRasterControls = dynamic(
-  () => import("@/components/dashboard/campo-map").then((module) => ({ default: module.CampoRasterControls })),
+  () => import("@/modules/campo/components/campo-map").then((module) => ({ default: module.CampoRasterControls })),
   { ssr: false },
 );
 
 const CampoRasterLegend = dynamic(
-  () => import("@/components/dashboard/campo-map").then((module) => ({ default: module.CampoRasterLegend })),
+  () => import("@/modules/campo/components/campo-map").then((module) => ({ default: module.CampoRasterLegend })),
   { ssr: false },
 );
 
 const CampoSubMapModal = dynamic(
   () =>
-    import("@/components/dashboard/campo-sub-map-modal").then((module) => ({
+    import("@/modules/campo/components/campo-sub-map-modal").then((module) => ({
       default: module.CampoSubMapModal,
     })),
   { ssr: false },
@@ -50,7 +50,7 @@ const CampoSubMapModal = dynamic(
 
 const CampoMapInset = dynamic(
   () =>
-    import("@/components/dashboard/campo-sjp-inset").then((module) => ({
+    import("@/modules/campo/components/campo-sjp-inset").then((module) => ({
       default: module.CampoMapInset,
     })),
   {
@@ -61,7 +61,7 @@ const CampoMapInset = dynamic(
 
 const CampoCycleSelectorModal = dynamic(
   () =>
-    import("@/components/dashboard/campo-cycle-selector").then((module) => ({
+    import("@/modules/campo/components/campo-cycle-selector").then((module) => ({
       default: module.CampoCycleSelectorModal,
     })),
   { ssr: false },

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 
 import {
   checkRateLimit,
@@ -6,6 +6,12 @@ import {
   getClientIdentity,
   resetRateLimit,
 } from "@/server/security/rate-limit";
+
+const ORIGINAL_ENV = { ...process.env };
+
+afterEach(() => {
+  process.env = { ...ORIGINAL_ENV };
+});
 
 describe("rate limit helpers", () => {
   it("builds stable client identities from proxy headers", () => {
@@ -21,7 +27,25 @@ describe("rate limit helpers", () => {
   });
 
   it("falls back safely when no proxy headers exist", () => {
+    process.env = { ...process.env, NODE_ENV: "development" };
     expect(getClientIdentity(new Request("https://corex.test"))).toBe("local");
+  });
+
+  it("builds a deterministic production fallback identity when proxy headers are missing", () => {
+    process.env = { ...process.env, NODE_ENV: "production" };
+
+    const request = new Request("https://corex.test", {
+      headers: {
+        host: "corex.test",
+        "user-agent": "Vitest",
+        "accept-language": "es-EC",
+      },
+    });
+
+    const clientKey = getClientIdentity(request);
+
+    expect(clientKey).toMatch(/^fallback-[a-f0-9]{24}$/);
+    expect(getClientIdentity(request, "Erick.Rivera")).toBe(`${clientKey}:erick.rivera`);
   });
 
   it("blocks after the configured limit and can reset a key", () => {

@@ -1,3 +1,5 @@
+> LEGACY / reference only.
+
 # Despliegue y rendimiento
 
 ## Flujo de actualizacion
@@ -254,3 +256,4 @@ Variables operativas recomendadas:
 - `LOG_FORMAT=json`.
 - `RATE_LIMIT_BACKEND=memory` hasta incorporar Redis.
 - `REDIS_URL` reservado para backend futuro.
+> LEGACY / reference only. Ver README y docs oficiales para crecimiento vigente; este archivo no gobierna el desarrollo nuevo.

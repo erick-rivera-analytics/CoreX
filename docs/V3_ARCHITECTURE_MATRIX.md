@@ -1,3 +1,5 @@
+> LEGACY / reference only.
+
 # CoreX V3 — matriz adicional de convergencia arquitectónica
 
 ## Convención de clasificación
@@ -73,3 +75,4 @@ Si dos sistemas hacen lo mismo, uno debe quedar como canon y el otro debe quedar
 # LEGACY / reference only
 
 Este documento describe una etapa previa. Para reglas vigentes usar `docs/reuse-index.md`, `docs/extender-modulos.md`, `docs/ui-canon.md` y `docs/security-ops.md`.
+> LEGACY / reference only. No usar este documento como fuente viva de crecimiento.

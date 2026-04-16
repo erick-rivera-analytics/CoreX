@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 const buckets = new Map<string, number[]>();
 
 export type RateLimitGate = {
@@ -6,10 +8,29 @@ export type RateLimitGate = {
   remaining: number;
 };
 
+function buildFallbackIdentity(request: Request) {
+  if (process.env.NODE_ENV !== "production") {
+    return "local";
+  }
+
+  const fingerprint = createHash("sha256")
+    .update([
+      request.headers.get("host") ?? "",
+      request.headers.get("user-agent") ?? "",
+      request.headers.get("accept-language") ?? "",
+      request.headers.get("x-forwarded-host") ?? "",
+      request.headers.get("x-forwarded-proto") ?? "",
+    ].join("|"))
+    .digest("hex")
+    .slice(0, 24);
+
+  return `fallback-${fingerprint}`;
+}
+
 export function getClientIdentity(request: Request, suffix?: string) {
   const rawKey = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
     || request.headers.get("x-real-ip")
-    || "local";
+    || buildFallbackIdentity(request);
   const clientKey = rawKey.toLowerCase().replace(/[^a-z0-9:._-]/g, "_").slice(0, 96);
   const normalizedSuffix = suffix?.trim().toLowerCase().replace(/[^a-z0-9:._-]/g, "_").slice(0, 96);
   return normalizedSuffix ? `${clientKey}:${normalizedSuffix}` : clientKey;

@@ -34,7 +34,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui/card";
 import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
 import { DialogShell } from "@/shared/overlays/dialog-shell";
-import { formatInteger } from "@/shared/lib/format";
+import { formatDate, formatInteger } from "@/shared/lib/format";
 import { ToggleSwitch } from "@/shared/forms/toggle-switch";
 import { ScrollFadeTable } from "@/shared/tables/scroll-fade-table";
 import { StandardTable, StandardTd, StandardTh } from "@/shared/tables/standard-table";
@@ -54,14 +54,6 @@ const roleLabelByCode = ROLE_OPTIONS.reduce<Record<RoleCode, string>>(
     custom: "Custom",
   },
 );
-
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString("es-EC", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
-}
 
 function getEffectiveAllowedResources(roleCode: RoleCode, overrides: PermissionOverride[]) {
   const baseAllowed = getBaseAllowedResources(roleCode);
@@ -146,7 +138,7 @@ export function UsersPage() {
   const customRoles = users.filter((user) => user.roleCode === "custom").length;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <SectionPageShell
         eyebrow="Administracion / Seguridad"
         title="Usuarios"

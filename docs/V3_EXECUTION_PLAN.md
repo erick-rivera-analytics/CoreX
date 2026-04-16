@@ -1,3 +1,5 @@
+> LEGACY / reference only.
+
 # CoreX V3 — plan ejecutable y verificable
 
 ## FASE 0 — inventario real del repo
@@ -233,3 +235,4 @@ Documentar deuda viva y dejar claro qué sigue en puente y qué debe morir.
 # LEGACY / reference only
 
 Este plan describe una etapa previa. Para reglas vigentes usar `docs/reuse-index.md`, `docs/extender-modulos.md`, `docs/ui-canon.md` y `docs/security-ops.md`.
+> LEGACY / reference only. No usar este documento como fuente viva de crecimiento.

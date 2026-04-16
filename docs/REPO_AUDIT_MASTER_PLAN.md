@@ -1,3 +1,5 @@
+> LEGACY / reference only.
+
 # CoreX Greenfield Rewrite — Master Plan
 
 
@@ -1419,4 +1421,5 @@ Created during implementation:
 | `docs/API_STANDARDIZATION_PLAN.md` | API route patterns |
 
 | `docs/UX_UI_SYSTEM_TARGET.md` | Design tokens, visual direction |
+> LEGACY / reference only. No usar este documento como fuente viva de crecimiento.
 

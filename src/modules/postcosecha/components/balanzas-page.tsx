@@ -1,6 +1,6 @@
 "use client";
 
-import { BalanzasExplorer } from "@/components/dashboard/balanzas-explorer";
+import { BalanzasExplorer } from "@/modules/postcosecha/components/balanzas-explorer";
 import type { BalanzasDashboardData } from "@/lib/postcosecha-balanzas";
 
 export function BalanzasPage({

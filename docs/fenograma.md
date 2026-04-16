@@ -1,3 +1,5 @@
+> LEGACY / reference only.
+
 # Fenograma
 
 ## 1. Proposito del modulo
@@ -528,3 +530,4 @@ Antes de cambiar `Fenograma`, revisar:
 3. si el detalle debe abrir por `parent_block` o por `cycle_key`
 4. si el nombre visible debe estandarizarse y no exponer el nombre crudo de BD
 5. si el cambio aumenta volumen y requiere pensar en rendimiento
+> LEGACY / reference only. La fuente vigente es el codigo del modulo Fenograma y los docs oficiales.
