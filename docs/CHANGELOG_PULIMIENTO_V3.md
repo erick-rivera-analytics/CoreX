@@ -127,3 +127,6 @@ Esta versión V3 no maquilla el repo. Prioriza convergencia real sobre tres fren
 - auditoría persistente (`audit_log`) no se implementó a nivel DB por falta de contrato de tabla estable dentro del zip entregado
 - CSRF formal end-to-end no se añadió para no introducir ruptura en flujo actual sin revisar todas las rutas mutantes
 - varios módulos legacy de postcosecha y fenograma requieren split por dominio completo, fuera del alcance razonable de este pulimiento puntual
+# LEGACY / reference only
+
+Este changelog es historico. Para reglas vigentes usar `docs/reuse-index.md`, `docs/extender-modulos.md`, `docs/ui-canon.md` y `docs/security-ops.md`.

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod/v4";
 
 import { validateCredentials, setSessionCookie } from "@/lib/auth";
-import { checkRateLimit, resetRateLimit } from "@/server/security/rate-limit";
+import { checkRequestRateLimit, getClientIdentity, getEnvNumber, resetRateLimit } from "@/server/security/rate-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -11,21 +11,8 @@ const loginSchema = z.object({
   password: z.string().min(1).max(1000),
 });
 
-function getClientKey(request: Request) {
-  const rawKey = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
-    || request.headers.get("x-real-ip")
-    || "local";
-
-  return rawKey.toLowerCase().replace(/[^a-z0-9:._-]/g, "_").slice(0, 96);
-}
-
 function normalizeUsername(username: string) {
   return username.trim().toLowerCase();
-}
-
-function getEnvNumber(name: string, fallback: number) {
-  const value = Number(process.env[name]);
-  return Number.isFinite(value) && value > 0 ? value : fallback;
 }
 
 function isRateLimitEnabled() {
@@ -49,7 +36,7 @@ function jsonError(message: string, status: number, headers?: HeadersInit) {
 }
 
 export async function POST(req: Request) {
-  const clientKey = getClientKey(req);
+  const clientKey = getClientIdentity(req);
 
   let body: unknown;
   try {
@@ -69,15 +56,14 @@ export async function POST(req: Request) {
 
   const { username, password } = parsed.data;
   const normalizedUsername = normalizeUsername(username);
-  const userRateKey = `login:${clientKey}:${normalizedUsername}`;
-  const ipRateKey = `login-ip:${clientKey}`;
+  const userRateKey = `login:${getClientIdentity(req, normalizedUsername)}`;
 
   if (isRateLimitEnabled()) {
     const ipLimit = getEnvNumber("AUTH_LOGIN_IP_RATE_LIMIT", 80);
     const userLimit = getEnvNumber("AUTH_LOGIN_USER_RATE_LIMIT", 8);
     const windowMs = getEnvNumber("AUTH_LOGIN_RATE_LIMIT_WINDOW_MS", 60_000);
-    const ipGate = checkRateLimit(ipRateKey, ipLimit, windowMs);
-    const userGate = checkRateLimit(userRateKey, userLimit, windowMs);
+    const ipGate = checkRequestRateLimit({ request: req, scope: "login-ip", limit: ipLimit, windowMs });
+    const userGate = checkRequestRateLimit({ request: req, scope: "login", suffix: normalizedUsername, limit: userLimit, windowMs });
 
     if (!ipGate.allowed || !userGate.allowed) {
       const retryAfterSeconds = Math.max(ipGate.retryAfterSeconds, userGate.retryAfterSeconds);

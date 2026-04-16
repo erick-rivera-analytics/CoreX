@@ -21,3 +21,6 @@ Archivos nuevos clave:
 - `src/shared/lib/area-normalization.ts`
 - `src/server/security/rate-limit.ts`
 - `docs/CHANGELOG_PULIMIENTO_V2.md`
+# LEGACY / reference only
+
+Este changelog es historico. Para reglas vigentes usar `docs/reuse-index.md`, `docs/extender-modulos.md`, `docs/ui-canon.md` y `docs/security-ops.md`.

@@ -1,5 +1,25 @@
 const buckets = new Map<string, number[]>();
 
+export type RateLimitGate = {
+  allowed: boolean;
+  retryAfterSeconds: number;
+  remaining: number;
+};
+
+export function getClientIdentity(request: Request, suffix?: string) {
+  const rawKey = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
+    || request.headers.get("x-real-ip")
+    || "local";
+  const clientKey = rawKey.toLowerCase().replace(/[^a-z0-9:._-]/g, "_").slice(0, 96);
+  const normalizedSuffix = suffix?.trim().toLowerCase().replace(/[^a-z0-9:._-]/g, "_").slice(0, 96);
+  return normalizedSuffix ? `${clientKey}:${normalizedSuffix}` : clientKey;
+}
+
+export function getEnvNumber(name: string, fallback: number) {
+  const value = Number(process.env[name]);
+  return Number.isFinite(value) && value > 0 ? value : fallback;
+}
+
 export function checkRateLimit(key: string, limit: number, windowMs: number) {
   const now = Date.now();
   const windowStart = now - windowMs;
@@ -25,4 +45,20 @@ export function checkRateLimit(key: string, limit: number, windowMs: number) {
 
 export function resetRateLimit(key: string) {
   buckets.delete(key);
+}
+
+export function checkRequestRateLimit({
+  request,
+  scope,
+  suffix,
+  limit,
+  windowMs,
+}: {
+  request: Request;
+  scope: string;
+  suffix?: string;
+  limit: number;
+  windowMs: number;
+}) {
+  return checkRateLimit(`${scope}:${getClientIdentity(request, suffix)}`, limit, windowMs);
 }

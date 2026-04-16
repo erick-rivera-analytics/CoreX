@@ -3,7 +3,7 @@ import crypto from "crypto";
 import bcrypt from "bcryptjs";
 
 import { getBaseAllowedResources } from "@/lib/access-control";
-import { resolveSessionSecret } from "@/lib/session-secret";
+import { resolvePreviousSessionSecret, resolveSessionSecret } from "@/lib/session-secret";
 import { getUserByUsername, type User } from "@/lib/users";
 import { query } from "./db";
 
@@ -60,13 +60,16 @@ export function createToken(username: string): string {
 
 export function verifyToken(token: string): string | null {
   try {
-    const secret = resolveSessionSecret();
     const [encoded, sig] = token.split(".");
     if (!encoded || !sig) return null;
 
-    const expectedSig = crypto.createHmac("sha256", secret).update(encoded).digest();
     const providedSig = Buffer.from(sig, "base64url");
-    if (providedSig.length !== expectedSig.length || !crypto.timingSafeEqual(providedSig, expectedSig)) {
+    const secrets = [resolveSessionSecret(), resolvePreviousSessionSecret()].filter(Boolean) as string[];
+    const validSignature = secrets.some((secret) => {
+      const expectedSig = crypto.createHmac("sha256", secret).update(encoded).digest();
+      return providedSig.length === expectedSig.length && crypto.timingSafeEqual(providedSig, expectedSig);
+    });
+    if (!validSignature) {
       return null;
     }
 

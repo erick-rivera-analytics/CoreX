@@ -3,6 +3,8 @@ import { type NextRequest, NextResponse } from "next/server";
 
 import { canAccessResource, getApiAccessRule } from "@/lib/access-control";
 import { getSessionUser } from "@/lib/auth";
+import { apiJsonError } from "@/lib/api-error";
+import { getRequestId } from "@/lib/request-id";
 
 export async function getCurrentUserAccess() {
   const user = await getSessionUser();
@@ -37,21 +39,19 @@ export async function requirePageAccess(resourceKey: string) {
 }
 
 export async function requireAuth(request: NextRequest): Promise<NextResponse | null> {
+  const requestId = getRequestId(request);
+  const originError = validateMutationOrigin(request, requestId);
+  if (originError) return originError;
+
   const access = await getCurrentUserAccess();
 
   if (!access || !access.isActive) {
-    return NextResponse.json(
-      { message: "Missing authentication token", error: "Missing authentication token" },
-      { status: 401 },
-    );
+    return apiJsonError("Missing authentication token", 401, requestId);
   }
 
   const rule = getApiAccessRule(request.nextUrl.pathname);
   if (!rule) {
-    return NextResponse.json(
-      { message: "La ruta API solicitada no esta habilitada.", error: "La ruta API solicitada no esta habilitada." },
-      { status: 403 },
-    );
+    return apiJsonError("La ruta API solicitada no esta habilitada.", 403, requestId);
   }
 
   if (rule.policy === "superadmin-only") {
@@ -59,28 +59,19 @@ export async function requireAuth(request: NextRequest): Promise<NextResponse | 
       return null;
     }
 
-    return NextResponse.json(
-      { message: "Este recurso es solo para superadmin.", error: "Este recurso es solo para superadmin." },
-      { status: 403 },
-    );
+    return apiJsonError("Este recurso es solo para superadmin.", 403, requestId);
   }
 
   if (rule.policy === "internal-dev-only") {
     if (process.env.NODE_ENV === "production") {
-      return NextResponse.json(
-        { message: "Ruta no disponible.", error: "Ruta no disponible." },
-        { status: 404 },
-      );
+      return apiJsonError("Ruta no disponible.", 404, requestId);
     }
 
     if (access.isSuperadmin) {
       return null;
     }
 
-    return NextResponse.json(
-      { message: "Este recurso interno es solo para superadmin.", error: "Este recurso interno es solo para superadmin." },
-      { status: 403 },
-    );
+    return apiJsonError("Este recurso interno es solo para superadmin.", 403, requestId);
   }
 
   const requiredResources = rule.requiredResources ?? [];
@@ -89,10 +80,39 @@ export async function requireAuth(request: NextRequest): Promise<NextResponse | 
   );
 
   if (!canView) {
-    return NextResponse.json(
-      { message: "No tienes acceso a este recurso.", error: "No tienes acceso a este recurso." },
-      { status: 403 },
-    );
+    return apiJsonError("No tienes acceso a este recurso.", 403, requestId);
+  }
+
+  return null;
+}
+
+function validateMutationOrigin(request: NextRequest, requestId: string) {
+  if (process.env.API_ORIGIN_CHECK_ENABLED !== "true") return null;
+  if (!["POST", "PUT", "PATCH", "DELETE"].includes(request.method)) return null;
+
+  const source = request.headers.get("origin") || request.headers.get("referer");
+  if (!source) {
+    return apiJsonError("Origen de solicitud no permitido.", 403, requestId);
+  }
+
+  let sourceOrigin: string;
+  try {
+    sourceOrigin = new URL(source).origin;
+  } catch {
+    return apiJsonError("Origen de solicitud no permitido.", 403, requestId);
+  }
+  const allowedOrigins = new Set(
+    [
+      request.nextUrl.origin,
+      process.env.APP_ORIGIN,
+      ...(process.env.TRUSTED_ORIGINS?.split(",") ?? []),
+    ]
+      .map((value) => value?.trim())
+      .filter(Boolean) as string[],
+  );
+
+  if (!allowedOrigins.has(sourceOrigin)) {
+    return apiJsonError("Origen de solicitud no permitido.", 403, requestId);
   }
 
   return null;

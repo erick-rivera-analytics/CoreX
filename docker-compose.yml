@@ -3,6 +3,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        SESSION_SECRET: ${SESSION_SECRET}
+        AUTH_MIN_SESSION_SECRET_LENGTH: ${AUTH_MIN_SESSION_SECRET_LENGTH:-32}
     container_name: corex
     restart: unless-stopped
     env_file:
@@ -13,6 +16,12 @@ services:
       HOSTNAME: 0.0.0.0
     ports:
       - "7777:7777"
+    stop_grace_period: 20s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
     networks:
       - corex_net
 

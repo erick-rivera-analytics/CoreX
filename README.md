@@ -43,9 +43,12 @@ npm install
 npm run dev
 npm run build
 npm run start
+npm run check
+npm run canon:check
 npm run typecheck
 npm run lint
 npm run test
+npm run e2e:smoke
 ```
 
 El servidor de desarrollo usa `next dev --webpack`.
@@ -73,7 +76,15 @@ DATABASE_PASSWORD=clave
 Variables importantes adicionales:
 
 - `SESSION_SECRET` obligatorio en produccion
+- `SESSION_SECRET_PREVIOUS` para rotacion temporal de sesiones
+- `COOKIE_SECURE`
+- `APP_ORIGIN`
+- `TRUSTED_ORIGINS`
+- `API_ORIGIN_CHECK_ENABLED`
+- `LOG_LEVEL`
+- `LOG_FORMAT`
 - `GROQ_API_KEY` para el chatbot contextual
+- `CHAT_ENABLED`
 - `DATABASE_POOL_MAX`
 - `DATABASE_IDLE_TIMEOUT_MS`
 - `SLOW_QUERY_THRESHOLD_MS`
@@ -99,13 +110,21 @@ Piezas importantes:
 
 - Las paginas `/dashboard/*` requieren sesion valida.
 - Las APIs con `requireAuth()` usan reglas explicitas y `deny by default`.
+- Las mutaciones pueden validar `Origin`/`Referer` con `API_ORIGIN_CHECK_ENABLED=true`.
 - `/api/health/db` es solo `superadmin`.
+- `/api/health/live` es publico y no expone datos sensibles.
 - `/api/programaciones/debug` es interno y no se expone en produccion.
-- Los errores API se normalizan a `{ message, error }`.
+- Los errores API se normalizan a `{ message, error }`; rutas modernizadas incluyen `requestId`.
 
 ## Referencias
 
-- `CLAUDE.md`: guia operativa principal del repo
+- `docs/reuse-index.md`: indice obligatorio antes de crear componentes o helpers
+- `docs/extender-modulos.md`: flujo canonico para agregar pantallas y APIs
+- `docs/ui-canon.md`: reglas visuales y excepciones UX/UI
+- `docs/security-ops.md`: auth, RBAC, health, origin checks, rate limit y logging
+- `docs/testing.md`: tests obligatorios y smoke manual
+- `docs/definition-of-done.md`: criterios de cierre
+- `CLAUDE.md`: guia operativa resumida
 - `AGENTS.md`: guia para agentes/coding assistants
-- `docs/arquitectura.md`: resumen de arquitectura actual
+- `docs/arquitectura.md`: referencia historica de arquitectura actual
 - `CHATBOT_SETUP.md`: estado real del chatbot contextual

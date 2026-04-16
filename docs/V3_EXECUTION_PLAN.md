@@ -230,3 +230,6 @@ Documentar deuda viva y dejar claro qué sigue en puente y qué debe morir.
 ### Riesgo de regresión
 
 - bajo
+# LEGACY / reference only
+
+Este plan describe una etapa previa. Para reglas vigentes usar `docs/reuse-index.md`, `docs/extender-modulos.md`, `docs/ui-canon.md` y `docs/security-ops.md`.

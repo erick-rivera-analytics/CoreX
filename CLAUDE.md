@@ -8,6 +8,9 @@ Guia operativa principal del repo.
 npm run dev          # Next.js 16.2.4 con Webpack
 npm run build
 npm run start
+npm run check
+npm run canon:check
+npm run docs:check
 npm run typecheck
 npm run lint
 npm run test
@@ -126,8 +129,20 @@ Politicas API:
 Casos importantes:
 
 - `/api/health/db` => `superadmin-only`
+- `/api/health/live` => publico, sin datos sensibles
 - `/api/programaciones/debug` => `internal-dev-only`
-- errores API => `{ message, error }`
+- mutaciones protegidas => origin/referer check si `API_ORIGIN_CHECK_ENABLED=true`
+- errores API => `{ message, error }`; helpers nuevos agregan `requestId`
+
+## Docs anti-invencion
+
+- `docs/reuse-index.md`: buscar aqui antes de crear componentes/helpers.
+- `docs/extender-modulos.md`: flujo unico catalogo -> page server -> loader -> UI -> API rule -> tests -> QA.
+- `docs/ui-canon.md`: reglas visuales y excepciones.
+- `docs/security-ops.md`: auth, RBAC, rate limit, health, logging y env.
+- `docs/testing.md`: estrategia de tests sin DB real y smoke manual.
+- `docs/definition-of-done.md`: checklist de cierre.
+- `docs/module-contracts.md`: contratos de page, API, UI y datos.
 
 ## UI Canon para Explorers
 
@@ -228,6 +243,14 @@ Postcosecha:
 Auth:
 
 - `SESSION_SECRET`
+- `SESSION_SECRET_PREVIOUS`
+- `AUTH_MIN_SESSION_SECRET_LENGTH`
+- `COOKIE_SECURE`
+- `APP_ORIGIN`
+- `TRUSTED_ORIGINS`
+- `API_ORIGIN_CHECK_ENABLED`
+- `LOG_LEVEL`
+- `LOG_FORMAT`
 - `ALLOW_ENV_ADMIN_BYPASS`
 - `ADMIN_USERNAME`
 - `ADMIN_PASSWORD`
@@ -235,3 +258,9 @@ Auth:
 Chat:
 
 - `GROQ_API_KEY`
+- `CHAT_ENABLED`
+- `CHAT_MAX_MESSAGES`
+- `CHAT_MAX_MESSAGE_CHARS`
+- `CHAT_MAX_CONTEXT_BYTES`
+- `CHAT_RATE_LIMIT`
+- `CHAT_RATE_LIMIT_WINDOW_MS`

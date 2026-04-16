@@ -2,7 +2,7 @@ import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import crypto from "crypto";
 
-import { resolveSessionSecret } from "@/lib/session-secret";
+import { resolvePreviousSessionSecret, resolveSessionSecret } from "@/lib/session-secret";
 
 const COOKIE_NAME = "wh-session";
 const legacyRoutes = new Set([
@@ -16,13 +16,16 @@ const legacyRoutes = new Set([
 
 function verifyToken(token: string): boolean {
   try {
-    const secret = resolveSessionSecret();
     const [encoded, sig] = token.split(".");
     if (!encoded || !sig) return false;
 
-    const expectedSig = crypto.createHmac("sha256", secret).update(encoded).digest();
     const providedSig = Buffer.from(sig, "base64url");
-    if (providedSig.length !== expectedSig.length || !crypto.timingSafeEqual(providedSig, expectedSig)) {
+    const secrets = [resolveSessionSecret(), resolvePreviousSessionSecret()].filter(Boolean) as string[];
+    const validSignature = secrets.some((secret) => {
+      const expectedSig = crypto.createHmac("sha256", secret).update(encoded).digest();
+      return providedSig.length === expectedSig.length && crypto.timingSafeEqual(providedSig, expectedSig);
+    });
+    if (!validSignature) {
       return false;
     }
 

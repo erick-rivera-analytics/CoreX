@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { requireAuth } from "@/lib/api-auth";
-import { checkRateLimit } from "@/server/security/rate-limit";
+import { apiJsonError } from "@/lib/api-error";
+import { getRequestId } from "@/lib/request-id";
+import { checkRequestRateLimit, getEnvNumber } from "@/server/security/rate-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -17,8 +19,8 @@ interface ChatRequest {
 
 const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
 
-function jsonError(message: string, status: number, headers?: HeadersInit) {
-  return NextResponse.json({ message, error: message }, { status, headers });
+function jsonError(message: string, status: number, requestId: string, headers?: HeadersInit) {
+  return apiJsonError(message, status, requestId, headers);
 }
 
 function isValidMessageList(messages: unknown): messages is ChatMessage[] {
@@ -33,18 +35,26 @@ function isValidMessageList(messages: unknown): messages is ChatMessage[] {
 }
 
 export async function POST(request: NextRequest) {
+  const requestId = getRequestId(request);
   const authError = await requireAuth(request);
   if (authError) return authError;
 
-  const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
-    || request.headers.get("x-real-ip")
-    || "local";
-  const rl = checkRateLimit(`chat:${ip}`, 10, 60_000);
+  if (process.env.CHAT_ENABLED === "false") {
+    return apiJsonError("El asistente no esta habilitado en este entorno.", 503, requestId);
+  }
+
+  const rl = checkRequestRateLimit({
+    request,
+    scope: "chat",
+    limit: getEnvNumber("CHAT_RATE_LIMIT", 10),
+    windowMs: getEnvNumber("CHAT_RATE_LIMIT_WINDOW_MS", 60_000),
+  });
 
   if (!rl.allowed) {
     return jsonError(
       "Demasiados intentos. Intenta nuevamente en un momento.",
       429,
+      requestId,
       { "Retry-After": String(rl.retryAfterSeconds) },
     );
   }
@@ -53,19 +63,30 @@ export async function POST(request: NextRequest) {
     const { messages, context } = (await request.json()) as ChatRequest;
 
     if (!isValidMessageList(messages)) {
-      return jsonError("La conversacion enviada no es valida.", 400);
+      return jsonError("La conversacion enviada no es valida.", 400, requestId);
+    }
+
+    const maxMessages = getEnvNumber("CHAT_MAX_MESSAGES", 12);
+    const maxMessageChars = getEnvNumber("CHAT_MAX_MESSAGE_CHARS", 1200);
+    const maxContextBytes = getEnvNumber("CHAT_MAX_CONTEXT_BYTES", 8000);
+
+    if (messages.length > maxMessages || messages.some((message) => message.content.length > maxMessageChars)) {
+      return jsonError("La conversacion enviada excede los limites permitidos.", 400, requestId);
     }
 
     if (!context || typeof context !== "object") {
-      return jsonError("El asistente no esta habilitado para esta pantalla.", 400);
+      return jsonError("El asistente no esta habilitado para esta pantalla.", 400, requestId);
     }
 
     const groqApiKey = process.env.GROQ_API_KEY;
     if (!groqApiKey) {
-      return jsonError("El asistente no esta configurado en este entorno.", 503);
+      return jsonError("El asistente no esta configurado en este entorno.", 503, requestId);
     }
 
     const contextStr = JSON.stringify(context);
+    if (new TextEncoder().encode(contextStr).length > maxContextBytes) {
+      return jsonError("El contexto enviado excede los limites permitidos.", 400, requestId);
+    }
     const systemPrompt = `Eres un asistente del dashboard agricola. Responde en espanol sobre ciclos, areas, variedades y metricas visibles.
 
 HECHOS (usa estos numeros exactamente):
@@ -103,7 +124,7 @@ CONTEXTO JSON: ${contextStr}`;
 
     if (!response.ok) {
       console.error("[CHAT] Groq API error", response.status);
-      return jsonError("No se pudo completar la respuesta del asistente.", 500);
+      return jsonError("No se pudo completar la respuesta del asistente.", 500, requestId);
     }
 
     const data = (await response.json()) as {
@@ -115,6 +136,6 @@ CONTEXTO JSON: ${contextStr}`;
     });
   } catch {
     console.error("[CHAT] Internal error");
-    return jsonError("Error interno del servidor.", 500);
+    return jsonError("Error interno del servidor.", 500, requestId);
   }
 }

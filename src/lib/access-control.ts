@@ -268,5 +268,9 @@ export function parsePermissionOverridesInput(value: unknown): PermissionOverrid
 }
 
 export function getApiAccessRule(pathname: string): ApiAccessRule | null {
-  return API_ACCESS_RULES.find((rule) => pathname.startsWith(rule.pathnamePrefix)) ?? null;
+  return API_ACCESS_RULES.find((rule) => matchesApiPrefix(pathname, rule.pathnamePrefix)) ?? null;
+}
+
+export function matchesApiPrefix(pathname: string, prefix: string) {
+  return pathname === prefix || pathname.startsWith(`${prefix}/`);
 }

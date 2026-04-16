@@ -238,3 +238,19 @@ La mejora mas fuerte suele venir de combinar:
 - filtros razonables por default
 
 Lo que seguira costando aun en produccion es el render de una tabla muy ancha con muchas semanas. Ese costo vive del lado del navegador y no se resuelve solo moviendo la app a Docker.
+# Nota 2026-04-16
+
+El despliegue Docker valida variables runtime antes de iniciar `server.js` con `scripts/validate-runtime-env.mjs`. En produccion se requiere `SESSION_SECRET` y una configuracion DB valida via `DATABASE_URL` o variables separadas `DATABASE_HOST`, `DATABASE_PORT`, `DATABASE_NAME`, `DATABASE_USER`, `DATABASE_PASSWORD`.
+
+El contenedor expone healthcheck contra `/api/health/live`. Esta ruta es publica y no devuelve datos sensibles. `/api/health/db` se mantiene protegida y solo disponible para `superadmin`.
+
+Variables operativas recomendadas:
+
+- `COOKIE_SECURE=true` cuando exista HTTPS formal.
+- `APP_ORIGIN=https://tu-dominio`.
+- `TRUSTED_ORIGINS=https://tu-dominio`.
+- `API_ORIGIN_CHECK_ENABLED=true`.
+- `LOG_LEVEL=info`.
+- `LOG_FORMAT=json`.
+- `RATE_LIMIT_BACKEND=memory` hasta incorporar Redis.
+- `REDIS_URL` reservado para backend futuro.

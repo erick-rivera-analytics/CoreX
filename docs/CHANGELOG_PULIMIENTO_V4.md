@@ -55,3 +55,6 @@
 - Siguen existiendo explorers legacy pesados en `src/components/dashboard/*`.
 - La convergencia total a `src/shared/*` y `src/modules/*` sigue avanzada pero no cerrada.
 - Aún quedan vistas fuera del alcance V4 con formato numérico legacy en `en-US`.
+# LEGACY / reference only
+
+Este changelog es historico. Para reglas vigentes usar `docs/reuse-index.md`, `docs/extender-modulos.md`, `docs/ui-canon.md` y `docs/security-ops.md`.

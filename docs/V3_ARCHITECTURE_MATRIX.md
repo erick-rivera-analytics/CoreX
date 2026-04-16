@@ -70,3 +70,6 @@
 ### Regla reforzada para V4+
 
 Si dos sistemas hacen lo mismo, uno debe quedar como canon y el otro debe quedar explícitamente marcado como puente o eliminación. No debe seguir habiendo coexistencia decorada.
+# LEGACY / reference only
+
+Este documento describe una etapa previa. Para reglas vigentes usar `docs/reuse-index.md`, `docs/extender-modulos.md`, `docs/ui-canon.md` y `docs/security-ops.md`.

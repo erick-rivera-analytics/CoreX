@@ -5,18 +5,21 @@ Guia operativa para agentes que trabajen en este repo.
 ## Comandos
 
 ```bash
-npm run dev          # Next.js 16.1.1 con Webpack
+npm run dev          # Next.js 16.2.4 con Webpack
 npm run build
 npm run start
+npm run check
+npm run canon:check
 npm run typecheck
 npm run lint
 npm run test
+npm run docs:check
 npx vitest run src/lib/__tests__/server-cache.test.ts
 ```
 
 ## Arquitectura actual
 
-**Stack:** Next.js 16.1.1, React 19, TypeScript 5.9, Tailwind CSS 4, PostgreSQL via `pg`, SWR en cliente.
+**Stack:** Next.js 16.2.4, React 19, TypeScript 5.9, Tailwind CSS 4, PostgreSQL via `pg`, SWR en cliente.
 
 ### Frontera de capas
 
@@ -73,15 +76,27 @@ Las rutas placeholder siguen existiendo solo como rutas ocultas; no deben volver
 - En desarrollo, el secreto se deriva del workspace; ya no se usa un secreto fijo hardcodeado.
 - `ALLOW_ENV_ADMIN_BYPASS` sigue limitado a no-produccion.
 - Las APIs protegidas usan `deny by default`.
+- Las mutaciones protegidas pueden validar `Origin`/`Referer` con `API_ORIGIN_CHECK_ENABLED=true`.
 - `/api/health/db` es `superadmin-only`.
+- `/api/health/live` es publico y no expone datos sensibles.
 - `/api/programaciones/debug` es `internal-dev-only`.
 
 ## Convenciones importantes
 
 - No introducir placeholders visibles como si fueran modulos listos.
+- Antes de crear UI/helper nuevo, revisar `docs/reuse-index.md`.
 - Si una pagina nueva nace, debe registrarse primero en `src/config/module-catalog.ts`.
 - Si una API nueva usa `requireAuth()`, debe quedar mapeada en `src/lib/access-control.ts`.
 - Mantener errores API en shape compatible `{ message, error }`.
+
+## Docs obligatorios
+
+- `docs/reuse-index.md`: que reutilizar antes de inventar.
+- `docs/extender-modulos.md`: flujo unico para agregar modulos.
+- `docs/ui-canon.md`: canon visual.
+- `docs/security-ops.md`: seguridad operacional.
+- `docs/testing.md`: pruebas y smoke.
+- `docs/definition-of-done.md`: cierre minimo.
 
 ## Restricciones
 

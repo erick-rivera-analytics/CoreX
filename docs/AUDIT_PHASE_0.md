@@ -37,3 +37,6 @@ Linea base para la primera ola de pulimiento conservador del sistema.
 - No rediseñar branding ni shell completo.
 - No cambiar proveedores externos en esta ola.
 - Priorizar quick wins validables y reversibles.
+# LEGACY / reference only
+
+Este documento es historico. Para reglas vigentes usar `docs/reuse-index.md`, `docs/extender-modulos.md`, `docs/ui-canon.md` y `docs/security-ops.md`.
