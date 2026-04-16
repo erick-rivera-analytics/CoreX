@@ -16,12 +16,6 @@ import { BalanzasGroupedTable } from "@/components/dashboard/balanzas-grouped-ta
 import { BalanzasProcessViewer } from "@/components/dashboard/balanzas-process-viewer";
 import { Badge } from "@/shared/ui/badge";
 import { Button } from "@/shared/ui/button";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/shared/ui/card";
 import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
 import { formatDate, formatDecimal, formatInteger } from "@/shared/lib/format";
@@ -30,10 +24,11 @@ import { matchesMultiSelectValue } from "@/lib/multi-select";
 import { cn } from "@/lib/utils";
 import { MultiSelectField } from "@/shared/filters/multi-select-field";
 import { SectionPageShell } from "@/shared/layout/section-page-shell";
-import { FilterPanel, KpiGrid } from "@/shared/layout/filter-panel";
+import { ChartSection, FilterPanel, KpiGrid } from "@/shared/layout/filter-panel";
 import { DateField } from "@/shared/filters/date-field";
 import { EmptyState } from "@/shared/data-display/empty-state";
 import { MetricTile } from "@/shared/data-display/metric-tile";
+import { ChartSurface } from "@/shared/data-display/chart-surface";
 import { DialogShell } from "@/shared/overlays/dialog-shell";
 import type {
   BalanzasDashboardData,
@@ -636,21 +631,11 @@ export function BalanzasExplorer({
       {data.nodes.length === 0 ? (
         <EmptyState label="No hay nodos de balanzas disponibles para el periodo seleccionado." />
       ) : (
-        <Card className="starter-panel border-border/70 bg-card/82">
-          <CardHeader className="space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="rounded-full bg-slate-900/10 dark:bg-slate-900/20 p-3 text-slate-700 dark:text-white">
-                <Scale className="size-5" aria-hidden="true" />
-              </div>
-              <div className="min-w-0">
-                <CardTitle className="text-lg">Flujo de postcosecha</CardTitle>
-                <p className="text-sm text-muted-foreground">
-                  Rama instrumentada: Apertura {"->"} Apertura pelado patas {"->"} BAL2 {"->"} BAL2A. En el ultimo tramo el flujo se abre en Arcoiris, Tinturado y Blanco.
-                </p>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
+        <ChartSection>
+          <ChartSurface
+            title="Flujo de postcosecha"
+            subtitle='Rama instrumentada: Apertura -> Apertura pelado patas -> BAL2 -> BAL2A. En el ultimo tramo el flujo se abre en Arcoiris, Tinturado y Blanco.'
+          >
             <BalanzasProcessViewer
               assetPath={data.processAssetPath}
               metricLabel={data.metricLabel}
@@ -658,8 +643,8 @@ export function BalanzasExplorer({
               selectedNodeKey={selectedNodeKey}
               onNodeSelect={openNode}
             />
-          </CardContent>
-        </Card>
+          </ChartSurface>
+        </ChartSection>
       )}
 
       {selectedNode ? (

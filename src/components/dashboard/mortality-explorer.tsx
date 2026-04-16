@@ -17,7 +17,7 @@ import { MetricTile } from "@/shared/data-display/metric-tile";
 import { ChartSurface } from "@/shared/data-display/chart-surface";
 import { EmptyState } from "@/shared/data-display/empty-state";
 import { fetchJson } from "@/lib/fetch-json";
-import { formatFlexibleNumber, formatPercent } from "@/shared/lib/format";
+import { formatFlexibleNumber as formatNumber, formatPercent } from "@/shared/lib/format";
 import type { BlockModalRow } from "@/lib/fenograma";
 import type {
   MortalityCurvePayload,
@@ -25,10 +25,6 @@ import type {
   MortalityDashboardRow,
   MortalityFilters,
 } from "@/lib/mortality";
-
-function formatNumber(value: number | null) {
-  return formatFlexibleNumber(value, { empty: "-" });
-}
 
 const mortalityDashboardFetcher = (url: string) =>
   fetchJson<MortalityDashboardData>(url, "No se pudo cargar el dashboard de mortandades.");

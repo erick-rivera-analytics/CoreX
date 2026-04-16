@@ -10,17 +10,9 @@ import { Badge } from "@/shared/ui/badge";
 import { MetricTile } from "@/shared/data-display/metric-tile";
 import { SheetShell } from "@/shared/overlays/sheet-shell";
 import { fetchJson } from "@/lib/fetch-json";
-import { formatFlexibleNumber, formatPercent as formatPercentShared } from "@/shared/lib/format";
+import { formatFlexibleNumber as formatNumber, formatPercent } from "@/shared/lib/format";
 import { cn } from "@/lib/utils";
 import type { CycleLaborPersonDetailPayload } from "@/lib/fenograma";
-
-function formatNumber(value: number | null) {
-  return formatFlexibleNumber(value, { empty: "-" });
-}
-
-function formatPercent(value: number | null) {
-  return formatPercentShared(value, { empty: "-", minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
 
 function formatProductivity(value: number | null, fallback = "-") {
   if (value === null) {

@@ -1,17 +1,14 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ArrowDownUp } from "lucide-react";
 
 import { Badge } from "@/shared/ui/badge";
 import { Card, CardContent } from "@/shared/ui/card";
+import { ScrollFadeTable } from "@/shared/tables/scroll-fade-table";
+import { SortableHeader } from "@/shared/tables/sortable-header";
 import { cn } from "@/lib/utils";
-import { formatFlexibleNumber, formatPercent } from "@/shared/lib/format";
+import { formatFlexibleNumber as formatNumber, formatPercent } from "@/shared/lib/format";
 import type { MortalityDashboardRow } from "@/lib/mortality";
-
-function formatNumber(value: number | null) {
-  return formatFlexibleNumber(value, { empty: "-" });
-}
 
 type MortalitySortKey =
   | "cycleKey"
@@ -126,30 +123,21 @@ export function MortalityTable({
           </div>
         </div>
 
-        <div className="overflow-auto rounded-[24px] border border-border/70">
+        <ScrollFadeTable className="border border-border/70">
           <table className="min-w-full border-separate border-spacing-0 text-sm">
             <thead className="sticky top-0 z-20 bg-card/95 backdrop-blur">
               <tr>
                 {columns.map((column) => (
-                  <th
+                  <SortableHeader
                     key={column.key}
-                    className={cn(
-                      "border-b border-r border-border/70 bg-card px-3 py-3 font-semibold text-foreground last:border-r-0",
-                      column.align === "right" ? "text-right" : "text-left",
-                    )}
-                  >
-                    <button
-                      type="button"
-                      className={cn(
-                        "inline-flex items-center gap-2",
-                        column.align === "right" ? "justify-end" : "justify-start",
-                      )}
-                      onClick={() => toggleSort(column.key)}
-                    >
-                      {column.label}
-                      <ArrowDownUp className="size-3.5" aria-hidden="true" />
-                    </button>
-                  </th>
+                    label={column.label}
+                    sortKey={column.key}
+                    activeSortKey={sortBy}
+                    direction={sortDirection}
+                    onSort={(key) => toggleSort(key as MortalitySortKey)}
+                    align={column.align}
+                    className="last:border-r-0"
+                  />
                 ))}
               </tr>
             </thead>
@@ -200,7 +188,7 @@ export function MortalityTable({
               )}
             </tbody>
           </table>
-        </div>
+        </ScrollFadeTable>
       </CardContent>
     </Card>
   );

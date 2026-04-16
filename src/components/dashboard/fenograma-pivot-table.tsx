@@ -7,7 +7,7 @@ import { Badge } from "@/shared/ui/badge";
 import { Button } from "@/shared/ui/button";
 import { Card, CardContent } from "@/shared/ui/card";
 import { cn } from "@/lib/utils";
-import { formatFlexibleNumber } from "@/shared/lib/format";
+import { formatDateSlash as formatDate, formatFlexibleNumber } from "@/shared/lib/format";
 import type { FenogramaDashboardData, FenogramaPivotRow } from "@/lib/fenograma";
 
 const collator = new Intl.Collator("es-EC", {
@@ -56,15 +56,6 @@ const lifecycleLabelMap: Record<FenogramaPivotRow["lifecycleStatus"], string> = 
   planned: "Planificado",
   history: "Historia",
 };
-
-function formatDate(value: string | null) {
-  if (!value) {
-    return "-";
-  }
-
-  const [year, month, day] = value.split("-");
-  return year && month && day ? `${day}/${month}/${year}` : value;
-}
 
 function formatCellValue(value: number | null | undefined) {
   if (value === null || value === undefined || value === 0) {

@@ -9,6 +9,7 @@ import { FilterPanel } from "@/shared/layout/filter-panel";
 import { MultiSelectField } from "@/shared/filters/multi-select-field";
 import { formatInteger, formatDate } from "@/shared/lib/format";
 import { EmptyState } from "@/shared/data-display/empty-state";
+import { AREA_PALETTE, SPTYPE_ACCENT_COLORS, VARIETY_COLORS } from "@/config/programaciones-palettes";
 import { fetchJson } from "@/lib/fetch-json";
 import { decodeMultiSelectValue } from "@/lib/multi-select";
 import { cn } from "@/lib/utils";
@@ -39,46 +40,6 @@ const MONTH_NAMES = [
 ];
 const FASE_OPTIONS = ["Planificado", "Vegetativo", "Cosecha", "Historia"] as const;
 type FaseOption = (typeof FASE_OPTIONS)[number] | "";
-
-// ── Color palettes (inline styles — safe with Tailwind purge) ─────────────────
-
-/** Each area gets a unique background tint + matching border.  */
-const AREA_PALETTE: { bg: string; border: string }[] = [
-  { bg: "rgba(20,184,166,0.11)",  border: "rgba(20,184,166,0.40)" },  // teal
-  { bg: "rgba(59,130,246,0.11)",  border: "rgba(59,130,246,0.40)" },  // blue
-  { bg: "rgba(139,92,246,0.11)",  border: "rgba(139,92,246,0.40)" },  // violet
-  { bg: "rgba(245,158,11,0.11)",  border: "rgba(245,158,11,0.40)" },  // amber
-  { bg: "rgba(16,185,129,0.11)",  border: "rgba(16,185,129,0.40)" },  // emerald
-  { bg: "rgba(244,63,94,0.11)",   border: "rgba(244,63,94,0.40)" },   // rose
-  { bg: "rgba(249,115,22,0.11)",  border: "rgba(249,115,22,0.40)" },  // orange
-  { bg: "rgba(6,182,212,0.11)",   border: "rgba(6,182,212,0.40)" },   // cyan
-];
-
-/** Variety badge background (more saturated). */
-const VARIETY_COLORS: string[] = [
-  "rgba(20,184,166,0.75)",
-  "rgba(59,130,246,0.75)",
-  "rgba(139,92,246,0.75)",
-  "rgba(245,158,11,0.75)",
-  "rgba(16,185,129,0.75)",
-  "rgba(244,63,94,0.75)",
-  "rgba(249,115,22,0.75)",
-  "rgba(6,182,212,0.75)",
-];
-
-/** SP-type left accent bar (third, independent channel). */
-const SPTYPE_ACCENT_COLORS: string[] = [
-  "#e8a35d",
-  "#e8a35d",
-  "#d1a560",
-  "#daa95c",
-  "#e8a35d",
-  "#e8a35d",
-  "#daa95c",
-  "#e8a35d",
-];
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
 
 function strHash(s: string, len: number): number {
   if (!s || len <= 0) return 0;

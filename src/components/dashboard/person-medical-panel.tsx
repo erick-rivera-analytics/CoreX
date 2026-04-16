@@ -18,14 +18,6 @@ import type {
 } from "@/lib/salud";
 import { cn } from "@/lib/utils";
 
-function formatNumber(value: number | null, digits = 2) {
-  if (value === null) {
-    return "-";
-  }
-
-  return Number.isInteger(value) && digits === 2 ? formatInteger(value) : formatDecimal(value, digits);
-}
-
 type MarkerTrendPoint = {
   examId: number;
   date: string;
@@ -243,7 +235,7 @@ function MarkerTrendChart({
           y1={height - paddingBottom}
           x2={width - paddingRight}
           y2={height - paddingBottom}
-          stroke="rgb(203 213 225)"
+          stroke="var(--color-border)"
           strokeWidth="1"
         />
         {referenceLow !== null ? (
@@ -252,7 +244,7 @@ function MarkerTrendChart({
             y1={scaleY(referenceLow)}
             x2={width - paddingRight}
             y2={scaleY(referenceLow)}
-            stroke="rgb(251 146 60)"
+            stroke="var(--color-chart-warning)"
             strokeDasharray="6 6"
             strokeWidth="1.5"
           />
@@ -263,7 +255,7 @@ function MarkerTrendChart({
             y1={scaleY(referenceHigh)}
             x2={width - paddingRight}
             y2={scaleY(referenceHigh)}
-            stroke="rgb(34 197 94)"
+            stroke="var(--color-chart-success-bold)"
             strokeDasharray="6 6"
             strokeWidth="1.5"
           />
@@ -271,7 +263,7 @@ function MarkerTrendChart({
         <polyline
           points={polyline}
           fill="none"
-          stroke="rgb(8 145 178)"
+          stroke="var(--color-chart-info-bold)"
           strokeWidth="3"
           strokeLinejoin="round"
           strokeLinecap="round"
@@ -283,8 +275,8 @@ function MarkerTrendChart({
               cy={scaleY(point.value)}
               r="5.5"
               fill={point.deltaPct !== null && point.deltaPct <= -25 && point.marker.field === "colinesterasa"
-                ? "rgb(225 29 72)"
-                : "rgb(8 145 178)"}
+                ? "var(--color-chart-danger)"
+                : "var(--color-chart-info-bold)"}
             />
             <text
               x={scaleX(index)}
@@ -292,7 +284,7 @@ function MarkerTrendChart({
               textAnchor="middle"
               className="fill-slate-600 text-[11px] font-medium"
             >
-              {formatNumber(point.value)}
+              {Number.isInteger(point.value) ? formatInteger(point.value) : formatDecimal(point.value)}
             </text>
             <text
               x={scaleX(index)}
@@ -385,7 +377,13 @@ function MedicalMarkerOverlay({
                 />
                 <SummaryCard
                   label="Ultimo valor"
-                  value={`${formatNumber(latestPoint?.value ?? null)} ${marker.unit}`.trim()}
+                  value={`${
+                    latestPoint?.value === undefined || latestPoint.value === null
+                      ? "-"
+                      : Number.isInteger(latestPoint.value)
+                        ? formatInteger(latestPoint.value)
+                        : formatDecimal(latestPoint.value)
+                  } ${marker.unit}`.trim()}
                 />
                 <SummaryCard
                   label="Cambio reciente"
@@ -446,7 +444,7 @@ function MedicalMarkerOverlay({
                             <td className="border-b border-r border-border/40 px-3 py-2.5">{formatDisplayDate(point.date)}</td>
                             <td className="border-b border-r border-border/40 px-3 py-2.5">{point.type}</td>
                             <td className="border-b border-r border-border/40 px-3 py-2.5 text-right tabular-nums">
-                              {formatNumber(point.value)} {marker.unit}
+                              {Number.isInteger(point.value) ? formatInteger(point.value) : formatDecimal(point.value)} {marker.unit}
                             </td>
                             <td className={cn(
                               "border-b border-r border-border/40 px-3 py-2.5 text-right tabular-nums",
@@ -682,7 +680,11 @@ export function PersonMedicalPanel({
                       <div>
                         <p className="text-sm font-semibold text-foreground">{marker.name}</p>
                         <p className="mt-1 text-2xl font-semibold tracking-tight text-foreground">
-                          {marker.value === null ? "NA" : formatNumber(marker.value)}
+                          {marker.value === null
+                            ? "NA"
+                            : Number.isInteger(marker.value)
+                              ? formatInteger(marker.value)
+                              : formatDecimal(marker.value)}
                           {marker.unit ? (
                             <span className="ml-1 text-sm font-medium text-muted-foreground">
                               {marker.unit}

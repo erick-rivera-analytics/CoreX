@@ -77,7 +77,7 @@ export function TalentoComposicionPage({ initialData }: { initialData: TalentoAc
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <SectionPageShell
         eyebrow="Dashboard / Indicadores / Talento Humano"
         title="Composición laboral"

@@ -77,7 +77,7 @@ export function TalentoDemografiaPage({ initialData }: { initialData: TalentoAct
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <SectionPageShell
         eyebrow="Dashboard / Indicadores / Talento Humano"
         title="Demografía personal"

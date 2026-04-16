@@ -29,7 +29,7 @@ import { Label } from "@/shared/ui/label";
 import { MetricTile } from "@/shared/data-display/metric-tile";
 import { FilterPanel, KpiGrid } from "@/shared/layout/filter-panel";
 import { SectionPageShell } from "@/shared/layout/section-page-shell";
-import { formatDecimal } from "@/shared/lib/format";
+import { formatDateTime, formatDecimal } from "@/shared/lib/format";
 import { fetchJson } from "@/lib/fetch-json";
 import type {
   PoscosechaSkuInput,
@@ -59,43 +59,6 @@ const EMPTY_FORM_VALUES: PoscosechaSkuInput = {
 
 const skuFetcher = (url: string) =>
   fetchJson<PoscosechaSkuRecord[]>(url, "No se pudo cargar el maestro de SKU.");
-
-const POSTHARVEST_TIME_ZONE = "America/Guayaquil";
-const DATETIME_FORMATTER = new Intl.DateTimeFormat("es-EC", {
-  day: "numeric",
-  month: "short",
-  year: "numeric",
-  hour: "numeric",
-  minute: "2-digit",
-  hour12: true,
-  timeZone: POSTHARVEST_TIME_ZONE,
-});
-
-function normalizeIntlText(value: string) {
-  return value.replace(/[\u00A0\u202F]/g, " ").replace(/\s+/g, " ").trim();
-}
-
-
-function formatDateTime(value: string | null) {
-  if (!value) {
-    return "-";
-  }
-
-  const parts = DATETIME_FORMATTER.formatToParts(new Date(value));
-  const lookup = new Map(parts.map((part) => [part.type, normalizeIntlText(part.value)]));
-  const day = lookup.get("day");
-  const month = lookup.get("month");
-  const year = lookup.get("year");
-  const hour = lookup.get("hour");
-  const minute = lookup.get("minute");
-  const dayPeriod = lookup.get("dayPeriod");
-
-  if (day && month && year && hour && minute) {
-    return `${day} ${month} ${year}, ${hour}:${minute}${dayPeriod ? ` ${dayPeriod}` : ""}`;
-  }
-
-  return normalizeIntlText(DATETIME_FORMATTER.format(new Date(value)));
-}
 
 function toNumber(value: unknown, fallback = 0) {
   const parsed = Number(value);

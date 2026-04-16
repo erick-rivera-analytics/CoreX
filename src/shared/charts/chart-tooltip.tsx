@@ -19,7 +19,7 @@ export function ChartTooltip({ title, rows, className }: ChartTooltipProps) {
   return (
     <div
       className={cn(
-        "rounded-[16px] border border-border bg-card px-3.5 py-3 shadow-[0_22px_60px_-28px_rgba(15,23,42,0.35)]",
+        "rounded-[16px] border border-border bg-card px-3.5 py-3 shadow-[var(--shadow-tooltip)]",
         className,
       )}
     >

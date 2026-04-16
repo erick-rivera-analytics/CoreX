@@ -86,7 +86,7 @@ export function TalentoRotacionPage({ initialData }: { initialData: TalentoRotac
   const rotationRate = summary.rotationRate === null ? "-" : formatPercent(summary.rotationRate);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <SectionPageShell
         eyebrow="Dashboard / Indicadores / Talento Humano"
         title="Rotación laboral"

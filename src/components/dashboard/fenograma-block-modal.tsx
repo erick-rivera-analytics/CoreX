@@ -12,7 +12,11 @@ import { PersonMedicalPanel } from "@/components/dashboard/person-medical-panel"
 import { Badge } from "@/shared/ui/badge";
 import { Button } from "@/shared/ui/button";
 import { fetchJson } from "@/lib/fetch-json";
-import { formatFlexibleNumber, formatPercent as formatPercentShared } from "@/shared/lib/format";
+import {
+  formatDateSlash as formatDate,
+  formatFlexibleNumber as formatNumber,
+  formatPercent,
+} from "@/shared/lib/format";
 
 const ProcessViewerOverlay = dynamic(
   () =>
@@ -43,28 +47,6 @@ import type {
 } from "@/lib/fenograma";
 import type { MortalityCurvePayload } from "@/lib/mortality";
 import type { SelectedMortalityCurveState } from "@/hooks/use-block-profile-modal";
-
-function formatDate(value: string | null) {
-  if (!value || value.startsWith("9999-")) {
-    return "-";
-  }
-
-  const [year, month, day] = value.split("-");
-
-  if (!year || !month || !day) {
-    return value;
-  }
-
-  return `${day}/${month}/${year}`;
-}
-
-function formatNumber(value: number | null) {
-  return formatFlexibleNumber(value, { empty: "-" });
-}
-
-function formatPercent(value: number | null) {
-  return formatPercentShared(value, { empty: "-", minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
 
 // Wrapper with custom fallback behavior
 function formatProductivity(value: number | null, fallback = "-") {

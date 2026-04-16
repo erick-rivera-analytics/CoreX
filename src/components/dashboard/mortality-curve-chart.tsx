@@ -29,7 +29,7 @@ export const MortalityCurveChart = memo(function MortalityCurveChart({ data }: M
         <ComposedChart data={data} margin={{ top: 10, right: 24, left: 0, bottom: 8 }}>
           <defs>
             <linearGradient id="mortalityCumulativeFill" x1="0" x2="0" y1="0" y2="1">
-              <stop offset="5%" stopColor="var(--chart-line-primary)" stopOpacity={0.28} />
+              <stop offset="5%" stopColor="var(--chart-line-primary)" stopOpacity={0.3} />
               <stop offset="95%" stopColor="var(--chart-line-primary)" stopOpacity={0.02} />
             </linearGradient>
           </defs>

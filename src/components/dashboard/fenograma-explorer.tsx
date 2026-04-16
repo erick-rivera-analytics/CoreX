@@ -12,11 +12,11 @@ import { FenogramaWeeklyBarsChart } from "@/components/dashboard/fenograma-weekl
 import { useBlockProfileModal } from "@/hooks/use-block-profile-modal";
 import { Button } from "@/shared/ui/button";
 import { formatDate, formatInteger } from "@/shared/lib/format";
-import { Card, CardContent } from "@/shared/ui/card";
 import { MultiSelectField } from "@/shared/filters/multi-select-field";
 import { DetailSection, FilterPanel, KpiGrid, ChartSection } from "@/shared/layout/filter-panel";
 import { SectionPageShell } from "@/shared/layout/section-page-shell";
 import { MetricTile } from "@/shared/data-display/metric-tile";
+import { ChartSurface } from "@/shared/data-display/chart-surface";
 import { SingleSelectField } from "@/shared/filters/single-select-field";
 import { ToggleChipGroup } from "@/shared/filters/toggle-chip-group";
 import { EmptyState } from "@/shared/data-display/empty-state";
@@ -176,11 +176,9 @@ export function FenogramaExplorer({ initialData }: { initialData: FenogramaDashb
       </SectionPageShell>
 
       <ChartSection>
-        <Card className="starter-panel border-border/70 bg-card/86">
-          <CardContent className="pt-6">
-            <FenogramaWeeklyBarsChart data={data.weeklyTotals} />
-          </CardContent>
-        </Card>
+        <ChartSurface title="Acumulado semanal">
+          <FenogramaWeeklyBarsChart data={data.weeklyTotals} />
+        </ChartSurface>
       </ChartSection>
 
       <DetailSection>

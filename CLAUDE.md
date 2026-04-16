@@ -165,7 +165,7 @@ Componentes compartidos obligatorios:
 - `DateField`, `WeekField`, `ToggleChipGroup`, `MultiSelectField`, `SingleSelectField` from `@/shared/filters/*`
 - `DialogShell`, `SheetShell` from `@/shared/overlays/*`
 - `SortableHeader`, `ScrollFadeTable`, `StandardTable` from `@/shared/tables/*`
-- Formatters from `@/shared/lib/format`
+- Formatters from `@/shared/lib/format`: `formatInteger`, `formatDecimal`, `formatFlexibleNumber`, `formatPercent`, `formatHours`, `formatDate`, `formatDateSlash`, `formatDateTime`
 
 Reglas visuales obligatorias:
 
@@ -174,6 +174,15 @@ Reglas visuales obligatorias:
 - Charts Recharts siempre con `ChartTooltip`/`RechartsTooltipAdapter` y axis config compartido.
 - Overlays nuevos siempre con `DialogShell` o `SheetShell`; no crear z-index custom.
 - Colores de charts nuevos via CSS custom properties, no hex/rgb inline.
+- Superficies tipo panel usan tokens `var(--shadow-*)`; `.starter-panel` consume `--shadow-panel` y tooltips consumen `--shadow-tooltip`.
+
+Excepciones documentadas:
+
+- `campo-map.tsx` conserva colores directos porque Leaflet necesita valores concretos para `L.PathOptions`.
+- Programaciones usa paletas categoricas literales centralizadas en `src/config/programaciones-palettes.ts`.
+- Comparacion no requiere `KpiGrid`; su layout de batalla es el contenido principal.
+- `fenograma-block-modal.tsx` conserva `MetricPill` local porque es clickeable y de dominio.
+- `person-detail-sheet.tsx` puede usar `space-y-6` dentro del overlay para respiracion visual.
 
 ## Restricciones
 
@@ -190,10 +199,9 @@ Reglas visuales obligatorias:
 - `src/components/dashboard/` sigue siendo legacy/transicional. No crear archivos nuevos alli.
 - Varias entradas de `src/modules/*` todavia importan explorers legacy desde `src/components/dashboard/*`.
 - `fenograma-block-modal.tsx` sigue siendo un componente masivo y debe partirse por subdominios antes de crecer mas.
-- `postcosecha-skus-explorer.tsx` y `postcosecha-clasificacion-en-blanco-explorer.tsx` aun tienen headers/cards legacy y deben migrar a `SectionPageShell`.
-- Programaciones y mapas conservan paletas hardcoded de dominio; si se reutilizan, extraerlas a config/tokens.
+- `postcosecha-clasificacion-en-blanco-explorer.tsx` aun tiene headers/cards legacy y debe migrar a `SectionPageShell`.
+- El canon UX/UI de explorers principales queda cerrado; nuevas divergencias deben documentarse como excepcion antes de crecer.
 - El build puede emitir warning de Turbopack/NFT por rutas dinamicas del solver de postcosecha; mantenerlo vigilado.
-- Quedan algunos formatters locales en overlays/tablas complejas; no replicar ese patron en codigo nuevo.
 
 ## Variables de entorno
 
