@@ -80,7 +80,7 @@ export function PoscosechaClasificacionRecipeOverlay({
         onClick={onClose}
         aria-label="Cerrar detalle de receta por SKU"
       />
-      <div className="relative z-10 flex max-h-[min(90dvh,960px)] w-full max-w-sm min-w-0 flex-col overflow-hidden rounded-2xl border border-border/50 bg-card shadow-2xl shadow-slate-950/20 sm:max-w-2xl md:max-w-4xl lg:max-w-6xl">
+      <div className="relative z-10 flex max-h-[min(90dvh,960px)] w-full max-w-sm min-w-0 flex-col overflow-hidden rounded-2xl border border-border/50 bg-card shadow-2xl shadow-slate-950/20 sm:max-w-2xl md:max-w-5xl lg:max-w-6xl xl:max-w-7xl">
         <div className="flex items-start justify-between gap-4 border-b border-border/50 bg-muted/20 px-4 py-4 sm:px-6">
           <div className="min-w-0 space-y-2">
             <div className="flex flex-wrap gap-2">

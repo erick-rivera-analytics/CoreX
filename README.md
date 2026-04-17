@@ -112,7 +112,7 @@ Estado estructural actual:
 - la UI visible vive en `src/modules/*`
 - `src/components/dashboard/*` queda congelado y reducido a `module-placeholder.tsx`
 - `src/lib/fenograma.ts` y `src/lib/postcosecha-balanzas.ts` son fachadas temporales; la logica pesada vive en `*-core.ts` y debe seguir partiendose por dominio
-- el solver de clasificacion en blanco y Talento Humano ya estan divididos en piezas de modulo pequeñas
+- el solver de clasificacion en blanco y Talento Humano ya estan divididos en piezas de modulo pequenas
 
 ## Seguridad operativa
 
@@ -126,6 +126,7 @@ Estado estructural actual:
 
 ## Referencias
 
+- `docs/README.md`: indice vivo de documentacion oficial
 - Regla corta: si vas a crear algo nuevo, primero demuestra por que no sirve lo existente en `docs/reuse-index.md`.
 - `src/components/dashboard/*` es legacy congelado; crecimiento nuevo va en `src/modules/*`.
 - Para crear o extender modulos usa `docs/extender-modulos.md`; no inventes shell, fetchers, filtros, KPIs, tablas ni formatters si existen en `docs/reuse-index.md`.
@@ -133,9 +134,10 @@ Estado estructural actual:
 - `docs/extender-modulos.md`: flujo canonico para agregar pantallas y APIs
 - `docs/ui-canon.md`: reglas visuales y excepciones UX/UI
 - `docs/security-ops.md`: auth, RBAC, health, origin checks, rate limit y logging
+- `docs/despliegue.md`: deploy manual actual, Docker Compose y runtime env
 - `docs/testing.md`: tests obligatorios y smoke manual
 - `docs/definition-of-done.md`: criterios de cierre
 - `CLAUDE.md`: guia operativa resumida
 - `AGENTS.md`: guia para agentes/coding assistants
 - `docs/arquitectura.md`: referencia historica de arquitectura actual
-- `CHATBOT_SETUP.md`: estado real del chatbot contextual
+- `docs/chatbot.md`: estado real del chatbot contextual

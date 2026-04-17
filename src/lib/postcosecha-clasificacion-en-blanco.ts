@@ -21,6 +21,7 @@ import type {
   SolverDateKey,
 } from "@/lib/postcosecha-clasificacion-en-blanco-types";
 import { SOLVER_DATE_KEYS } from "@/lib/postcosecha-clasificacion-en-blanco-types";
+import { toNumber } from "@/shared/lib/number-utils";
 
 type SolverBridgeDefaults = {
   settings?: Partial<PoscosechaClasificacionSettings>;
@@ -78,13 +79,8 @@ declare global {
     | undefined;
 }
 
-function toNumber(value: unknown, fallback = 0) {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : fallback;
-}
-
 function toInteger(value: unknown, fallback = 0) {
-  return Math.round(toNumber(value, fallback));
+  return Math.round(toNumber(value, fallback) ?? fallback);
 }
 
 export function excelRound(value: number, digits = 0) {
@@ -97,7 +93,7 @@ export function excelRound(value: number, digits = 0) {
 function sanitizeSettings(
   input: Partial<PoscosechaClasificacionSettings> | null | undefined,
 ): PoscosechaClasificacionSettings {
-  const desperdicio = Math.min(Math.max(toNumber(input?.desperdicio, DEFAULT_SETTINGS.desperdicio), 0), 0.95);
+  const desperdicio = Math.min(Math.max(toNumber(input?.desperdicio, DEFAULT_SETTINGS.desperdicio) ?? DEFAULT_SETTINGS.desperdicio, 0), 0.95);
 
   return {
     desperdicio: Math.round(desperdicio * 10000) / 10000,
@@ -110,7 +106,7 @@ function normalizeAvailabilitySeeds(
   return seeds
     .map((seed) => ({
       grado: Math.max(toInteger(seed.grado, 0), 1),
-      pesoTalloSeed: Math.max(toNumber(seed.pesoTalloSeed, 0), 0),
+      pesoTalloSeed: Math.max(toNumber(seed.pesoTalloSeed, 0) ?? 0, 0),
     }))
     .filter((seed) => seed.grado > 0)
     .sort((left, right) => left.grado - right.grado);

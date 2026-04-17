@@ -68,15 +68,15 @@ export const ROLE_OPTIONS: Array<{ value: RoleCode; label: string; description: 
   { value: "custom", label: "Custom", description: "Accesos definidos manualmente por recurso." },
 ];
 
-const TALENTO_ACTIVOS_RESOURCE_KEYS = [
-  "/dashboard/talento-humano/composicion-laboral",
-  "/dashboard/talento-humano/demografia-personal",
-];
+const TALENTO_RESOURCE_KEYS = ALL_MANAGED_MODULES
+  .filter((module) => module.key.startsWith("talento-"))
+  .map((module) => module.href);
 
-const TALENTO_PERSONA_RESOURCE_KEYS = [
-  ...TALENTO_ACTIVOS_RESOURCE_KEYS,
-  "/dashboard/talento-humano/rotacion-laboral",
-];
+const TALENTO_ACTIVOS_RESOURCE_KEYS = TALENTO_RESOURCE_KEYS.filter(
+  (resourceKey) => resourceKey !== "/dashboard/talento-humano/rotacion-laboral",
+);
+
+const TALENTO_PERSONA_RESOURCE_KEYS = [...TALENTO_RESOURCE_KEYS];
 
 const FENOGRAMA_MEDICAL_RESOURCE_KEYS = [
   "/dashboard/fenograma",

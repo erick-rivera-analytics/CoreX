@@ -8,6 +8,7 @@ import { Button } from "@/shared/ui/button";
 import { Card, CardContent } from "@/shared/ui/card";
 import { cn } from "@/lib/utils";
 import { formatFlexibleNumber, formatPercent } from "@/shared/lib/format";
+import { toNumber } from "@/shared/lib/number-utils";
 import type {
   BalanzasNodeData,
   BalanzasTableColumn,
@@ -29,15 +30,7 @@ type AggregatedRow = {
 
 function formatMetricNumber(value: number | null, appendKg = false) {
   const displayValue = formatFlexibleNumber(value);
-  return displayValue === "—" || !appendKg ? displayValue : `${displayValue} kg`;
-}
-
-function toNumber(value: string | number | null | undefined) {
-  if (value === null || value === undefined || value === "") {
-    return 0;
-  }
-
-  return typeof value === "number" ? value : Number(value);
+  return displayValue === "-" || !appendKg ? displayValue : `${displayValue} kg`;
 }
 
 function getDisplayValue(column: BalanzasTableColumn | undefined, row: BalanzasTableRow) {
@@ -114,8 +107,8 @@ export const BalanzasGroupedTable = memo(function BalanzasGroupedTable({
         rowCount: 0,
       };
 
-      current.source += node.columnMap.source ? toNumber(row.values[node.columnMap.source]) : 0;
-      current.target += node.columnMap.target ? toNumber(row.values[node.columnMap.target]) : 0;
+      current.source += node.columnMap.source ? toNumber(row.values[node.columnMap.source], 0) : 0;
+      current.target += node.columnMap.target ? toNumber(row.values[node.columnMap.target], 0) : 0;
       current.rowCount += 1;
       groups.set(groupKey, current);
     }

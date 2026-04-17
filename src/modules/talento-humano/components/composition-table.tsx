@@ -1,6 +1,7 @@
 "use client";
 
 import { ChartSurface } from "@/shared/data-display/chart-surface";
+import { ClickableTableRow } from "@/shared/tables/clickable-table-row";
 import { ScrollFadeTable } from "@/shared/tables/scroll-fade-table";
 import { formatInteger, formatPercent } from "@/shared/lib/format";
 
@@ -82,17 +83,17 @@ function CompositionTableRow({
   const cell = "px-2.5 py-2 text-center text-[11px]";
 
   return (
-    <tr className={`group transition-colors hover:brightness-95 ${rowExtra}`}>
-      <td className={`sticky left-0 z-10 ${stickyBg} px-3 py-2 text-left border-r border-border/30`}>
-        <button type="button" className="text-left font-medium hover:underline" onClick={onClick}>{row.label}</button>
+    <ClickableTableRow onSelect={onClick} className={rowExtra}>
+      <td className={`sticky left-0 z-10 ${stickyBg} px-3 py-2 text-left border-r border-border/30 group-hover:bg-primary/6`}>
+        <span className="text-left font-medium underline-offset-4 group-hover:underline">{row.label}</span>
       </td>
-      <td className={`sticky left-[210px] z-10 ${stickyBg} px-3 py-2 text-right border-r-[2px] border-slate-700 dark:border-slate-200`}>
-        <button type="button" className="font-semibold tabular-nums hover:underline" onClick={onClick}>{formatInteger(row.people.length)}</button>
+      <td className={`sticky left-[210px] z-10 ${stickyBg} px-3 py-2 text-right border-r-[2px] border-slate-700 dark:border-slate-200 group-hover:bg-primary/6`}>
+        <span className="font-semibold tabular-nums underline-offset-4 group-hover:underline">{formatInteger(row.people.length)}</span>
       </td>
       {row.tenure.map((bucket, index) => <HeatCell key={`tenure-${bucket.label}`} value={bucket.value} className={`${cell} ${index === 0 ? "border-l-[2px] border-l-slate-400" : ""}`} hue={215} />)}
       {row.gender.map((bucket, index) => <HeatCell key={`gender-${bucket.label}`} value={bucket.value} className={`${cell} ${index === 0 ? "border-l-[2px] border-l-slate-400" : ""}`} hue={165} />)}
       {row.age.map((bucket, index) => <HeatCell key={`age-${bucket.label}`} value={bucket.value} className={`${cell} ${index === 0 ? "border-l-[2px] border-l-slate-400" : ""}`} hue={40} />)}
-    </tr>
+    </ClickableTableRow>
   );
 }
 

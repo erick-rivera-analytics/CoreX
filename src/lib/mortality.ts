@@ -2,6 +2,7 @@ import { query } from "@/lib/db";
 import { decodeMultiSelectValue, encodeMultiSelectValue } from "@/lib/multi-select";
 import { cachedAsync } from "@/lib/server-cache";
 import { normalizeAreaDisplayName } from "@/shared/lib/area-normalization";
+import { roundValue, toNumber } from "@/shared/lib/number-utils";
 
 type MortalityDashboardQueryRow = {
   cycle_key: string;
@@ -136,19 +137,6 @@ const collator = new Intl.Collator("en-US", {
 
 function cleanText(value: string | null | undefined) {
   return value?.trim() ?? "";
-}
-
-function roundValue(value: number) {
-  return Number(value.toFixed(2));
-}
-
-function toNumber(value: string | number | null | undefined) {
-  if (value === null || value === undefined || value === "") {
-    return null;
-  }
-
-  const numericValue = Number(value);
-  return Number.isFinite(numericValue) ? numericValue : null;
 }
 
 function toPercentRatio(value: string | number | null | undefined) {

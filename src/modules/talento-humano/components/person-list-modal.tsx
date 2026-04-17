@@ -35,7 +35,7 @@ export function PersonListModal<T extends TalentoPersonRecord>({
         title={title}
         description={`${people.length} personas`}
         onClose={onClose}
-        maxWidth="max-w-3xl"
+        maxWidth="max-w-5xl"
         headerActions={(
           <button type="button" onClick={onClose} className="rounded-[10px] p-2 text-muted-foreground hover:bg-muted hover:text-foreground" aria-label="Cerrar listado">
             <X className="size-4" />

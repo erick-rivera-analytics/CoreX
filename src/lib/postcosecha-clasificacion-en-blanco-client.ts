@@ -7,14 +7,10 @@ import type {
   SolverDateKey,
 } from "@/lib/postcosecha-clasificacion-en-blanco-types";
 import { SOLVER_DATE_KEYS } from "@/lib/postcosecha-clasificacion-en-blanco-types";
-
-function toNumber(value: unknown, fallback = 0) {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : fallback;
-}
+import { toNumber } from "@/shared/lib/number-utils";
 
 function toInteger(value: unknown, fallback = 0) {
-  return Math.round(toNumber(value, fallback));
+  return Math.round(toNumber(value, fallback) ?? fallback);
 }
 
 export function excelRound(value: number, digits = 0) {
@@ -33,7 +29,7 @@ function sanitizeAvailabilityRow(
 ): PoscosechaClasificacionAvailabilityRow {
   return {
     grado: Math.max(toInteger(row.grado, 0), 1),
-    pesoTalloSeed: Math.max(toNumber(row.pesoTalloSeed, 0), 0),
+    pesoTalloSeed: Math.max(toNumber(row.pesoTalloSeed, 0) ?? 0, 0),
     fecha_1: sanitizeDateValue(row.fecha_1),
     fecha_2: sanitizeDateValue(row.fecha_2),
     fecha_3: sanitizeDateValue(row.fecha_3),

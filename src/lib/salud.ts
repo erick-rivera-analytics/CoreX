@@ -1,5 +1,6 @@
 import { query } from "@/lib/db";
 import { cachedAsync } from "@/lib/server-cache";
+import { toNumber } from "@/shared/lib/number-utils";
 
 type MedicalProfileQueryRow = {
   person_name: string | null;
@@ -104,15 +105,6 @@ const MEDICAL_SOURCE = `${MEDICAL_SCHEMA}.${MEDICAL_TABLE}`;
 
 function cleanText(value: string | null | undefined) {
   return value?.trim() ?? "";
-}
-
-function toNumber(value: string | number | null | undefined) {
-  if (value === null || value === undefined || value === "") {
-    return null;
-  }
-
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : null;
 }
 
 function normalizeNationalId(value: string | null | undefined) {

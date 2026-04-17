@@ -1,5 +1,6 @@
 "use client";
 
+import { parseDateOnly } from "@/shared/lib/format";
 import { formatWeekLabel, generateAvailableWeeks } from "@/lib/talento-humano-utils";
 import type { TalentoFilters, TalentoPersonRecord } from "@/lib/talento-humano";
 
@@ -126,7 +127,9 @@ function buildShareBuckets<T extends TalentoPersonRecord>(
 
 function getAgeBucket(row: TalentoPersonRecord, asOfTime: number) {
   if (!row.birthDate) return null;
-  const birth = new Date(row.birthDate).getTime();
+  const birthDate = parseDateOnly(row.birthDate);
+  if (!birthDate) return null;
+  const birth = birthDate.getTime();
   if (!Number.isFinite(birth)) return null;
   const age = (asOfTime - birth) / 31557600000;
   if (age < 24) return "<24";
@@ -140,7 +143,9 @@ function getAgeBucket(row: TalentoPersonRecord, asOfTime: number) {
 
 function getTenureBucket(row: TalentoPersonRecord, asOfTime: number) {
   if (!row.lastEntryDate) return null;
-  const days = Math.floor((asOfTime - new Date(row.lastEntryDate).getTime()) / 86400000);
+  const entryDate = parseDateOnly(row.lastEntryDate);
+  if (!entryDate) return null;
+  const days = Math.floor((asOfTime - entryDate.getTime()) / 86400000);
   if (!Number.isFinite(days)) return null;
   if (days <= 30) return "1-30 dias";
   if (days <= 90) return "31-90 dias";

@@ -6,6 +6,7 @@ import { ArrowDownUp } from "lucide-react";
 import { Badge } from "@/shared/ui/badge";
 import { Button } from "@/shared/ui/button";
 import { Card, CardContent } from "@/shared/ui/card";
+import { ClickableTableRow } from "@/shared/tables/clickable-table-row";
 import { cn } from "@/lib/utils";
 import { formatDateSlash as formatDate, formatFlexibleNumber } from "@/shared/lib/format";
 import type { FenogramaDashboardData, FenogramaPivotRow } from "@/lib/fenograma";
@@ -485,22 +486,14 @@ export const FenogramaPivotTable = memo(function FenogramaPivotTable({
                 const isClickable = row.sourceRows.length === 1 && Boolean(onRowSelect);
 
                 return (
-                  <tr
+                  <ClickableTableRow
                     key={row.id}
+                    isClickable={isClickable}
+                    onSelect={isClickable ? () => handleRowSelect(row) : undefined}
                     className={cn(
                       rowIndex % 2 === 0 ? "bg-background/84" : "bg-background/70",
                       lifecycleTone(row.sourceRows),
-                      isClickable && "cursor-pointer transition-colors hover:bg-slate-900/4 dark:hover:bg-slate-800/8",
                     )}
-                    onClick={isClickable ? () => handleRowSelect(row) : undefined}
-                    onKeyDown={isClickable ? (event) => {
-                      if (event.key === "Enter" || event.key === " ") {
-                        event.preventDefault();
-                        handleRowSelect(row);
-                      }
-                    } : undefined}
-                    role={isClickable ? "button" : undefined}
-                    tabIndex={isClickable ? 0 : undefined}
                   >
                     {leadingColumns.map((column, columnIndex) => {
                       const isLastColumn = isLastLeadingColumn(column.key, leadingColumns);
@@ -512,6 +505,7 @@ export const FenogramaPivotTable = memo(function FenogramaPivotTable({
                             style={getStickyStyle(column.offset, column.width)}
                             className={cn(
                               "sticky z-20 border-b border-r border-border/60 bg-card px-3 py-2.5 text-right font-semibold tabular-nums text-foreground",
+                              isClickable && "group-hover:bg-primary/6",
                               isLastColumn && "shadow-[14px_0_20px_-16px_rgba(15,23,42,0.22)]",
                             )}
                           >
@@ -527,16 +521,17 @@ export const FenogramaPivotTable = memo(function FenogramaPivotTable({
                       return (
                         <td
                           key={`${row.id}-${column.key}`}
-                          style={getStickyStyle(column.offset, column.width)}
-                          className={cn(
-                            "sticky z-20 border-b border-r border-border/60 bg-card px-3 py-2.5 align-middle text-left text-foreground",
-                            isLastColumn && "shadow-[14px_0_20px_-16px_rgba(15,23,42,0.22)]",
-                          )}
-                        >
-                          <div className="min-w-0">
-                            <p className={cn("truncate", isClickable && columnIndex === 0 && "font-semibold underline-offset-4 hover:underline")}>
-                              {displayValue}
-                            </p>
+                            style={getStickyStyle(column.offset, column.width)}
+                            className={cn(
+                              "sticky z-20 border-b border-r border-border/60 bg-card px-3 py-2.5 align-middle text-left text-foreground",
+                              isClickable && "group-hover:bg-primary/6",
+                              isLastColumn && "shadow-[14px_0_20px_-16px_rgba(15,23,42,0.22)]",
+                            )}
+                          >
+                            <div className="min-w-0">
+                              <p className={cn("truncate", isClickable && columnIndex === 0 && "font-semibold underline-offset-4 group-hover:underline")}>
+                                {displayValue}
+                              </p>
                             <p className="mt-1 text-xs text-muted-foreground">
                               {row.sourceCount === 1 ? "1 ciclo" : `${row.sourceCount} ciclos`}
                             </p>
@@ -548,12 +543,15 @@ export const FenogramaPivotTable = memo(function FenogramaPivotTable({
                     {data.weeks.map((week) => (
                       <td
                         key={`${row.id}-${week}`}
-                        className="border-b border-r border-border/50 px-3 py-2.5 text-right tabular-nums text-foreground/92"
+                        className={cn(
+                          "border-b border-r border-border/50 px-3 py-2.5 text-right tabular-nums text-foreground/92",
+                          isClickable && "group-hover:bg-primary/6",
+                        )}
                       >
                         <div className="min-w-[92px]">{formatCellValue(row.weekValues[week])}</div>
                       </td>
                     ))}
-                  </tr>
+                  </ClickableTableRow>
                 );
               }) : (
                 <tr>

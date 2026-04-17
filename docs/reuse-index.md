@@ -2,6 +2,16 @@
 
 Regla operativa: antes de crear algo nuevo, buscar primero aqui. Si existe algo parecido en `src/shared/*` o en el modulo actual, no se crea otro componente/helper. Si nada aplica, la excepcion debe quedar escrita en el PR o en la documentacion del modulo.
 
+## Si no existe, donde crear?
+
+- `src/shared/*` si el patron es transversal y reusable real
+- `src/modules/<modulo>/*` si la pieza es de dominio y no conviene contaminar shared
+
+Regla:
+
+- primero module-local
+- subir a shared solo cuando ya sea claramente reusable
+
 ## Layout y shell
 
 | Necesidad | Reutilizar |
@@ -37,6 +47,7 @@ Regla operativa: antes de crear algo nuevo, buscar primero aqui. Si existe algo 
 | Overflow horizontal canonico | `ScrollFadeTable` |
 | Tabla simple | `StandardTable`, `StandardTh`, `StandardTd` |
 | Header sortable | `SortableHeader` |
+| Fila clicable accesible | `ClickableTableRow` |
 
 ## Charts
 

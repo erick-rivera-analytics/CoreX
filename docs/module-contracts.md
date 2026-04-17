@@ -50,6 +50,7 @@ Toda API protegida debe:
 - UI reusable en `src/shared`
 - fetch cliente por `@/lib/fetch-json`
 - formatters por `@/shared/lib/format`
+- `pct_mortality` debe tratarse como campo calculado en SQL/fuente de datos; los mappers TS solo normalizan o formatean, no redefinen la formula
 
 ## Politica de TEMPORARY_SHIM
 

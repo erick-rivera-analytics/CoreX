@@ -2,6 +2,8 @@ import { query } from "@/lib/db";
 import { decodeMultiSelectValue, encodeMultiSelectValue, matchesMultiSelectValue } from "@/lib/multi-select";
 import { cachedAsync } from "@/lib/server-cache";
 import { normalizeAreaDisplayName } from "@/shared/lib/area-normalization";
+import { parseDateOnly } from "@/shared/lib/format";
+import { roundValue, toNumber } from "@/shared/lib/number-utils";
 
 // ── Fuente de datos ──────────────────────────────────────────────────────────
 const PROD_HOURS_SOURCE      = "gld.mv_prod_hours_cycle_person_cur";
@@ -36,6 +38,7 @@ type ProductividadQueryRow = {
   green_weight_kg: number | string | null;
   total_stems: number | string | null;
   plants_current: number | string | null;
+  initial_plants_cycle: number | string | null;
   post_weight_kg: number | string | null;
   pct_mortality: number | string | null;
 };
@@ -79,6 +82,7 @@ export type ProductividadRow = {
   camas30: number | null;
   totalStems: number | null;
   plantsCurrentOrInitial: number | null;
+  initialPlantsCycle: number | null;
   postWeightKg: number | null;
   // Calculated metrics
   horaCaja: number | null;
@@ -108,6 +112,11 @@ export type ProductividadDashboardData = {
     totalUnitsProduced: number;
     totalCajas: number;
     weightedHoraCaja: number | null;
+    weightedCajaCama: number | null;
+    weightedHoraCama: number | null;
+    weightedTallosPlanta: number | null;
+    weightedPesoTalloGramos: number | null;
+    weightedMortalityPct: number | null;
   };
 };
 
@@ -143,16 +152,6 @@ export function normalizeProductividadFilters(
 
 function parseSelectValue(value: string | null | undefined) {
   return encodeMultiSelectValue(decodeMultiSelectValue(value ?? "all"));
-}
-
-function toNumber(value: string | number | null | undefined): number | null {
-  if (value === null || value === undefined) return null;
-  const n = Number(value);
-  return Number.isFinite(n) ? n : null;
-}
-
-function roundValue(value: number) {
-  return Number(value.toFixed(2));
 }
 
 function toPercentRatio(value: string | number | null | undefined) {
@@ -193,21 +192,6 @@ function normalizeDateValue(value: string | Date | null | undefined): string | n
   return null;
 }
 
-function parseDateOnly(value: string | Date | null | undefined): Date | null {
-  const normalizedValue = normalizeDateValue(value);
-
-  if (!normalizedValue) {
-    return null;
-  }
-
-  const [year, month, day] = normalizedValue.split("-").map(Number);
-  if (!year || !month || !day) {
-    return null;
-  }
-
-  return new Date(year, month - 1, day);
-}
-
 function formatDateValue(value: string | Date | null | undefined): string | null {
   return normalizeDateValue(value);
 }
@@ -237,6 +221,12 @@ function divOrNull(a: number | null, b: number | null): number | null {
   return a / b;
 }
 
+function maxOrNull(current: number | null, incoming: number | null) {
+  if (incoming === null) return current;
+  if (current === null) return incoming;
+  return Math.max(current, incoming);
+}
+
 function etapaLabel(costArea: string): string {
   if (costArea === "CAMPO") return "Vegetativo";
   if (costArea === "COSECHA") return "Cosecha";
@@ -254,11 +244,11 @@ export async function getProductividadDashboardData(
   const cacheKey = `productividad:dashboard:${filters.year}:${filters.month}:${filters.spType}:${filters.variety}:${filters.area}:${filters.status}:${filters.costArea}`;
 
   return cachedAsync(cacheKey, PRODUCTIVIDAD_TTL_MS, async () => {
-    // Build WHERE clauses for cost_area filter
-    const costAreaClause =
-      filters.costArea !== "all"
-        ? `and h.cost_area = '${filters.costArea === "CAMPO" ? "CAMPO" : "COSECHA"}'`
-        : "";
+    const selectedCostArea = filters.costArea === "all"
+      ? null
+      : filters.costArea === "CAMPO"
+        ? "CAMPO"
+        : "COSECHA";
 
     const result = await query<ProductividadQueryRow>(
       `
@@ -281,6 +271,7 @@ export async function getProductividadDashboardData(
         select distinct on (cycle_key)
           cycle_key,
           coalesce(final_plants_count, 0) as plants_current,
+          coalesce(initial_plants_cycle, 0) as initial_plants_cycle,
           pct_mortality
         from ${KARDEX_CYCLE_SOURCE}
         order by cycle_key, valid_from desc nulls last
@@ -319,7 +310,7 @@ export async function getProductividadDashboardData(
           sum(coalesce(h.effective_hours, 0))  as effective_hours,
           sum(coalesce(h.units_produced, 0))   as units_produced
         from ${PROD_HOURS_SOURCE} h
-        where true ${costAreaClause}
+        where ($1::text is null or h.cost_area = $1)
         group by h.cycle_key, h.cost_area, h.sub_cost_center, h.activity_type, h.activity_name
       )
       select
@@ -344,6 +335,7 @@ export async function getProductividadDashboardData(
         coalesce(gw.green_weight_kg, 0) as green_weight_kg,
         coalesce(f.total_stems, 0)      as total_stems,
         coalesce(k.plants_current, 0)   as plants_current,
+        coalesce(k.initial_plants_cycle, 0) as initial_plants_cycle,
         coalesce(pw.post_weight_kg, 0)  as post_weight_kg
       from hours_agg ha
       join  cycle_profile cp  on cp.cycle_key  = ha.cycle_key
@@ -361,7 +353,7 @@ export async function getProductividadDashboardData(
         ha.activity_type asc,
         ha.activity_name asc
       `,
-      [],
+      [selectedCostArea],
     );
 
     // ── Transform rows ───────────────────────────────────────────────────────
@@ -372,6 +364,7 @@ export async function getProductividadDashboardData(
       const greenWeightKg = toNumber(row.green_weight_kg);
       const totalStems = toNumber(row.total_stems);
       const plantsCurrentOrInitial = toNumber(row.plants_current);
+      const initialPlantsCycle = toNumber(row.initial_plants_cycle);
       const postWeightKg = toNumber(row.post_weight_kg);
       const costArea = cleanText(row.cost_area);
 
@@ -424,6 +417,7 @@ export async function getProductividadDashboardData(
         camas30,
         totalStems,
         plantsCurrentOrInitial,
+        initialPlantsCycle,
         postWeightKg,
         horaCaja,
         cajaCama,
@@ -480,13 +474,49 @@ export async function getProductividadDashboardData(
     const uniqueCycles = new Set(filtered.map((r) => r.cycleKey)).size;
 
     // Cajas por ciclo: tomar el máximo por ciclo (green_weight_kg igual en todas las filas del ciclo)
-    const uniqueCyclesCajas = new Map<string, number>();
+    const cycleTotals = new Map<string, {
+      cajas: number | null;
+      camas30: number | null;
+      greenWeightKg: number | null;
+      totalStems: number | null;
+      plantsCurrent: number | null;
+      initialPlantsCycle: number | null;
+    }>();
     for (const row of filtered) {
-      const prev = uniqueCyclesCajas.get(row.cycleKey) ?? 0;
-      const cur = row.cajas ?? 0;
-      if (cur > prev) uniqueCyclesCajas.set(row.cycleKey, cur);
+      const current = cycleTotals.get(row.cycleKey) ?? {
+        cajas: null,
+        camas30: null,
+        greenWeightKg: null,
+        totalStems: null,
+        plantsCurrent: null,
+        initialPlantsCycle: null,
+      };
+      current.cajas = maxOrNull(current.cajas, row.cajas);
+      current.camas30 = maxOrNull(current.camas30, row.camas30);
+      current.greenWeightKg = maxOrNull(current.greenWeightKg, row.greenWeightKg);
+      current.totalStems = maxOrNull(current.totalStems, row.totalStems);
+      current.plantsCurrent = maxOrNull(current.plantsCurrent, row.plantsCurrentOrInitial);
+      current.initialPlantsCycle = maxOrNull(current.initialPlantsCycle, row.initialPlantsCycle);
+      cycleTotals.set(row.cycleKey, current);
     }
-    const totalCajas = Array.from(uniqueCyclesCajas.values()).reduce((s, c) => s + c, 0);
+
+    let totalCajas = 0;
+    let totalCamas30 = 0;
+    let totalGreenWeightKg = 0;
+    let totalStems = 0;
+    let totalPlantsCurrent = 0;
+    let totalInitialPlantsCycle = 0;
+
+    for (const totals of cycleTotals.values()) {
+      totalCajas += totals.cajas ?? 0;
+      totalCamas30 += totals.camas30 ?? 0;
+      totalGreenWeightKg += totals.greenWeightKg ?? 0;
+      totalStems += totals.totalStems ?? 0;
+      totalPlantsCurrent += totals.plantsCurrent ?? 0;
+      totalInitialPlantsCycle += totals.initialPlantsCycle ?? 0;
+    }
+
+    const totalLostPlants = totalInitialPlantsCycle - totalPlantsCurrent;
 
     return {
       generatedAt: new Date().toISOString(),
@@ -499,6 +529,13 @@ export async function getProductividadDashboardData(
         totalUnitsProduced,
         totalCajas,
         weightedHoraCaja: totalCajas > 0 ? totalEffectiveHours / totalCajas : null,
+        weightedCajaCama: totalCamas30 > 0 ? totalCajas / totalCamas30 : null,
+        weightedHoraCama: totalCamas30 > 0 ? totalEffectiveHours / totalCamas30 : null,
+        weightedTallosPlanta: totalPlantsCurrent > 0 ? totalStems / totalPlantsCurrent : null,
+        weightedPesoTalloGramos: totalStems > 0 ? (totalGreenWeightKg * 1000) / totalStems : null,
+        weightedMortalityPct: totalInitialPlantsCycle > 0 && totalLostPlants >= 0
+          ? (totalLostPlants / totalInitialPlantsCycle) * 100
+          : null,
       },
     };
   });

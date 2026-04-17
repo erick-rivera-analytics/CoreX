@@ -95,10 +95,12 @@ Las rutas placeholder siguen existiendo solo como rutas ocultas; no deben volver
 
 ## Docs obligatorios
 
+- `docs/README.md`: indice vivo de documentacion oficial.
 - `docs/reuse-index.md`: que reutilizar antes de inventar.
 - `docs/extender-modulos.md`: flujo unico para agregar modulos.
 - `docs/ui-canon.md`: canon visual.
 - `docs/security-ops.md`: seguridad operacional.
+- `docs/despliegue.md`: deploy manual actual y variables runtime.
 - `docs/testing.md`: pruebas y smoke.
 - `docs/definition-of-done.md`: cierre minimo.
 

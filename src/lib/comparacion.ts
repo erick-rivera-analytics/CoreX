@@ -3,6 +3,7 @@ import { decodeMultiSelectValue, encodeMultiSelectValue } from "@/lib/multi-sele
 import { cachedAsync } from "@/lib/server-cache";
 import { normalizeAreaDisplayName } from "@/shared/lib/area-normalization";
 import { formatFlexibleNumber, formatPercent as formatPercentShared } from "@/shared/lib/format";
+import { roundValue, toNumber } from "@/shared/lib/number-utils";
 
 type ComparisonOptionQueryRow = {
   cycle_key: string | null;
@@ -156,19 +157,6 @@ export const defaultComparisonFilters: ComparisonSearchFilters = {
 
 function cleanText(value: string | null) {
   return value?.trim() ?? "";
-}
-
-function roundValue(value: number) {
-  return Number(value.toFixed(2));
-}
-
-function toNumber(value: string | number | null) {
-  if (value === null || value === undefined) {
-    return null;
-  }
-
-  const numericValue = Number(value);
-  return Number.isFinite(numericValue) ? numericValue : null;
 }
 
 function toPercentRatio(value: string | number | null) {

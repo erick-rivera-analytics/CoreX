@@ -8,7 +8,7 @@ export function DialogShell({
   title,
   description,
   onClose,
-  maxWidth = "max-w-3xl",
+  maxWidth = "max-w-4xl",
   children,
   headerActions,
 }: {

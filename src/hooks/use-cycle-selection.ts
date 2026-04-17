@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import useSWRImmutable from "swr/immutable";
 
-import { fetchJson } from "@/lib/fetch-json";
+import { swrFetcher } from "@/hooks/use-swr-fetcher";
 import type {
   BedProfilePayload,
   BlockModalRow,
@@ -28,10 +28,6 @@ function buildBlockRequestUrl(row: BlockModalRow) {
 
 function buildBlockCacheKey(row: BlockModalRow) {
   return row.cycleKey ? `${row.block}|${row.cycleKey}` : row.block;
-}
-
-async function swrFetcher<T>([url, fallbackMessage]: readonly [string, string]) {
-  return fetchJson<T>(url, fallbackMessage);
 }
 
 /**

@@ -111,6 +111,8 @@ type CycleGroup = {
   totalEffectiveHours: number;
   cajas: number | null;
   camas30: number | null;
+  plantsCurrentOrInitial: number | null;
+  initialPlantsCycle: number | null;
   horaCaja: number | null;
   cajaCama: number | null;
   horaCama: number | null;
@@ -122,6 +124,12 @@ type YearGroup = {
   year: string;
   cycles: CycleGroup[];
   totalEffectiveHours: number;
+  totalCajas: number;
+  totalCamas30: number;
+  totalStems: number;
+  totalPlantsCurrentOrInitial: number;
+  totalInitialPlantsCycle: number;
+  totalWeightedMortality: number;
 };
 
 function groupRows(rows: ProductividadRow[]): YearGroup[] {
@@ -142,6 +150,8 @@ function groupRows(rows: ProductividadRow[]): YearGroup[] {
         totalEffectiveHours: 0,
         cajas: row.cajas,
         camas30: row.camas30,
+        plantsCurrentOrInitial: row.plantsCurrentOrInitial,
+        initialPlantsCycle: row.initialPlantsCycle,
         horaCaja: null,
         cajaCama: row.cajaCama,
         horaCama: null,
@@ -165,11 +175,30 @@ function groupRows(rows: ProductividadRow[]): YearGroup[] {
   for (const cycle of cycleMap.values()) {
     const year = String(cycle.representative.harvestYear ?? "Sin ano");
     if (!yearMap.has(year)) {
-      yearMap.set(year, { year, cycles: [], totalEffectiveHours: 0 });
+      yearMap.set(year, {
+        year,
+        cycles: [],
+        totalEffectiveHours: 0,
+        totalCajas: 0,
+        totalCamas30: 0,
+        totalStems: 0,
+        totalPlantsCurrentOrInitial: 0,
+        totalInitialPlantsCycle: 0,
+        totalWeightedMortality: 0,
+      });
     }
     const yg = yearMap.get(year)!;
     yg.cycles.push(cycle);
     yg.totalEffectiveHours += cycle.totalEffectiveHours;
+    yg.totalCajas += cycle.cajas ?? 0;
+    yg.totalCamas30 += cycle.camas30 ?? 0;
+    yg.totalStems += cycle.representative.totalStems ?? 0;
+    yg.totalPlantsCurrentOrInitial += cycle.plantsCurrentOrInitial ?? 0;
+    yg.totalInitialPlantsCycle += cycle.initialPlantsCycle ?? 0;
+    if (cycle.pctMortality !== null) {
+      const cycleWeight = cycle.initialPlantsCycle ?? cycle.plantsCurrentOrInitial ?? 0;
+      yg.totalWeightedMortality += (cycle.pctMortality / 100) * cycleWeight;
+    }
   }
 
   return Array.from(yearMap.values())
@@ -493,8 +522,18 @@ function ProductividadTable({
         <tbody>
           {yearGroups.map((yg) => {
             const yearOpen = expandedYears.has(yg.year);
-            const yearCajas = yg.cycles.reduce((s, c) => s + (c.cajas ?? 0), 0);
-            const yearHoraCaja = yearCajas > 0 ? yg.totalEffectiveHours / yearCajas : null;
+            const yearHoraCaja = yg.totalCajas > 0 ? yg.totalEffectiveHours / yg.totalCajas : null;
+            const yearCajaCama = yg.totalCamas30 > 0 ? yg.totalCajas / yg.totalCamas30 : null;
+            const yearHoraCama = yg.totalCamas30 > 0 ? yg.totalEffectiveHours / yg.totalCamas30 : null;
+            const yearTallosPlanta = yg.totalPlantsCurrentOrInitial > 0
+              ? yg.totalStems / yg.totalPlantsCurrentOrInitial
+              : null;
+            const yearPesoTallo = yg.totalStems > 0
+              ? (yg.totalCajas * 10000) / yg.totalStems
+              : null;
+            const yearMortality = yg.totalInitialPlantsCycle > 0
+              ? (yg.totalWeightedMortality / yg.totalInitialPlantsCycle) * 100
+              : null;
 
             return (
               <React.Fragment key={`year-${yg.year}`}>
@@ -507,9 +546,13 @@ function ProductividadTable({
                       <Badge variant="secondary" className="rounded-full px-2 py-0.5 text-[10px]">{yg.cycles.length} ciclos</Badge>
                     </div>
                   </TD>
-                  <TD /><TD /><TD /><TD /><TD />
-                  <TD right className="font-semibold">{formatDecimal(yearHoraCaja)}</TD>
                   <TD /><TD /><TD /><TD />
+                  <TD right className="font-semibold">{formatPercent(yearMortality)}</TD>
+                  <TD right className="font-semibold">{formatDecimal(yearHoraCaja)}</TD>
+                  <TD right className="font-semibold">{formatDecimal(yearCajaCama)}</TD>
+                  <TD right className="font-semibold">{formatDecimal(yearHoraCama)}</TD>
+                  <TD right className="font-semibold">{formatDecimal(yearTallosPlanta)}</TD>
+                  <TD right className="font-semibold">{formatDecimal(yearPesoTallo)}</TD>
                 </tr>
 
                 {yearOpen && yg.cycles.map((cycle) => {

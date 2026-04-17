@@ -3,7 +3,7 @@
 import { useState } from "react";
 import useSWRImmutable from "swr/immutable";
 
-import { fetchJson } from "@/lib/fetch-json";
+import { swrFetcher } from "@/hooks/use-swr-fetcher";
 import type {
   ValveProfilePayload,
   ValveProfilesByCyclePayload,
@@ -19,10 +19,6 @@ type KeyedValveState = {
   cycleKey: string;
   valveId: string;
 };
-
-async function swrFetcher<T>([url, fallbackMessage]: readonly [string, string]) {
-  return fetchJson<T>(url, fallbackMessage);
-}
 
 /**
  * Manages valve cycle selection and individual valve detail.

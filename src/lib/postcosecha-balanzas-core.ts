@@ -4,6 +4,7 @@ import { query } from "@/lib/db";
 import { decodeMultiSelectValue, encodeMultiSelectValue, hasMultiSelectValue } from "@/lib/multi-select";
 import { cachedAsync } from "@/lib/server-cache";
 import { formatFlexibleNumber, formatPercent as formatPercentShared } from "@/shared/lib/format";
+import { roundValue, toNumber } from "@/shared/lib/number-utils";
 
 export type BalanzasMetric = "peso" | "tallos";
 export type BalanzasWeekMode = "none" | "pre" | "iso";
@@ -311,33 +312,6 @@ function canonicalize(value: string) {
 
 function quoteIdentifier(identifier: string) {
   return `"${identifier.replace(/"/g, "\"\"")}"`;
-}
-
-function roundValue(value: number) {
-  return Number(value.toFixed(2));
-}
-
-function toNumber(value: unknown) {
-  if (value === null || value === undefined || value === "") {
-    return null;
-  }
-
-  if (typeof value === "number") {
-    return Number.isFinite(value) ? value : null;
-  }
-
-  if (typeof value === "bigint") {
-    return Number(value);
-  }
-
-  const normalizedValue = String(value).replace(/,/g, "").trim();
-
-  if (!normalizedValue) {
-    return null;
-  }
-
-  const numericValue = Number(normalizedValue);
-  return Number.isFinite(numericValue) ? numericValue : null;
 }
 
 function normalizePercentValue(value: number | null) {

@@ -4,6 +4,7 @@ import { query } from "@/lib/db";
 import { decodeMultiSelectValue, encodeMultiSelectValue, hasMultiSelectValue } from "@/lib/multi-select";
 import { cachedAsync } from "@/lib/server-cache";
 import { normalizeAreaDisplayName } from "@/shared/lib/area-normalization";
+import { roundValue, toNumber } from "@/shared/lib/number-utils";
 
 type FenogramaQueryRow = {
   cycle_key: string | null;
@@ -753,19 +754,6 @@ function parseWeekFilter(value: string | undefined) {
 
   const normalizedValue = value.trim();
   return /^\d{4}$/.test(normalizedValue) ? normalizedValue : "";
-}
-
-function roundValue(value: number) {
-  return Number(value.toFixed(2));
-}
-
-function toNumber(value: string | number | null) {
-  if (value === null || value === undefined) {
-    return null;
-  }
-
-  const numericValue = Number(value);
-  return Number.isFinite(numericValue) ? numericValue : null;
 }
 
 function toPercentRatio(value: string | number | null) {

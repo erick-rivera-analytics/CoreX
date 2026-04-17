@@ -29,11 +29,14 @@ const docsFiles = walk("docs").filter((file) => /\.md$/.test(file));
 const tsFiles = walk("src").filter((file) => /\.(ts|tsx)$/.test(file));
 
 const officialDocs = new Set([
+  "docs/README.md",
   "docs/reuse-index.md",
   "docs/extender-modulos.md",
   "docs/module-contracts.md",
   "docs/ui-canon.md",
+  "docs/chatbot.md",
   "docs/definition-of-done.md",
+  "docs/despliegue.md",
   "docs/testing.md",
   "docs/security-ops.md",
   "docs/quality-baseline.md",

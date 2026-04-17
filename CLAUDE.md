@@ -137,12 +137,14 @@ Casos importantes:
 
 ## Docs anti-invencion
 
+- `docs/README.md`: indice vivo de documentacion oficial.
 - Regla corta: si vas a crear algo nuevo, primero demuestra por que no sirve lo existente en `docs/reuse-index.md`.
 - `src/components/dashboard/*` es legacy congelado; todo crecimiento visible nuevo vive en `src/modules/*`.
 - `docs/reuse-index.md`: buscar aqui antes de crear componentes/helpers.
 - `docs/extender-modulos.md`: flujo unico catalogo -> page server -> loader -> UI -> API rule -> tests -> QA.
 - `docs/ui-canon.md`: reglas visuales y excepciones.
 - `docs/security-ops.md`: auth, RBAC, rate limit, health, logging y env.
+- `docs/despliegue.md`: deploy manual actual, Docker Compose y runtime env.
 - `docs/testing.md`: estrategia de tests sin DB real y smoke manual.
 - `docs/definition-of-done.md`: checklist de cierre.
 - `docs/module-contracts.md`: contratos de page, API, UI y datos.

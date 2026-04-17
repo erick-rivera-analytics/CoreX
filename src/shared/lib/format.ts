@@ -1,4 +1,5 @@
 const DEFAULT_LOCALE = "es-EC";
+const DATE_ONLY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 type NumericInput = number | string | null | undefined;
 
@@ -15,6 +16,17 @@ type PercentFormatOptions = BaseFormatOptions & {
 
 function normalizeIntlText(value: string) {
   return value.replace(/[\u00A0\u202F]/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function buildLocalDate(year: number, month: number, day: number) {
+  return new Date(year, month - 1, day, 12, 0, 0, 0);
+}
+
+function formatLocalDateParts(value: Date) {
+  const year = value.getFullYear();
+  const month = String(value.getMonth() + 1).padStart(2, "0");
+  const day = String(value.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 function normalizeNumber(value: NumericInput): number | null {
@@ -74,10 +86,46 @@ export function formatPercent(value: NumericInput, options: PercentFormatOptions
   }).format(normalized);
 }
 
+export function parseDateOnly(value: string | Date | null | undefined) {
+  if (!value) return null;
+
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? null : new Date(value.getTime());
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+
+  if (!DATE_ONLY_PATTERN.test(trimmed)) {
+    const parsed = new Date(trimmed);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }
+
+  const [year, month, day] = trimmed.split("-").map(Number);
+  if (!year || !month || !day) return null;
+  return buildLocalDate(year, month, day);
+}
+
+export function formatDateLocal(value: string | Date | null | undefined) {
+  if (!value) return "-";
+
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed) return "-";
+    const datePart = (trimmed.split("T")[0] ?? trimmed).trim();
+    if (DATE_ONLY_PATTERN.test(datePart)) {
+      return datePart;
+    }
+  }
+
+  const parsed = parseDateOnly(value);
+  return parsed ? formatLocalDateParts(parsed) : "-";
+}
+
 export function formatDate(value: string | Date | null | undefined, locale = DEFAULT_LOCALE) {
   if (!value) return "-";
-  const date = value instanceof Date ? value : new Date(value);
-  if (Number.isNaN(date.getTime())) return String(value);
+  const date = parseDateOnly(value);
+  if (!date || Number.isNaN(date.getTime())) return String(value);
   return new Intl.DateTimeFormat(locale, {
     day: "2-digit",
     month: "short",
@@ -111,8 +159,8 @@ export function formatDateTime(
 ) {
   if (!value) return "-";
 
-  const date = value instanceof Date ? value : new Date(value);
-  if (Number.isNaN(date.getTime())) return String(value);
+  const date = parseDateOnly(value);
+  if (!date || Number.isNaN(date.getTime())) return String(value);
 
   const formatter = new Intl.DateTimeFormat(locale, {
     day: "numeric",

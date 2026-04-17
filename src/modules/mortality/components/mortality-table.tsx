@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 
 import { Badge } from "@/shared/ui/badge";
 import { Card, CardContent } from "@/shared/ui/card";
+import { ClickableTableRow } from "@/shared/tables/clickable-table-row";
 import { ScrollFadeTable } from "@/shared/tables/scroll-fade-table";
 import { SortableHeader } from "@/shared/tables/sortable-header";
 import { cn } from "@/lib/utils";
@@ -143,24 +144,18 @@ export function MortalityTable({
             </thead>
             <tbody>
               {sortedRows.length ? sortedRows.map((row, index) => (
-                <tr
+                <ClickableTableRow
                   key={row.id}
+                  isClickable
+                  onSelect={() => onOpenHistory(row)}
                   className={cn(
-                    "cursor-pointer transition-colors hover:bg-primary/6",
                     index % 2 === 0 ? "bg-background/84" : "bg-background/70",
                   )}
-                  onClick={() => onOpenHistory(row)}
                 >
-                  <td className="border-b border-r border-border/50 px-3 py-2.5 font-medium text-slate-700 dark:text-white underline-offset-4 hover:underline">
-                    <button
-                      type="button"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        onOpenHistory(row);
-                      }}
-                    >
+                  <td className="border-b border-r border-border/50 px-3 py-2.5 font-medium text-slate-700 dark:text-white">
+                    <span className="underline-offset-4 group-hover:underline">
                       {row.cycleKey}
-                    </button>
+                    </span>
                   </td>
                   <td className="border-b border-r border-border/50 px-3 py-2.5">{row.area || "-"}</td>
                   <td className="border-b border-r border-border/50 px-3 py-2.5">{row.spType || "-"}</td>
@@ -175,7 +170,7 @@ export function MortalityTable({
                   <td className="border-b border-r border-border/50 px-3 py-2.5 text-right tabular-nums">{formatPercent(row.availabilityVsScheduledPct)}</td>
                   <td className="border-b border-r border-border/50 px-3 py-2.5 text-right tabular-nums">{formatPercent(row.availabilityVsInitialPct)}</td>
                   <td className="border-b border-border/50 px-3 py-2.5 text-right tabular-nums font-medium">{formatPercent(row.mortalityPct)}</td>
-                </tr>
+                </ClickableTableRow>
               )) : (
                 <tr>
                   <td

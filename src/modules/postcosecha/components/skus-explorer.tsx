@@ -30,6 +30,7 @@ import { MetricTile } from "@/shared/data-display/metric-tile";
 import { FilterPanel, KpiGrid } from "@/shared/layout/filter-panel";
 import { SectionPageShell } from "@/shared/layout/section-page-shell";
 import { formatDateTime, formatDecimal } from "@/shared/lib/format";
+import { toNumber } from "@/shared/lib/number-utils";
 import { fetchJson } from "@/lib/fetch-json";
 import type {
   PoscosechaSkuInput,
@@ -60,11 +61,6 @@ const EMPTY_FORM_VALUES: PoscosechaSkuInput = {
 const skuFetcher = (url: string) =>
   fetchJson<PoscosechaSkuRecord[]>(url, "No se pudo cargar el maestro de SKU.");
 
-function toNumber(value: unknown, fallback = 0) {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : fallback;
-}
-
 function toInteger(value: unknown, fallback = 0) {
   return Math.round(toNumber(value, fallback));
 }
@@ -85,11 +81,11 @@ function mapRecordToFormValues(record: PoscosechaSkuRecord): PoscosechaSkuInput 
 function buildPayload(values: PoscosechaSkuInput): PoscosechaSkuInput {
   return {
     sku: values.sku.trim(),
-    pesoIdealBunch: toNumber(values.pesoIdealBunch),
+    pesoIdealBunch: toNumber(values.pesoIdealBunch, 0),
     tallosMin: toInteger(values.tallosMin, 1),
     tallosMax: toInteger(values.tallosMax, 1),
-    pesoMinObjetivo: toNumber(values.pesoMinObjetivo),
-    pesoMaxObjetivo: toNumber(values.pesoMaxObjetivo),
+    pesoMinObjetivo: toNumber(values.pesoMinObjetivo, 0),
+    pesoMaxObjetivo: toNumber(values.pesoMaxObjetivo, 0),
     maxGradosObjetivo: toInteger(values.maxGradosObjetivo, 3),
     changeReason: values.changeReason?.trim() || null,
   };
@@ -242,7 +238,7 @@ export function PoscosechaSkusExplorer({
   }
 
   function applySuggestedWeightRange() {
-    const pesoIdealBunch = toNumber(formValues.pesoIdealBunch);
+    const pesoIdealBunch = toNumber(formValues.pesoIdealBunch, 0);
 
     if (pesoIdealBunch <= 0) {
       toast.error("Define primero el peso ideal del bunch.");
@@ -505,7 +501,7 @@ export function PoscosechaSkusExplorer({
                     min="0"
                     className="rounded-xl"
                     value={formValues.pesoIdealBunch}
-                    onChange={(event) => updateField("pesoIdealBunch", toNumber(event.target.value))}
+                    onChange={(event) => updateField("pesoIdealBunch", toNumber(event.target.value, 0))}
                   />
                   {formErrors.pesoIdealBunch ? (
                     <p className="text-xs text-destructive">{formErrors.pesoIdealBunch}</p>
@@ -569,7 +565,7 @@ export function PoscosechaSkusExplorer({
                     min="0"
                     className="rounded-xl"
                     value={formValues.pesoMinObjetivo}
-                    onChange={(event) => updateField("pesoMinObjetivo", toNumber(event.target.value))}
+                    onChange={(event) => updateField("pesoMinObjetivo", toNumber(event.target.value, 0))}
                   />
                   {formErrors.pesoMinObjetivo ? (
                     <p className="text-xs text-destructive">{formErrors.pesoMinObjetivo}</p>
@@ -585,7 +581,7 @@ export function PoscosechaSkusExplorer({
                     min="0"
                     className="rounded-xl"
                     value={formValues.pesoMaxObjetivo}
-                    onChange={(event) => updateField("pesoMaxObjetivo", toNumber(event.target.value))}
+                    onChange={(event) => updateField("pesoMaxObjetivo", toNumber(event.target.value, 0))}
                   />
                   {formErrors.pesoMaxObjetivo ? (
                     <p className="text-xs text-destructive">{formErrors.pesoMaxObjetivo}</p>
@@ -621,7 +617,7 @@ export function PoscosechaSkusExplorer({
                   <div className="space-y-1">
                     <p className="text-sm font-medium">Preview rapido</p>
                     <p className="text-sm text-muted-foreground">
-                      Peso ideal actual: {formatDecimal(toNumber(formValues.pesoIdealBunch))} g. Al guardar,
+                      Peso ideal actual: {formatDecimal(toNumber(formValues.pesoIdealBunch, 0))} g. Al guardar,
                       la lista y la fecha de ultima carga se actualizan en tiempo real.
                     </p>
                     <p className="text-sm text-muted-foreground">

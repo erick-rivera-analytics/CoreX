@@ -3,7 +3,7 @@
 import { useState } from "react";
 import useSWRImmutable from "swr/immutable";
 
-import { fetchJson } from "@/lib/fetch-json";
+import { swrFetcher } from "@/hooks/use-swr-fetcher";
 import type { HarvestCurvePayload } from "@/lib/fenograma";
 import type { MortalityCurvePayload } from "@/lib/mortality";
 
@@ -20,10 +20,6 @@ export type SelectedMortalityCurveState =
 type KeyedMortalityCurveState = {
   rowKey: string;
 } & SelectedMortalityCurveState;
-
-async function swrFetcher<T>([url, fallbackMessage]: readonly [string, string]) {
-  return fetchJson<T>(url, fallbackMessage);
-}
 
 /**
  * Manages harvest curve and mortality curve data.

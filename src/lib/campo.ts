@@ -7,6 +7,7 @@ import type { BlockModalRow } from "@/lib/fenograma";
 import { getBlockModalRowsByParentBlocks } from "@/lib/fenograma";
 import { cachedAsync } from "@/lib/server-cache";
 import { normalizeAreaDisplayName } from "@/shared/lib/area-normalization";
+import { roundValue, toNumber } from "@/shared/lib/number-utils";
 
 type CampoMapJsonFeature = {
   block: string;
@@ -64,10 +65,6 @@ export type CampoDashboardData = {
 };
 
 const CAMPO_DASHBOARD_TTL_MS = 60 * 1000;
-
-function roundValue(value: number) {
-  return Number(value.toFixed(2));
-}
 
 function sortBlockIds(a: string, b: string) {
   return a.localeCompare(b, "en-US", {
@@ -148,22 +145,6 @@ async function loadRenderableBlocksFromGeoJson(fileName: string) {
   return Array.from(uniqueBlocks).sort(sortBlockIds);
 }
 
-function toNumber(value: number | string | null | undefined) {
-  if (typeof value === "number" && Number.isFinite(value)) {
-    return value;
-  }
-
-  if (typeof value === "string") {
-    const normalized = Number(value);
-
-    if (Number.isFinite(normalized)) {
-      return normalized;
-    }
-  }
-
-  return 0;
-}
-
 async function getProducibleAreaByBlock(blocks: string[]) {
   if (!blocks.length) {
     return new Map<string, ProducibleAreaEntry>();
@@ -206,7 +187,7 @@ async function getProducibleAreaByBlock(blocks: string[]) {
           normalizedBlock,
           {
             area: normalizeAreaDisplayName(row.area),
-            producibleArea: toNumber(row.producible_area),
+            producibleArea: toNumber(row.producible_area, 0) ?? 0,
           } satisfies ProducibleAreaEntry,
         ] as const;
       })

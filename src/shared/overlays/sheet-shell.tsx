@@ -12,7 +12,7 @@ export function SheetShell({
   onClose,
   children,
   side = "right",
-  widthClassName = "max-w-2xl",
+  widthClassName = "max-w-3xl",
   headerActions,
   footer,
 }: {

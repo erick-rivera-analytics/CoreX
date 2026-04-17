@@ -8,6 +8,7 @@ import type {
   PoscosechaSkuInput,
   PoscosechaSkuRecord,
 } from "@/lib/postcosecha-sku-types";
+import { toNumber } from "@/shared/lib/number-utils";
 
 type CurrentSkuRow = {
   sku_id: string;
@@ -46,15 +47,6 @@ declare global {
 
 function autoSeedEnabled() {
   return process.env.POSTHARVEST_AUTO_SEED === "true";
-}
-
-function toNumber(value: string | number | null | undefined) {
-  if (value === null || value === undefined || value === "") {
-    return null;
-  }
-
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : null;
 }
 
 function formatTimestamp(value: string | null) {

@@ -7,7 +7,7 @@ import useSWR from "swr";
 import { SectionPageShell } from "@/shared/layout/section-page-shell";
 import { FilterPanel } from "@/shared/layout/filter-panel";
 import { MultiSelectField } from "@/shared/filters/multi-select-field";
-import { formatInteger, formatDate } from "@/shared/lib/format";
+import { formatInteger, formatDate, parseDateOnly } from "@/shared/lib/format";
 import { EmptyState } from "@/shared/data-display/empty-state";
 import { AREA_PALETTE, SPTYPE_ACCENT_COLORS, VARIETY_COLORS } from "@/config/programaciones-palettes";
 import { fetchJson } from "@/lib/fetch-json";
@@ -70,6 +70,34 @@ function getVarietyAbbr(variety: string | null): string {
 
 function toDateStr(date: Date): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+function diffDateOnlyDays(from: string, to: string) {
+  const startDate = parseDateOnly(from);
+  const endDate = parseDateOnly(to);
+
+  if (!startDate || !endDate) {
+    return null;
+  }
+
+  return Math.round((endDate.getTime() - startDate.getTime()) / 86_400_000);
+}
+
+function getMonthStartFromDateOnly(value: string) {
+  const date = parseDateOnly(value);
+  return date ? new Date(date.getFullYear(), date.getMonth(), 1) : null;
+}
+
+function formatDateLong(value: string) {
+  const date = parseDateOnly(value);
+
+  return date
+    ? date.toLocaleDateString("es-ES", {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+    })
+    : value;
 }
 
 function monthRange(year: number, month: number): { dateFrom: string; dateTo: string } {
@@ -274,10 +302,7 @@ export function ProgramacionesExplorer({
     : null;
 
   const ilumDays = ilumCycleDateRange?.min && ilumCycleDateRange?.max
-    ? Math.round(
-        (new Date(ilumCycleDateRange.max).getTime() - new Date(ilumCycleDateRange.min).getTime())
-        / 86_400_000,
-      )
+    ? diffDateOnlyDays(ilumCycleDateRange.min, ilumCycleDateRange.max)
     : null;
 
   function prevMonth() { setViewDate((d) => new Date(d.getFullYear(), d.getMonth() - 1, 1)); setSelected(null); setSelectedIlumCycleKey(null); }
@@ -550,8 +575,10 @@ export function ProgramacionesExplorer({
                             const firstDate = startRec || endRec;
                             // Auto-navigate to the month of the first available date
                             if (firstDate) {
-                              const eventDate = new Date(firstDate.eventDate);
-                              setViewDate(new Date(eventDate.getFullYear(), eventDate.getMonth(), 1));
+                              const eventMonth = getMonthStartFromDateOnly(firstDate.eventDate);
+                              if (eventMonth) {
+                                setViewDate(eventMonth);
+                              }
                             }
                           }
                           setSelectedIlumCycleKey(newKey);
@@ -683,9 +710,7 @@ export function ProgramacionesExplorer({
             <div className="border-b border-border/50 bg-muted/20 px-5 py-4">
               <h3 className="text-sm font-semibold">
                 {selected
-                  ? new Date(selected + "T00:00:00").toLocaleDateString("es-ES", {
-                      weekday: "long", day: "numeric", month: "long",
-                    })
+                  ? formatDateLong(selected)
                   : "Selecciona un día"}
               </h3>
               {selected && (
