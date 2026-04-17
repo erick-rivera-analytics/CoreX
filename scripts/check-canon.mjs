@@ -62,10 +62,15 @@ for (const file of docsFiles) {
   }
 }
 
-const allowedDashboardFiles = new Set([
-  "chatbot-modal.tsx",
-  "module-placeholder.tsx",
-]);
+const allowedDashboardFiles = new Set(["module-placeholder.tsx"]);
+
+if (fs.existsSync(path.join(root, "src/components/ui"))) {
+  fail("Directorio fantasma src/components/ui no debe existir");
+}
+
+if (fs.existsSync(path.join(root, "src/modules/shared"))) {
+  fail("src/modules/shared es ambiguo; usar src/modules/core/server-page");
+}
 
 for (const file of walk("src/components/dashboard").filter((file) => file.endsWith(".tsx"))) {
   const name = path.basename(file);
@@ -117,7 +122,7 @@ for (const file of tsFiles) {
   }
 
   if (
-    /function format(Number|Date|Percent|DateTime)\s*\(/.test(content)
+    /function (?:format(Number|Date|Percent|DateTime|DisplayDate)|fmt|fmtPct)\s*\(/.test(content)
     && (file.includes("src/components/dashboard") || file.includes("src/modules"))
   ) {
     fail(`Formatter local simple en UI: ${file}`);
@@ -125,6 +130,12 @@ for (const file of tsFiles) {
 
   if (/from\s+["']@\/shared\/lib\/fetch-json["']/.test(content)) {
     fail(`fetchJson debe importarse desde @/lib/fetch-json: ${file}`);
+  }
+}
+
+for (const file of walk("src/shared").filter((candidate) => /\.(ts|tsx)$/.test(candidate))) {
+  if (read(file).includes("@/components/")) {
+    fail(`src/shared no puede importar desde src/components: ${file}`);
   }
 }
 
@@ -153,7 +164,6 @@ const colorExceptions = new Set([
   "src/modules/campo/components/campo-sjp-inset.tsx",
   "src/modules/campo/components/campo-sub-map-modal.tsx",
   "src/modules/fenograma/components/block-profile-modal.tsx",
-  "src/modules/fenograma/components/block-profile-primitives.tsx",
   "src/modules/programaciones/components/programaciones-explorer.tsx",
   "src/config/programaciones-palettes.ts",
 ]);

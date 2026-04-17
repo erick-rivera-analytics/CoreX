@@ -3,14 +3,14 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-import { DashboardScaleToggle } from "@/components/dashboard-scale-toggle";
+import { DashboardScaleToggle } from "@/shared/layout/dashboard-scale-toggle";
 import {
   filterMobileNavigationByAccess,
   getPageContext,
   isPathActive,
   mobileNavigation,
 } from "@/config/dashboard";
-import { ModeToggle } from "@/components/mode-toggle";
+import { ModeToggle } from "@/shared/layout/mode-toggle";
 import { useCurrentUserAccess } from "@/hooks/use-current-user-access";
 import { cn } from "@/lib/utils";
 

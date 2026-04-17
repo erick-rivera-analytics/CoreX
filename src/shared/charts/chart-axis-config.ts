@@ -14,6 +14,11 @@ export const axisTickStyle = {
   fontSize: 12,
 } as const;
 
+export const axisTickStyleCompact = {
+  fill: "var(--color-muted-foreground)",
+  fontSize: 10,
+} as const;
+
 export const gridConfig = {
   stroke: "var(--color-border)",
   strokeDasharray: "3 3",

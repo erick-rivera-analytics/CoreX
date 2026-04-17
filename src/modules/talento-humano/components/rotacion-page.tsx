@@ -36,6 +36,7 @@ import {
 } from "@/modules/talento-humano/components/shared";
 import { ChartSurface } from "@/shared/data-display/chart-surface";
 import { RechartsTooltipAdapter } from "@/shared/charts/chart-tooltip";
+import { axisConfig, axisTickStyleCompact, gridConfig, tooltipCursorStyle } from "@/shared/charts/chart-axis-config";
 
 const rotacionFetcher = (url: string) =>
   fetchJson<TalentoRotacionData>(url, "No se pudo cargar rotacion laboral.");
@@ -139,19 +140,18 @@ function WeeklyEvolutionChart({
       <div className="h-[360px] w-full">
         <ResponsiveContainer width="100%" height="100%" minHeight={360}>
           <ComposedChart data={data} margin={{ top: 10, right: 16, left: 0, bottom: 8 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
+            <CartesianGrid {...gridConfig} />
             <XAxis
+              {...axisConfig}
               dataKey="isoWeekId"
-              tick={{ fontSize: 10, fill: "var(--color-muted-foreground)" }}
-              tickLine={false}
-              axisLine={false}
+              tick={axisTickStyleCompact}
               tickFormatter={(value: string) => formatWeekLabel(value)}
               minTickGap={18}
             />
-            <YAxis yAxisId="salidas" tick={{ fontSize: 10, fill: "var(--color-muted-foreground)" }} tickLine={false} axisLine={false} />
-            <YAxis yAxisId="activos" orientation="right" tick={{ fontSize: 10, fill: "var(--color-muted-foreground)" }} tickLine={false} axisLine={false} />
+            <YAxis {...axisConfig} yAxisId="salidas" tick={axisTickStyleCompact} />
+            <YAxis {...axisConfig} yAxisId="activos" orientation="right" tick={axisTickStyleCompact} />
             <Tooltip
-              cursor={{ fill: "var(--color-muted)", opacity: 0.25 }}
+              cursor={tooltipCursorStyle}
               content={
                 <RechartsTooltipAdapter
                   title={(label) => formatWeekLabel(String(label))}

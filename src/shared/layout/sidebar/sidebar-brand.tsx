@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
-import { Logo } from "@/components/logo";
+import { Logo } from "@/shared/layout/logo";
 import { starterName, starterSubtitle } from "@/config/dashboard";
 import { cn } from "@/lib/utils";
 

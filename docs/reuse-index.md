@@ -18,7 +18,7 @@ Regla operativa: antes de crear algo nuevo, buscar primero aqui. Si existe algo 
 | --- | --- |
 | KPI compartido | `MetricTile` |
 | Estado vacio | `EmptyState` |
-| Error/loader server-side | `DashboardRouteError` + `loadProtectedPageData` |
+| Error/loader server-side | `DashboardRouteError` + `loadProtectedPageData` desde `src/modules/core/server-page.tsx` |
 
 ## Filtros
 
@@ -44,7 +44,7 @@ Regla operativa: antes de crear algo nuevo, buscar primero aqui. Si existe algo 
 | --- | --- |
 | Tooltip Recharts | `RechartsTooltipAdapter` |
 | Cuerpo visual de tooltip | `ChartTooltip` |
-| Ejes/grilla/cursor | `axisConfig`, `axisTickStyle`, `gridConfig`, `tooltipCursorStyle` |
+| Ejes/grilla/cursor | `axisConfig`, `axisTickStyle`, `axisTickStyleCompact`, `gridConfig`, `tooltipCursorStyle` |
 
 ## Overlays y navegacion
 

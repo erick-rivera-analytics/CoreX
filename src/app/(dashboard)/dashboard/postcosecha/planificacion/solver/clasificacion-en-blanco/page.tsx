@@ -1,6 +1,6 @@
 import { getClasificacionEnBlancoBootData } from "@/lib/postcosecha-clasificacion-en-blanco";
 import { ClasificacionEnBlancoPage } from "@/modules/postcosecha/components/clasificacion-en-blanco-page";
-import { DashboardRouteError, loadProtectedPageData } from "@/modules/shared/server-page";
+import { DashboardRouteError, loadProtectedPageData } from "@/modules/core/server-page";
 
 export const dynamic = "force-dynamic";
 

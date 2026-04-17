@@ -66,15 +66,6 @@ function formatMonthOption(value: string) {
 }
 
 // ── Formatters ────────────────────────────────────────────────────────────────
-function fmt(value: number | null, decimals = 2, suffix = ""): string {
-  const formatted = formatDecimal(value, decimals);
-  return formatted === "—" ? formatted : `${formatted}${suffix}`;
-}
-
-function fmtPct(value: number | null): string {
-  return formatPercent(value);
-}
-
 // ── BlockModalRow builder ─────────────────────────────────────────────────────
 function buildBlockModalRow(row: ProductividadRow): BlockModalRow {
   return {
@@ -88,7 +79,7 @@ function buildBlockModalRow(row: ProductividadRow): BlockModalRow {
     harvestEndDate: row.harvestEndDate,
     totalStems: row.totalStems ?? 0,
     primaryMetricLabel: "Hora / Caja",
-    primaryMetricText: fmt(row.horaCaja, 2, " h"),
+    primaryMetricText: formatHours(row.horaCaja),
   };
 }
 
@@ -339,9 +330,9 @@ function CycleDetailRows({
                 </span>
               </TD>
               <TD /><TD /><TD /><TD /><TD />
-              <TD right className="text-xs font-semibold">{fmt(hCaja(ca.effectiveHours))}</TD>
+              <TD right className="text-xs font-semibold">{formatDecimal(hCaja(ca.effectiveHours))}</TD>
               <TD />
-              <TD right className="text-xs font-semibold">{fmt(hCama(ca.effectiveHours))}</TD>
+              <TD right className="text-xs font-semibold">{formatDecimal(hCama(ca.effectiveHours))}</TD>
               <TD /><TD />
             </tr>
 
@@ -361,9 +352,9 @@ function CycleDetailRows({
                       </span>
                     </TD>
                     <TD /><TD /><TD /><TD /><TD />
-                    <TD right className="text-xs text-muted-foreground">{fmt(hCaja(sub.effectiveHours))}</TD>
+                    <TD right className="text-xs text-muted-foreground">{formatDecimal(hCaja(sub.effectiveHours))}</TD>
                     <TD />
-                    <TD right className="text-xs text-muted-foreground">{fmt(hCama(sub.effectiveHours))}</TD>
+                    <TD right className="text-xs text-muted-foreground">{formatDecimal(hCama(sub.effectiveHours))}</TD>
                     <TD /><TD />
                   </tr>
 
@@ -382,9 +373,9 @@ function CycleDetailRows({
                             </span>
                           </TD>
                           <TD /><TD /><TD /><TD /><TD />
-                          <TD right className="text-[11px] text-muted-foreground/70">{fmt(hCaja(activity.effectiveHours))}</TD>
+                          <TD right className="text-[11px] text-muted-foreground/70">{formatDecimal(hCaja(activity.effectiveHours))}</TD>
                           <TD />
-                          <TD right className="text-[11px] text-muted-foreground/70">{fmt(hCama(activity.effectiveHours))}</TD>
+                          <TD right className="text-[11px] text-muted-foreground/70">{formatDecimal(hCama(activity.effectiveHours))}</TD>
                           <TD /><TD />
                         </tr>
 
@@ -405,9 +396,9 @@ function CycleDetailRows({
                               </button>
                             </TD>
                             <TD /><TD /><TD /><TD /><TD />
-                            <TD right className="text-[11px] text-muted-foreground/60">{fmt(hCaja(person.effectiveHours))}</TD>
+                            <TD right className="text-[11px] text-muted-foreground/60">{formatDecimal(hCaja(person.effectiveHours))}</TD>
                             <TD />
-                            <TD right className="text-[11px] text-muted-foreground/60">{fmt(hCama(person.effectiveHours))}</TD>
+                            <TD right className="text-[11px] text-muted-foreground/60">{formatDecimal(hCama(person.effectiveHours))}</TD>
                             <TD /><TD />
                           </tr>
                         ))}
@@ -517,7 +508,7 @@ function ProductividadTable({
                     </div>
                   </TD>
                   <TD /><TD /><TD /><TD /><TD />
-                  <TD right className="font-semibold">{fmt(yearHoraCaja)}</TD>
+                  <TD right className="font-semibold">{formatDecimal(yearHoraCaja)}</TD>
                   <TD /><TD /><TD /><TD />
                 </tr>
 
@@ -543,12 +534,12 @@ function ProductividadTable({
                         <TD muted>{cycle.variety}</TD>
                         <TD muted>{cycle.spType}</TD>
                         <TD><StatusBadge status={cycle.cycleStatus} /></TD>
-                        <TD right muted>{fmtPct(cycle.pctMortality)}</TD>
-                        <TD right className="font-medium">{fmt(cycle.horaCaja)}</TD>
-                        <TD right muted>{fmt(cycle.cajaCama)}</TD>
-                        <TD right muted>{fmt(cycle.horaCama)}</TD>
-                        <TD right muted>{fmt(cycle.tallosPlanta)}</TD>
-                        <TD right muted>{fmt(cycle.pesoTalloGramos)}</TD>
+                        <TD right muted>{formatPercent(cycle.pctMortality)}</TD>
+                        <TD right className="font-medium">{formatDecimal(cycle.horaCaja)}</TD>
+                        <TD right muted>{formatDecimal(cycle.cajaCama)}</TD>
+                        <TD right muted>{formatDecimal(cycle.horaCama)}</TD>
+                        <TD right muted>{formatDecimal(cycle.tallosPlanta)}</TD>
+                        <TD right muted>{formatDecimal(cycle.pesoTalloGramos)}</TD>
                       </tr>
 
                       {/* ── Detail drill-down (lazy-loaded) ── */}

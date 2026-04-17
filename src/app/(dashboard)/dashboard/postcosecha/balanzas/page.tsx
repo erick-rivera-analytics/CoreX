@@ -4,7 +4,7 @@ import {
   getBalanzasDashboardData,
 } from "@/lib/postcosecha-balanzas";
 import { BalanzasPage } from "@/modules/postcosecha/components/balanzas-page";
-import { loadProtectedPageData } from "@/modules/shared/server-page";
+import { loadProtectedPageData } from "@/modules/core/server-page";
 
 export const dynamic = "force-dynamic";
 

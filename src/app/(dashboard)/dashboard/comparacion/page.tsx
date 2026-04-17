@@ -1,6 +1,6 @@
 import { getComparisonDashboardData } from "@/lib/comparacion";
 import { ComparacionPage } from "@/modules/comparacion/components/comparacion-page";
-import { DashboardRouteError, loadProtectedPageData } from "@/modules/shared/server-page";
+import { DashboardRouteError, loadProtectedPageData } from "@/modules/core/server-page";
 
 export const dynamic = "force-dynamic";
 

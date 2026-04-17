@@ -11,7 +11,7 @@ import { SolverMetricTile } from "@/modules/postcosecha/components/solver-feedba
 import { RecipeOverlayLauncher } from "@/modules/postcosecha/components/recipe-overlay-launcher";
 import { SolverResults } from "@/modules/postcosecha/components/solver-results";
 import { SolverShell } from "@/modules/postcosecha/components/solver-shell";
-import { useClasificacionEnBlancoExplorer } from "@/modules/postcosecha/components/use-clasificacion-en-blanco-explorer";
+import { useClasificacionEnBlancoExplorer } from "@/modules/postcosecha/hooks/use-clasificacion-en-blanco-explorer";
 
 type PoscosechaClasificacionEnBlancoExplorerProps = {
   initialData: PoscosechaClasificacionBootData;

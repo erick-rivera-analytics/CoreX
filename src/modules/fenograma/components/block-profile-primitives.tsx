@@ -89,7 +89,7 @@ export function HoursPerformanceDonut({
   const hasPercentage = percentage !== null;
   const normalizedPercentage = Math.max(0, Math.min(percentage ?? 0, 100));
   const chartStyle = {
-    background: `conic-gradient(rgb(13 148 136) 0 ${normalizedPercentage}%, rgb(226 232 240) ${normalizedPercentage}% 100%)`,
+    background: `conic-gradient(var(--color-chart-success-bold) 0 ${normalizedPercentage}%, var(--color-border) ${normalizedPercentage}% 100%)`,
   } as const;
 
   return (

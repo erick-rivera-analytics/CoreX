@@ -1,6 +1,6 @@
 import { getProgramaciones } from "@/lib/programaciones";
 import { ProgramacionesPage } from "@/modules/programaciones/components/programaciones-page";
-import { loadProtectedPageData } from "@/modules/shared/server-page";
+import { loadProtectedPageData } from "@/modules/core/server-page";
 
 export const dynamic = "force-dynamic";
 

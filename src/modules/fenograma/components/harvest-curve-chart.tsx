@@ -15,7 +15,7 @@ import {
   YAxis,
 } from "recharts";
 
-import { ChartTooltip } from "@/shared/charts/chart-tooltip";
+import { RechartsTooltipAdapter } from "@/shared/charts/chart-tooltip";
 import { axisConfig, axisTickStyle, gridConfig } from "@/shared/charts/chart-axis-config";
 import { formatFlexibleNumber } from "@/shared/lib/format";
 import type { HarvestCurvePoint, HarvestCurvePayload } from "@/lib/fenograma";
@@ -27,48 +27,6 @@ type HarvestCurveChartProps = {
   projectionStartDay: number | null;
   summary?: HarvestCurveSummary | null;
 };
-
-function HarvestTooltip({
-  active,
-  payload,
-  label,
-}: {
-  active?: boolean;
-  payload?: Array<{ payload?: HarvestCurvePoint }>;
-  label?: string | number;
-}) {
-  if (!active || !payload?.length) return null;
-
-  const point = payload[0]?.payload;
-  if (!point) return null;
-
-  const accumulated = point.observedCumulativeStems ?? point.projectedCumulativeStems ?? null;
-  const hasWeight = point.dailyGreenKg > 0;
-
-  return (
-    <ChartTooltip
-      title={`Dia ${label}${point.eventDate ? ` · ${point.eventDate}` : ""}`}
-      rows={[
-        { label: "Tallos acumulados", value: accumulated !== null ? formatFlexibleNumber(accumulated) : "—" },
-        { label: "Tallos dia", value: formatFlexibleNumber(point.dailyStems) },
-        ...(hasWeight
-          ? [
-              { label: "Kg acumulado", value: formatFlexibleNumber(point.cumulativeGreenKg) },
-              { label: "Kg dia", value: formatFlexibleNumber(point.dailyGreenKg) },
-              {
-                label: "Peso / tallo acum.",
-                value: point.cumulativeWeightPerStemG !== null ? `${formatFlexibleNumber(point.cumulativeWeightPerStemG)} g` : "—",
-              },
-              {
-                label: "Peso / tallo dia",
-                value: point.dailyWeightPerStemG !== null ? `${formatFlexibleNumber(point.dailyWeightPerStemG)} g` : "—",
-              },
-            ]
-          : []),
-      ]}
-    />
-  );
-}
 
 function MetricBadge({ label, value }: { label: string; value: string }) {
   return (
@@ -109,7 +67,42 @@ export const HarvestCurveChart = memo(function HarvestCurveChart({
               tick={axisTickStyle}
               tickFormatter={(value) => formatFlexibleNumber(Number(value))}
             />
-            <Tooltip content={<HarvestTooltip />} />
+            <Tooltip
+              content={
+                <RechartsTooltipAdapter
+                  title={(label, payload) => {
+                    const point = payload?.[0]?.payload as HarvestCurvePoint | undefined;
+                    return `Dia ${label}${point?.eventDate ? ` · ${point.eventDate}` : ""}`;
+                  }}
+                  mapPayload={(payload) => {
+                    const point = payload[0]?.payload as HarvestCurvePoint | undefined;
+                    if (!point) return [];
+
+                    const accumulated = point.observedCumulativeStems ?? point.projectedCumulativeStems ?? null;
+                    const hasWeight = point.dailyGreenKg > 0;
+
+                    return [
+                      { label: "Tallos acumulados", value: accumulated !== null ? formatFlexibleNumber(accumulated) : "-" },
+                      { label: "Tallos dia", value: formatFlexibleNumber(point.dailyStems) },
+                      ...(hasWeight
+                        ? [
+                            { label: "Kg acumulado", value: formatFlexibleNumber(point.cumulativeGreenKg) },
+                            { label: "Kg dia", value: formatFlexibleNumber(point.dailyGreenKg) },
+                            {
+                              label: "Peso / tallo acum.",
+                              value: point.cumulativeWeightPerStemG !== null ? `${formatFlexibleNumber(point.cumulativeWeightPerStemG)} g` : "-",
+                            },
+                            {
+                              label: "Peso / tallo dia",
+                              value: point.dailyWeightPerStemG !== null ? `${formatFlexibleNumber(point.dailyWeightPerStemG)} g` : "-",
+                            },
+                          ]
+                        : []),
+                    ];
+                  }}
+                />
+              }
+            />
             <Legend wrapperStyle={{ fontSize: 12 }} />
             {projectionStartDay && projectionEndDay ? (
               <ReferenceArea

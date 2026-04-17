@@ -25,8 +25,6 @@ El build puede emitir un warning de Turbopack/NFT relacionado con rutas dinamica
 - `src/components/dashboard/` queda congelado. No crear archivos nuevos alli.
 - La zona legacy debe reducirse a:
   - `module-placeholder.tsx`
-  - `chatbot-modal.tsx` si sigue siendo pieza activa
-  - notas/documentacion local no visible
 - `src/modules/*` ya no debe importar directamente desde `@/components/dashboard/*`; el canon check falla si reaparece esa frontera rota.
 - Los unicos imports cruzados entre modulos aceptados temporalmente son los que reutilizan overlays/paneles de Fenograma y Mortality mientras se completa la extraccion a piezas shared o de dominio.
 - `src/lib/fenograma.ts` y `src/lib/postcosecha-balanzas.ts` ahora son fachadas temporales. La logica nueva debe ir a `*-core.ts` o a subarchivos de dominio, nunca volver a crecer dentro de la fachada.
@@ -38,7 +36,7 @@ El build puede emitir un warning de Turbopack/NFT relacionado con rutas dinamica
 
 - Lote 1: eliminar todos los `TEMPORARY_SHIM` sin imports reales
 - Lote 2: mover o borrar cualquier pieza visible que siga en `src/components/dashboard/`
-- Lote 3: dejar `src/components/dashboard/` solo con `module-placeholder.tsx`, `chatbot-modal.tsx` y referencia local no visible
+- Lote 3: mantener `src/components/dashboard/` solo con `module-placeholder.tsx`
 
 ## Archivos grandes vigilados
 

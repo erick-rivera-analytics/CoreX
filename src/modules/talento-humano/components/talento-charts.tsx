@@ -16,6 +16,7 @@ import {
 import { ChartSurface } from "@/shared/data-display/chart-surface";
 import { EmptyState } from "@/shared/data-display/empty-state";
 import { RechartsTooltipAdapter } from "@/shared/charts/chart-tooltip";
+import { axisConfig, axisTickStyleCompact, gridConfig, tooltipCursorStyle } from "@/shared/charts/chart-axis-config";
 import { formatInteger, formatPercent } from "@/shared/lib/format";
 import type { TalentoPersonRecord } from "@/lib/talento-humano";
 
@@ -43,19 +44,18 @@ export function DistributionChart<T extends TalentoPersonRecord>({
       {data.length ? (
         <ResponsiveContainer width="100%" height={height}>
           <BarChart data={data} layout="vertical" margin={{ top: 0, right: 12, left: 0, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" horizontal={false} />
-            <XAxis type="number" tick={{ fontSize: 10, fill: "var(--color-muted-foreground)" }} tickLine={false} axisLine={false} />
+            <CartesianGrid {...gridConfig} horizontal={false} />
+            <XAxis {...axisConfig} type="number" tick={axisTickStyleCompact} />
             <YAxis
+              {...axisConfig}
               type="category"
               dataKey="label"
               width={132}
-              tick={{ fontSize: 10, fill: "var(--color-muted-foreground)" }}
-              tickLine={false}
-              axisLine={false}
+              tick={axisTickStyleCompact}
               tickFormatter={(value: string) => (value.length > 18 ? `${value.slice(0, 17)}...` : value)}
             />
             <Tooltip
-              cursor={{ fill: "var(--color-muted)", opacity: 0.32 }}
+              cursor={tooltipCursorStyle}
               content={(
                 <RechartsTooltipAdapter
                   title={(label) => String(label)}

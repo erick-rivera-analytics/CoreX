@@ -83,7 +83,7 @@ Antes de cerrar el lote:
 ## Checklist de no romper crecimiento
 
 - no importar desde `@/components/dashboard/*`
-- no usar `@/shared/lib/fetch-json`
+- usar `@/lib/fetch-json` como fetcher cliente canonico; no inventar bridges/fetchers alternos
 - no crear componentes >350 lineas sin plan de split documentado
 - no crear archivos de dominio/query >700 lineas sin plan de split documentado
 - no introducir excepciones UX/UI sin documentarlas en `docs/ui-canon.md`

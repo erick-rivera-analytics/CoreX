@@ -1,6 +1,6 @@
 import { defaultFenogramaFilters, getFenogramaDashboardData } from "@/lib/fenograma";
 import { FenogramaPage } from "@/modules/fenograma/components/fenograma-page";
-import { DashboardRouteError, loadProtectedPageData } from "@/modules/shared/server-page";
+import { DashboardRouteError, loadProtectedPageData } from "@/modules/core/server-page";
 
 export const dynamic = "force-dynamic";
 

@@ -1,6 +1,6 @@
 import { getCampoDashboardData } from "@/lib/campo";
 import { CampoPage } from "@/modules/campo/components/campo-page";
-import { DashboardRouteError, loadProtectedPageData } from "@/modules/shared/server-page";
+import { DashboardRouteError, loadProtectedPageData } from "@/modules/core/server-page";
 
 export const dynamic = "force-dynamic";
 

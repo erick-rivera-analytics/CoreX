@@ -2,9 +2,9 @@
 
 import { useState, type ReactNode } from "react";
 import { SWRConfig } from "swr";
-import { AppSidebar } from "@/components/app-sidebar";
-import { SiteFooter } from "@/components/site-footer";
-import { SiteHeader } from "@/components/site-header";
+import { AppSidebar } from "@/shared/layout/app-sidebar";
+import { SiteFooter } from "@/shared/layout/site-footer";
+import { SiteHeader } from "@/shared/layout/site-header";
 import { cn } from "@/lib/utils";
 
 export function AppShell({ children }: { children: ReactNode }) {

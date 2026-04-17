@@ -1,6 +1,6 @@
 import { defaultMortalityFilters, getMortalityDashboardData } from "@/lib/mortality";
 import { MortalityPage } from "@/modules/mortality/components/mortality-page";
-import { DashboardRouteError, loadProtectedPageData } from "@/modules/shared/server-page";
+import { DashboardRouteError, loadProtectedPageData } from "@/modules/core/server-page";
 
 export const dynamic = "force-dynamic";
 

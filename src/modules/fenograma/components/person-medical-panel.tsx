@@ -8,7 +8,7 @@ import useSWRImmutable from "swr/immutable";
 import { Badge } from "@/shared/ui/badge";
 import { Button } from "@/shared/ui/button";
 import { fetchJson } from "@/lib/fetch-json";
-import { formatInteger, formatDecimal } from "@/shared/lib/format";
+import { formatDateSlash, formatInteger, formatDecimal } from "@/shared/lib/format";
 import type {
   MedicalExamMarker,
   MedicalMarkerColor,
@@ -46,20 +46,6 @@ function formatSignedPercent(value: number | null) {
 
   const sign = value > 0 ? "+" : "";
   return `${sign}${value.toFixed(1)}%`;
-}
-
-function formatDisplayDate(value: string) {
-  if (!value || value === "-") {
-    return "-";
-  }
-
-  const [year, month, day] = value.split("-");
-
-  if (!year || !month || !day) {
-    return value;
-  }
-
-  return `${day}/${month}/${year}`;
 }
 
 function getMarkerTone(color: MedicalMarkerColor) {
@@ -292,7 +278,7 @@ function MarkerTrendChart({
               textAnchor="middle"
               className="fill-slate-500 text-[11px]"
             >
-              {formatDisplayDate(point.date)}
+              {formatDateSlash(point.date)}
             </text>
           </g>
         ))}
@@ -441,7 +427,7 @@ function MedicalMarkerOverlay({
                         const isAlert = marker.field === "colinesterasa" && point.deltaPct !== null && point.deltaPct <= -25;
                         return (
                           <tr key={`${point.examId}-${point.date}`} className={index % 2 === 0 ? "bg-background/90" : "bg-muted/18"}>
-                            <td className="border-b border-r border-border/40 px-3 py-2.5">{formatDisplayDate(point.date)}</td>
+                            <td className="border-b border-r border-border/40 px-3 py-2.5">{formatDateSlash(point.date)}</td>
                             <td className="border-b border-r border-border/40 px-3 py-2.5">{point.type}</td>
                             <td className="border-b border-r border-border/40 px-3 py-2.5 text-right tabular-nums">
                               {Number.isInteger(point.value) ? formatInteger(point.value) : formatDecimal(point.value)} {marker.unit}
@@ -578,7 +564,7 @@ export function PersonMedicalPanel({
           />
           <SummaryCard
             label="Ultimo examen"
-            value={formatDisplayDate(data.summary.lastExamDate ?? "-")}
+            value={formatDateSlash(data.summary.lastExamDate ?? "-")}
             hint={data.summary.lastExamType ?? "Sin tipo"}
           />
           <SummaryCard
@@ -625,7 +611,7 @@ export function PersonMedicalPanel({
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <p className="text-sm font-semibold text-foreground">
-                        {formatDisplayDate(exam.date)}
+                        {formatDateSlash(exam.date)}
                       </p>
                       <p className="mt-0.5 text-xs text-muted-foreground">
                         {exam.type}
@@ -647,7 +633,7 @@ export function PersonMedicalPanel({
                   Ficha medica
                 </Badge>
                 <Badge variant="secondary" className="rounded-full px-3 py-1">
-                  {formatDisplayDate(selectedExam.date)}
+                  {formatDateSlash(selectedExam.date)}
                 </Badge>
                 <Badge variant="outline" className="rounded-full px-3 py-1">
                   {selectedExam.type}

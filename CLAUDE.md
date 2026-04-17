@@ -98,7 +98,7 @@ Rutas ocultas:
 ## Data flow
 
 1. `page.tsx` valida acceso con `requirePageAccess()` directa o indirectamente via `loadProtectedPageData()`.
-2. El loader server usa `src/modules/shared/server-page.tsx`.
+2. El loader server usa `src/modules/core/server-page.tsx`.
 3. La UI del modulo entra por `src/modules/*`.
 4. `src/components/dashboard/*` es legacy congelado; la UI visible vive en `src/modules/*`.
 5. SWR revalida contra `src/app/api/*`.
@@ -179,7 +179,7 @@ Componentes compartidos obligatorios:
 - `FilterPanel`, `KpiGrid`, `ChartSection`, `DetailSection` from `@/shared/layout/filter-panel`
 - `MetricTile` from `@/shared/data-display/metric-tile`
 - `ChartSurface`, `EmptyState` from `@/shared/data-display/*`
-- `ChartTooltip`, `RechartsTooltipAdapter`, `axisConfig`, `axisTickStyle`, `gridConfig` from `@/shared/charts/*`
+- `ChartTooltip`, `RechartsTooltipAdapter`, `axisConfig`, `axisTickStyle`, `axisTickStyleCompact`, `gridConfig` from `@/shared/charts/*`
 - `DateField`, `WeekField`, `ToggleChipGroup`, `MultiSelectField`, `SingleSelectField` from `@/shared/filters/*`
 - `DialogShell`, `SheetShell` from `@/shared/overlays/*`
 - `SortableHeader`, `ScrollFadeTable`, `StandardTable` from `@/shared/tables/*`
@@ -198,6 +198,7 @@ Excepciones documentadas:
 
 - `campo-map.tsx` conserva colores directos porque Leaflet necesita valores concretos para `L.PathOptions`.
 - Programaciones usa paletas categoricas literales centralizadas en `src/config/programaciones-palettes.ts`.
+- `.balanzas-process` conserva colores directos porque el render BPMN/process necesita valores concretos de estado.
 - Comparacion no requiere `KpiGrid`; su layout de batalla es el contenido principal.
 - `fenograma-block-modal.tsx` conserva `MetricPill` local porque es clickeable y de dominio.
 - `person-detail-sheet.tsx` puede usar `space-y-6` dentro del overlay para respiracion visual.
@@ -214,10 +215,11 @@ Excepciones documentadas:
 
 ## Deuda arquitectonica conocida
 
-- `src/components/dashboard/` queda reducido a placeholder/chatbot/notas. No crear archivos nuevos alli.
+- `src/components/dashboard/` queda reducido a `module-placeholder.tsx`. No crear archivos nuevos alli.
 - `fenograma-block-modal.tsx` sigue siendo un componente masivo y debe partirse por subdominios antes de crecer mas.
 - `src/lib/fenograma.ts` y `src/lib/postcosecha-balanzas.ts` son fachadas temporales; no agregar logica nueva ahi.
 - `src/lib/fenograma-core.ts` y `src/lib/postcosecha-balanzas-core.ts` siguen siendo monolitos de dominio y deben partirse por loaders/mappers/graph/table/options.
+- `src/proxy.ts` se mantiene: en Next.js 16 actua como Proxy/Middleware y el build lo reporta como tal. No renombrar sin validar auth/login en produccion.
 - Clasificacion en blanco y Talento Humano ya tienen split de modulo; mantener sus barrels/orquestadores pequenos.
 - El canon UX/UI de explorers principales queda cerrado; nuevas divergencias deben documentarse como excepcion antes de crecer.
 - El build puede emitir warning de Turbopack/NFT por rutas dinamicas del solver de postcosecha; mantenerlo vigilado.

@@ -31,9 +31,9 @@ src/app -> src/modules -> src/shared + src/lib
 ### Flujo de datos
 
 1. `page.tsx` server valida acceso y carga datos iniciales.
-2. El loader server reutiliza helpers de `src/modules/shared/server-page.tsx`.
+2. El loader server reutiliza helpers de `src/modules/core/server-page.tsx`.
 3. La UI de pantalla vive en `src/modules/*`.
-4. `src/components/dashboard/*` queda congelado y reducido a placeholder/chatbot/notas; no es fuente de UI visible.
+4. `src/components/dashboard/*` queda congelado y reducido a `module-placeholder.tsx`; no es fuente de UI visible.
 5. Las APIs llaman `requireAuth()` y quedan protegidas por reglas explicitas en `src/lib/access-control.ts`.
 
 ### Fuente de verdad de modulos

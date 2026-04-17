@@ -105,12 +105,12 @@ Piezas importantes:
 - `src/config/dashboard.ts`: contexto de pagina, home y mobile nav derivados desde el catalogo
 - `src/lib/access-control.ts`: recursos RBAC y reglas API explicitas
 - `src/lib/api-auth.ts`: `requirePageAccess()` y `requireAuth()`
-- `src/modules/shared/server-page.tsx`: helper comun para loaders server-side
+- `src/modules/core/server-page.tsx`: helper comun para loaders server-side
 
 Estado estructural actual:
 
 - la UI visible vive en `src/modules/*`
-- `src/components/dashboard/*` queda congelado y reducido a placeholder/chatbot/notas internas
+- `src/components/dashboard/*` queda congelado y reducido a `module-placeholder.tsx`
 - `src/lib/fenograma.ts` y `src/lib/postcosecha-balanzas.ts` son fachadas temporales; la logica pesada vive en `*-core.ts` y debe seguir partiendose por dominio
 - el solver de clasificacion en blanco y Talento Humano ya estan divididos en piezas de modulo pequeñas
 

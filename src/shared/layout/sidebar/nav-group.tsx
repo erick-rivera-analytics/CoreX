@@ -1,7 +1,7 @@
 "use client";
 
 import type { NavGroup } from "@/config/sidebar-data";
-import { NavItemRenderer } from "@/components/sidebar/nav-item";
+import { NavItemRenderer } from "@/shared/layout/sidebar/nav-item";
 import { cn } from "@/lib/utils";
 
 type NavGroupProps = {

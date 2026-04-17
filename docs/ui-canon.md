@@ -43,6 +43,7 @@
 
 - Campo/Leaflet puede usar colores directos porque `L.PathOptions` requiere valores concretos
 - Programaciones usa paletas categoricas en `src/config/programaciones-palettes.ts`
+- `.balanzas-process` puede usar colores directos porque el process viewer/BPMN requiere valores concretos por estado
 - Comparison puede no usar `KpiGrid`; su layout de batalla es el resumen
 - `MetricPill` de Fenograma es una excepcion de dominio valida y vive en el split del modal
 - `person-detail-sheet.tsx` puede usar `space-y-6` dentro del overlay

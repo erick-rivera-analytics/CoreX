@@ -1,6 +1,6 @@
 import { listCurrentPostharvestSkus } from "@/lib/postcosecha-skus";
 import { SkusPage } from "@/modules/postcosecha/components/skus-page";
-import { loadProtectedPageData } from "@/modules/shared/server-page";
+import { loadProtectedPageData } from "@/modules/core/server-page";
 
 export const dynamic = "force-dynamic";
 

@@ -4,9 +4,9 @@ import { useCallback, useState } from "react";
 import { usePathname } from "next/navigation";
 
 import { sidebarGroups, getInitialOpenSections, filterSidebarGroupsByAccess } from "@/config/sidebar-data";
-import { SidebarBrand } from "@/components/sidebar/sidebar-brand";
-import { NavGroupSection } from "@/components/sidebar/nav-group";
-import { SidebarFooter } from "@/components/sidebar/sidebar-footer";
+import { SidebarBrand } from "@/shared/layout/sidebar/sidebar-brand";
+import { NavGroupSection } from "@/shared/layout/sidebar/nav-group";
+import { SidebarFooter } from "@/shared/layout/sidebar/sidebar-footer";
 import { useCurrentUserAccess } from "@/hooks/use-current-user-access";
 import { cn } from "@/lib/utils";
 

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { ArrowRight, Loader2 } from "lucide-react";
 
 import { starterName, starterSubtitle } from "@/config/dashboard";
-import { Logo } from "@/components/logo";
+import { Logo } from "@/shared/layout/logo";
 import { Badge } from "@/shared/ui/badge";
 import { Button } from "@/shared/ui/button";
 import {
