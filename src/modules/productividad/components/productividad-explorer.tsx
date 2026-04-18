@@ -113,6 +113,7 @@ type CycleGroup = {
   camas30: number | null;
   plantsCurrentOrInitial: number | null;
   initialPlantsCycle: number | null;
+  reseedPlantsCycle: number | null;
   horaCaja: number | null;
   cajaCama: number | null;
   horaCama: number | null;
@@ -127,9 +128,12 @@ type YearGroup = {
   totalCajas: number;
   totalCamas30: number;
   totalStems: number;
-  totalPlantsCurrentOrInitial: number;
-  totalInitialPlantsCycle: number;
-  totalWeightedMortality: number;
+  // Mortandad directa: Σ(muertas) / Σ(inicial + resiembras)
+  totalInitialPlusReseeds: number;
+  totalFinalPlants: number;
+  // Tallos/Planta: solo ciclos con plants_current > 0 (igual que ficha del bloque)
+  totalStemsForRatio: number;
+  totalPlantsForRatio: number;
 };
 
 function groupRows(rows: ProductividadRow[]): YearGroup[] {
@@ -152,6 +156,7 @@ function groupRows(rows: ProductividadRow[]): YearGroup[] {
         camas30: row.camas30,
         plantsCurrentOrInitial: row.plantsCurrentOrInitial,
         initialPlantsCycle: row.initialPlantsCycle,
+        reseedPlantsCycle: row.reseedPlantsCycle,
         horaCaja: null,
         cajaCama: row.cajaCama,
         horaCama: null,
@@ -182,9 +187,10 @@ function groupRows(rows: ProductividadRow[]): YearGroup[] {
         totalCajas: 0,
         totalCamas30: 0,
         totalStems: 0,
-        totalPlantsCurrentOrInitial: 0,
-        totalInitialPlantsCycle: 0,
-        totalWeightedMortality: 0,
+        totalInitialPlusReseeds: 0,
+        totalFinalPlants: 0,
+        totalStemsForRatio: 0,
+        totalPlantsForRatio: 0,
       });
     }
     const yg = yearMap.get(year)!;
@@ -193,11 +199,15 @@ function groupRows(rows: ProductividadRow[]): YearGroup[] {
     yg.totalCajas += cycle.cajas ?? 0;
     yg.totalCamas30 += cycle.camas30 ?? 0;
     yg.totalStems += cycle.representative.totalStems ?? 0;
-    yg.totalPlantsCurrentOrInitial += cycle.plantsCurrentOrInitial ?? 0;
-    yg.totalInitialPlantsCycle += cycle.initialPlantsCycle ?? 0;
-    if (cycle.pctMortality !== null) {
-      const cycleWeight = cycle.initialPlantsCycle ?? cycle.plantsCurrentOrInitial ?? 0;
-      yg.totalWeightedMortality += (cycle.pctMortality / 100) * cycleWeight;
+
+    // Mortandad: Σ(muertas) / Σ(inicial + resiembras)
+    yg.totalInitialPlusReseeds += (cycle.initialPlantsCycle ?? 0) + (cycle.reseedPlantsCycle ?? 0);
+    yg.totalFinalPlants += cycle.plantsCurrentOrInitial ?? 0;
+
+    // Tallos/Planta: solo ciclos con plantas válidas (igual que ficha del bloque)
+    if ((cycle.plantsCurrentOrInitial ?? 0) > 0) {
+      yg.totalStemsForRatio += cycle.representative.totalStems ?? 0;
+      yg.totalPlantsForRatio += cycle.plantsCurrentOrInitial!;
     }
   }
 
@@ -525,14 +535,16 @@ function ProductividadTable({
             const yearHoraCaja = yg.totalCajas > 0 ? yg.totalEffectiveHours / yg.totalCajas : null;
             const yearCajaCama = yg.totalCamas30 > 0 ? yg.totalCajas / yg.totalCamas30 : null;
             const yearHoraCama = yg.totalCamas30 > 0 ? yg.totalEffectiveHours / yg.totalCamas30 : null;
-            const yearTallosPlanta = yg.totalPlantsCurrentOrInitial > 0
-              ? yg.totalStems / yg.totalPlantsCurrentOrInitial
+            // Tallos/Planta: Σ tallos / Σ plantas_finales (solo ciclos con plants > 0)
+            const yearTallosPlanta = yg.totalPlantsForRatio > 0
+              ? yg.totalStemsForRatio / yg.totalPlantsForRatio
               : null;
             const yearPesoTallo = yg.totalStems > 0
               ? (yg.totalCajas * 10000) / yg.totalStems
               : null;
-            const yearMortality = yg.totalInitialPlantsCycle > 0
-              ? (yg.totalWeightedMortality / yg.totalInitialPlantsCycle) * 100
+            // Mortandad: Σ(muertas) / Σ(inicial + resiembras)
+            const yearMortality = yg.totalInitialPlusReseeds > 0
+              ? ((yg.totalInitialPlusReseeds - yg.totalFinalPlants) / yg.totalInitialPlusReseeds) * 100
               : null;
 
             return (

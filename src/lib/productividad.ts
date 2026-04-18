@@ -39,6 +39,7 @@ type ProductividadQueryRow = {
   total_stems: number | string | null;
   plants_current: number | string | null;
   initial_plants_cycle: number | string | null;
+  reseed_plants_count: number | string | null;
   post_weight_kg: number | string | null;
   pct_mortality: number | string | null;
 };
@@ -83,6 +84,7 @@ export type ProductividadRow = {
   totalStems: number | null;
   plantsCurrentOrInitial: number | null;
   initialPlantsCycle: number | null;
+  reseedPlantsCycle: number | null;
   postWeightKg: number | null;
   // Calculated metrics
   horaCaja: number | null;
@@ -270,8 +272,9 @@ export async function getProductividadDashboardData(
       kardex as (
         select distinct on (cycle_key)
           cycle_key,
-          coalesce(final_plants_count, 0) as plants_current,
+          coalesce(final_plants_count, 0)   as plants_current,
           coalesce(initial_plants_cycle, 0) as initial_plants_cycle,
+          coalesce(reseed_plants_count, 0)  as reseed_plants_count,
           pct_mortality
         from ${KARDEX_CYCLE_SOURCE}
         order by cycle_key, valid_from desc nulls last
@@ -334,9 +337,10 @@ export async function getProductividadDashboardData(
         coalesce(k.pct_mortality, 0) as pct_mortality,
         coalesce(gw.green_weight_kg, 0) as green_weight_kg,
         coalesce(f.total_stems, 0)      as total_stems,
-        coalesce(k.plants_current, 0)   as plants_current,
-        coalesce(k.initial_plants_cycle, 0) as initial_plants_cycle,
-        coalesce(pw.post_weight_kg, 0)  as post_weight_kg
+        coalesce(k.plants_current, 0)        as plants_current,
+        coalesce(k.initial_plants_cycle, 0)  as initial_plants_cycle,
+        coalesce(k.reseed_plants_count, 0)   as reseed_plants_count,
+        coalesce(pw.post_weight_kg, 0)       as post_weight_kg
       from hours_agg ha
       join  cycle_profile cp  on cp.cycle_key  = ha.cycle_key
       left join kardex     k   on k.cycle_key   = ha.cycle_key
@@ -365,6 +369,7 @@ export async function getProductividadDashboardData(
       const totalStems = toNumber(row.total_stems);
       const plantsCurrentOrInitial = toNumber(row.plants_current);
       const initialPlantsCycle = toNumber(row.initial_plants_cycle);
+      const reseedPlantsCycle = toNumber(row.reseed_plants_count);
       const postWeightKg = toNumber(row.post_weight_kg);
       const costArea = cleanText(row.cost_area);
 
@@ -418,6 +423,7 @@ export async function getProductividadDashboardData(
         totalStems,
         plantsCurrentOrInitial,
         initialPlantsCycle,
+        reseedPlantsCycle,
         postWeightKg,
         horaCaja,
         cajaCama,
@@ -481,6 +487,7 @@ export async function getProductividadDashboardData(
       totalStems: number | null;
       plantsCurrent: number | null;
       initialPlantsCycle: number | null;
+      reseedPlantsCycle: number | null;
     }>();
     for (const row of filtered) {
       const current = cycleTotals.get(row.cycleKey) ?? {
@@ -490,6 +497,7 @@ export async function getProductividadDashboardData(
         totalStems: null,
         plantsCurrent: null,
         initialPlantsCycle: null,
+        reseedPlantsCycle: null,
       };
       current.cajas = maxOrNull(current.cajas, row.cajas);
       current.camas30 = maxOrNull(current.camas30, row.camas30);
@@ -497,6 +505,7 @@ export async function getProductividadDashboardData(
       current.totalStems = maxOrNull(current.totalStems, row.totalStems);
       current.plantsCurrent = maxOrNull(current.plantsCurrent, row.plantsCurrentOrInitial);
       current.initialPlantsCycle = maxOrNull(current.initialPlantsCycle, row.initialPlantsCycle);
+      current.reseedPlantsCycle = maxOrNull(current.reseedPlantsCycle, row.reseedPlantsCycle);
       cycleTotals.set(row.cycleKey, current);
     }
 
@@ -506,6 +515,7 @@ export async function getProductividadDashboardData(
     let totalStems = 0;
     let totalPlantsCurrent = 0;
     let totalInitialPlantsCycle = 0;
+    let totalReseedPlantsCycle = 0;
 
     for (const totals of cycleTotals.values()) {
       totalCajas += totals.cajas ?? 0;
@@ -514,9 +524,12 @@ export async function getProductividadDashboardData(
       totalStems += totals.totalStems ?? 0;
       totalPlantsCurrent += totals.plantsCurrent ?? 0;
       totalInitialPlantsCycle += totals.initialPlantsCycle ?? 0;
+      totalReseedPlantsCycle += totals.reseedPlantsCycle ?? 0;
     }
 
-    const totalLostPlants = totalInitialPlantsCycle - totalPlantsCurrent;
+    // Mort%: Σ(muertas) / Σ(inicial + resiembras) — denominador incluye resiembras
+    const totalCycleBase = totalInitialPlantsCycle + totalReseedPlantsCycle;
+    const totalLostPlants = totalCycleBase - totalPlantsCurrent;
 
     return {
       generatedAt: new Date().toISOString(),
@@ -533,8 +546,8 @@ export async function getProductividadDashboardData(
         weightedHoraCama: totalCamas30 > 0 ? totalEffectiveHours / totalCamas30 : null,
         weightedTallosPlanta: totalPlantsCurrent > 0 ? totalStems / totalPlantsCurrent : null,
         weightedPesoTalloGramos: totalStems > 0 ? (totalGreenWeightKg * 1000) / totalStems : null,
-        weightedMortalityPct: totalInitialPlantsCycle > 0 && totalLostPlants >= 0
-          ? (totalLostPlants / totalInitialPlantsCycle) * 100
+        weightedMortalityPct: totalCycleBase > 0 && totalLostPlants >= 0
+          ? (totalLostPlants / totalCycleBase) * 100
           : null,
       },
     };
