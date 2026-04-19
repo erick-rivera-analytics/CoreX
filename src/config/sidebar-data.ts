@@ -56,7 +56,7 @@ function getOrCreateBranch(items: NavItem[], label: string) {
   return branch;
 }
 
-function buildGroupItems(groupTitle: "Dashboard" | "Gestion" | "Administracion" | "Personal") {
+function buildGroupItems(groupTitle: "Dashboard" | "Gestion" | "Administracion") {
   const rootItems: NavItem[] = [];
 
   for (const catalogEntry of ACTIVE_MODULES.filter((entry) => entry.navigationGroup === groupTitle)) {
@@ -85,7 +85,7 @@ export const sidebarGroups: NavGroup[] = [
       { label: "Inicio", href: "/dashboard", icon: Home },
     ],
   },
-  ...(["Dashboard", "Gestion", "Personal", "Administracion"] as const)
+  ...(["Dashboard", "Gestion", "Administracion"] as const)
     .map((title) => ({
       title,
       items: buildGroupItems(title),

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { UserCircle2 } from "lucide-react";
 
 import { DashboardScaleToggle } from "@/shared/layout/dashboard-scale-toggle";
 import {
@@ -35,6 +36,19 @@ export function SiteHeader() {
           <div className="flex items-center gap-2">
             <DashboardScaleToggle />
             <ModeToggle />
+            {access && (access.isSuperadmin || access.allowedResources.includes("/dashboard/mi-cuenta")) ? (
+              <Link
+                href="/dashboard/mi-cuenta"
+                title="Mi cuenta"
+                aria-label="Mi cuenta"
+                className={cn(
+                  "inline-flex h-9 w-9 items-center justify-center rounded-full border border-border/60 bg-background text-muted-foreground shadow-sm transition-colors hover:bg-muted/70 hover:text-foreground",
+                  pathname === "/dashboard/mi-cuenta" && "border-primary text-primary",
+                )}
+              >
+                <UserCircle2 className="size-4" aria-hidden="true" />
+              </Link>
+            ) : null}
           </div>
         </div>
 
