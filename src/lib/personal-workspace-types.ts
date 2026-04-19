@@ -45,7 +45,7 @@ export const TASK_STATUS_OPTIONS = [
 
 export const TASK_PRIORITY_OPTIONS = [
   { value: "low", label: "Baja" },
-  { value: "normal", label: "Normal" },
+  { value: "medium", label: "Normal" },
   { value: "high", label: "Alta" },
   { value: "urgent", label: "Urgente" },
 ] as const;
@@ -283,7 +283,7 @@ export function mapWorkspaceTaskRow(row: Record<string, unknown>): PersonalWorks
     titleText: String(row.title ?? row.title_text ?? ""),
     descriptionText: row.description_text ? String(row.description_text) : null,
     statusCode: String(row.status_code ?? "todo"),
-    priorityCode: String(row.priority_code ?? "normal"),
+    priorityCode: String(row.priority_code ?? "medium"),
     startAt: toIsoString(row.start_at),
     dueAt: toIsoString(row.due_at),
     completedAt: toIsoString(row.completed_at),
