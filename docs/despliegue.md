@@ -62,11 +62,22 @@ DATABASE_HOST=host
 DATABASE_PORT=5432
 DATABASE_NAME=base
 CAMP_DATABASE_NAME=db_camp
+PERSONAL_WORKSPACE_DATABASE_NAME=db_personal_workspace
 DATABASE_USER=usuario
 DATABASE_PASSWORD=clave
 ```
 
 `CAMP_DATABASE_NAME` es requerido para el modulo operativo `/dashboard/dead-plants-reseed`, que escribe en `db_camp.public.camp_fact_dead_plants_cur` y `db_camp.public.camp_fact_reseed_plants_cur`.
+
+`PERSONAL_WORKSPACE_DATABASE_URL` o `PERSONAL_WORKSPACE_DATABASE_NAME=db_personal_workspace` es requerido para `/dashboard/mi-cuenta` y `/dashboard/mi-trabajo`. La app no crea auth paralelo; solo persiste perfil, preferencias, espacios, tareas, eventos y recordatorios del usuario autenticado.
+
+Antes de habilitar esos modulos en servidor, aplicar manualmente:
+
+```bash
+psql "$PERSONAL_WORKSPACE_DATABASE_URL" -f sql/db_personal_workspace.sql
+```
+
+Si se usa configuracion separada por host/usuario en vez de URL, aplicar el SQL contra la base `db_personal_workspace` con las mismas credenciales configuradas para la app.
 
 ### Seguridad y sesion
 

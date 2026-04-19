@@ -14,11 +14,12 @@ import {
   TrendingDown,
   UserCircle2,
   UserCog,
+  BriefcaseBusiness,
 } from "lucide-react";
 
 export type ModuleStatus = "active" | "hidden" | "internal";
-export type ModuleNavigationGroup = "Dashboard" | "Gestion" | "Administracion";
-export type ModuleAccessSection = "Dashboard / Indicadores" | "Gestion" | "Administracion";
+export type ModuleNavigationGroup = "Dashboard" | "Gestion" | "Administracion" | "Personal";
+export type ModuleAccessSection = "Dashboard / Indicadores" | "Gestion" | "Administracion" | "Personal";
 
 export type CatalogModule = {
   key: string;
@@ -183,6 +184,32 @@ export const MODULE_CATALOG: CatalogModule[] = [
     navigationGroup: "Gestion",
     trail: ["Campo", "Registros"],
     accessSection: "Gestion",
+    status: "active",
+  },
+  {
+    key: "personal-mi-cuenta",
+    label: "Mi cuenta",
+    title: "Mi cuenta",
+    eyebrow: "Personal",
+    summary: "Perfil local, preferencias visuales, ruta por defecto y notificaciones personales.",
+    href: "/dashboard/mi-cuenta",
+    icon: UserCircle2,
+    navigationGroup: "Personal",
+    trail: [],
+    accessSection: "Personal",
+    status: "active",
+  },
+  {
+    key: "personal-mi-trabajo",
+    label: "Workspace",
+    title: "Workspace",
+    eyebrow: "Personal",
+    summary: "Tareas, eventos, calendario, agenda y recordatorios del usuario autenticado.",
+    href: "/dashboard/mi-trabajo",
+    icon: BriefcaseBusiness,
+    navigationGroup: "Personal",
+    trail: [],
+    accessSection: "Personal",
     status: "active",
   },
   {

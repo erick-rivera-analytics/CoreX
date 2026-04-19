@@ -24,6 +24,12 @@ describe("access control", () => {
     expect(getApiAccessRule("/api/dead-plants-reseed/capture")?.requiredResources).toEqual([
       "/dashboard/dead-plants-reseed",
     ]);
+    expect(getApiAccessRule("/api/me/profile")?.requiredResources).toEqual([
+      "/dashboard/mi-cuenta",
+    ]);
+    expect(getApiAccessRule("/api/me/work/tasks")?.requiredResources).toEqual([
+      "/dashboard/mi-trabajo",
+    ]);
     expect(getApiAccessRule("/api/unknown")).toBeNull();
   });
 

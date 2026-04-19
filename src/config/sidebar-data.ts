@@ -9,6 +9,7 @@ import {
   Settings,
   Sprout,
   TrendingUp,
+  UserCircle2,
   Users,
 } from "lucide-react";
 
@@ -34,6 +35,7 @@ const GROUP_ICON_BY_LABEL: Record<string, LucideIcon> = {
   "Talento Humano": Users,
   Planificacion: CalendarDays,
   Registros: ClipboardList,
+  Personal: UserCircle2,
   "Administrar Maestros": DatabaseZap,
   Solver: Settings,
   Seguridad: Lock,
@@ -54,7 +56,7 @@ function getOrCreateBranch(items: NavItem[], label: string) {
   return branch;
 }
 
-function buildGroupItems(groupTitle: "Dashboard" | "Gestion" | "Administracion") {
+function buildGroupItems(groupTitle: "Dashboard" | "Gestion" | "Administracion" | "Personal") {
   const rootItems: NavItem[] = [];
 
   for (const catalogEntry of ACTIVE_MODULES.filter((entry) => entry.navigationGroup === groupTitle)) {
@@ -83,7 +85,7 @@ export const sidebarGroups: NavGroup[] = [
       { label: "Inicio", href: "/dashboard", icon: Home },
     ],
   },
-  ...(["Dashboard", "Gestion", "Administracion"] as const)
+  ...(["Dashboard", "Gestion", "Personal", "Administracion"] as const)
     .map((title) => ({
       title,
       items: buildGroupItems(title),

@@ -24,4 +24,11 @@ describe("module catalog governance", () => {
       expect(catalogEntry.href.startsWith("/dashboard")).toBe(true);
     }
   });
+
+  it("registers personal workspace modules as active dashboard routes", () => {
+    const hrefs = new Set(MODULE_CATALOG.filter((entry) => entry.status === "active").map((entry) => entry.href));
+
+    expect(hrefs.has("/dashboard/mi-cuenta")).toBe(true);
+    expect(hrefs.has("/dashboard/mi-trabajo")).toBe(true);
+  });
 });
