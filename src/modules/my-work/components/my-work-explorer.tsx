@@ -186,7 +186,7 @@ export function MyWorkExplorer({ initialData }: { initialData: MyWorkInitialData
             <select className="h-11 rounded-[16px] border border-input bg-background px-4 text-sm" value={filters.priorityCode} onChange={(event) => updateFilter("priorityCode", event.target.value as typeof filters.priorityCode)}>
               <option value="all">Todas las prioridades</option>
               <option value="low">Baja</option>
-              <option value="normal">Normal</option>
+              <option value="medium">Normal</option>
               <option value="high">Alta</option>
               <option value="urgent">Urgente</option>
             </select>

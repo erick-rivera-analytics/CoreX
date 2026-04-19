@@ -1,7 +1,7 @@
 export type MyWorkSegment = "today" | "list" | "calendar" | "agenda";
 export type MyWorkSpaceColor = "slate" | "sky" | "emerald" | "amber" | "rose";
 export type MyWorkTaskStatus = "todo" | "in_progress" | "blocked" | "done";
-export type MyWorkPriority = "low" | "normal" | "high" | "urgent";
+export type MyWorkPriority = "low" | "medium" | "high" | "urgent";
 export type MyWorkReminderStatus = "pending" | "sent" | "read" | "canceled";
 export type MyWorkReminderTargetType = "task" | "event";
 
@@ -183,7 +183,7 @@ export const MY_WORK_STATUS_OPTIONS: Array<{ value: MyWorkTaskStatus; label: str
 
 export const MY_WORK_PRIORITY_OPTIONS: Array<{ value: MyWorkPriority; label: string }> = [
   { value: "low", label: "Baja" },
-  { value: "normal", label: "Normal" },
+  { value: "medium", label: "Normal" },
   { value: "high", label: "Alta" },
   { value: "urgent", label: "Urgente" },
 ];

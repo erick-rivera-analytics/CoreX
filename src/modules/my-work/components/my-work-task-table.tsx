@@ -31,7 +31,7 @@ const statusLabels: Record<MyWorkTask["statusCode"], string> = {
 
 const priorityLabels: Record<MyWorkTask["priorityCode"], string> = {
   low: "Baja",
-  normal: "Normal",
+  medium: "Normal",
   high: "Alta",
   urgent: "Urgente",
 };

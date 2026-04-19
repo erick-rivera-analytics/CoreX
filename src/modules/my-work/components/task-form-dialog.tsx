@@ -108,7 +108,7 @@ function buildDraft(initialValue: TaskFormValue | null, spaces: MyWorkSpace[]) {
     title: "",
     details: "",
     statusCode: "todo",
-    priorityCode: "normal",
+    priorityCode: "medium",
     startAt: "",
     dueAt: "",
     isStarred: false,

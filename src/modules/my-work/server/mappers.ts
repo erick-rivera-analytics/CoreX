@@ -40,7 +40,7 @@ export function normalizeTaskStatus(value: string | null | undefined): MyWorkTas
 }
 
 export function normalizePriority(value: string | null | undefined): MyWorkPriority {
-  return value === "low" || value === "high" || value === "urgent" ? value : "normal";
+  return value === "low" || value === "high" || value === "urgent" ? value : "medium";
 }
 
 export function normalizeReminderStatus(value: string | null | undefined): MyWorkReminderStatus {
