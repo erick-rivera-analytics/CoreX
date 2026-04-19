@@ -266,7 +266,8 @@ export async function getProductividadDashboardData(
           sp_date,
           harvest_start_date,
           harvest_end_date,
-          coalesce(bed_area, 0)            as bed_area
+          coalesce(bed_area, 0)            as bed_area,
+          coalesce(sum_initial_plants, 0)  as initial_plants_profile
         from ${CYCLE_PROFILE_SOURCE}
         order by cycle_key, valid_from desc nulls last
       ),
@@ -340,8 +341,8 @@ export async function getProductividadDashboardData(
         coalesce(k.pct_mortality, 0) as pct_mortality,
         coalesce(gw.green_weight_kg, 0) as green_weight_kg,
         coalesce(f.total_stems, 0)      as total_stems,
-        coalesce(k.plants_current, 0)        as plants_current,
-        coalesce(k.initial_plants_cycle, 0)  as initial_plants_cycle,
+        coalesce(nullif(k.plants_current, 0),       cp.initial_plants_profile, 0) as plants_current,
+        coalesce(nullif(k.initial_plants_cycle, 0), cp.initial_plants_profile, 0) as initial_plants_cycle,
         coalesce(k.reseed_plants_count, 0)   as reseed_plants_count,
         coalesce(k.dead_plants_count, 0)     as dead_plants_count,
         coalesce(pw.post_weight_kg, 0)       as post_weight_kg

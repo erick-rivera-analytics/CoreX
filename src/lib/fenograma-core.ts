@@ -1620,11 +1620,11 @@ export async function getCycleProfilesByBlock(
           cp.attributes_jsonb::jsonb ->> 'status' as status,
           cp.is_valid,
           cp.change_reason,
-          plants.programmed_plants,
+          coalesce(nullif(plants.programmed_plants, 0), nullif(cycle_fallback.cycle_initial_plants, 0)) as programmed_plants,
           plants.cycle_start_plants,
           plants.plants_dead,
           plants.plants_reseeded,
-          plants.plants_current,
+          coalesce(nullif(plants.plants_current, 0), nullif(cycle_fallback.cycle_initial_plants, 0)) as plants_current,
           plants.availability_vs_scheduled_pct,
           plants.availability_vs_initial_pct,
           plants.mortality_pct,
@@ -1667,6 +1667,13 @@ export async function getCycleProfilesByBlock(
           order by valid_from desc nulls last
           limit 1
         ) plants on true
+        left join lateral (
+          select coalesce(cp2.sum_initial_plants, 0) as cycle_initial_plants
+          from slv.camp_dim_cycle_profile_scd2 cp2
+          where cp2.cycle_key = cp.cycle_key
+          order by cp2.valid_from desc nulls last
+          limit 1
+        ) cycle_fallback on true
         left join lateral (
           select
             coalesce(sum(stems_count), 0) as total_stems
