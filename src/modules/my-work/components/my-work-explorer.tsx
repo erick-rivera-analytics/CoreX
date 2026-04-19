@@ -34,7 +34,6 @@ import type {
   SpaceFormValue,
   TaskFormValue,
 } from "@/modules/my-work/server/types";
-import { DateField } from "@/shared/filters/date-field";
 import { ChartSurface } from "@/shared/data-display/chart-surface";
 import { DetailSection, FilterPanel } from "@/shared/layout/filter-panel";
 import { SectionPageShell } from "@/shared/layout/section-page-shell";
@@ -190,8 +189,22 @@ export function MyWorkExplorer({ initialData }: { initialData: MyWorkInitialData
               <option value="high">Alta</option>
               <option value="urgent">Urgente</option>
             </select>
-            <DateField label="Desde" value={filters.dateFrom} onChange={(value) => updateFilter("dateFrom", value)} />
-            <DateField label="Hasta" value={filters.dateTo} onChange={(value) => updateFilter("dateTo", value)} />
+            <input
+              type="date"
+              aria-label="Desde"
+              title="Desde"
+              value={filters.dateFrom}
+              onChange={(event) => updateFilter("dateFrom", event.target.value)}
+              className="h-11 w-full rounded-[16px] border border-input bg-background px-4 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/40"
+            />
+            <input
+              type="date"
+              aria-label="Hasta"
+              title="Hasta"
+              value={filters.dateTo}
+              onChange={(event) => updateFilter("dateTo", event.target.value)}
+              className="h-11 w-full rounded-[16px] border border-input bg-background px-4 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/40"
+            />
           </div>
           <MyWorkSummaryCards summary={summary} />
         </FilterPanel>
