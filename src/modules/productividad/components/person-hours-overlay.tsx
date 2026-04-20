@@ -12,6 +12,8 @@ import { SheetShell } from "@/shared/overlays/sheet-shell";
 import { fetchJson } from "@/lib/fetch-json";
 import { formatFlexibleNumber as formatNumber, formatPercent } from "@/shared/lib/format";
 import { cn } from "@/lib/utils";
+import { useCurrentUserAccess } from "@/hooks/use-current-user-access";
+import { canAccessResource } from "@/lib/access-control";
 import type { CycleLaborPersonDetailPayload } from "@/lib/fenograma";
 
 function formatProductivity(value: number | null, fallback = "-") {
@@ -129,7 +131,22 @@ export function PersonHoursOverlay({
   camas30: number | null;
   onClose: () => void;
 }) {
-  const [view, setView] = useState<"info" | "performance" | "medical">("info");
+  const { data: access } = useCurrentUserAccess();
+  const allowedResources = access?.allowedResources ?? [];
+  const isSuperadmin = access?.isSuperadmin ?? false;
+  const canSeeInfo        = canAccessResource("panel:person-sheet.info",        allowedResources, isSuperadmin);
+  const canSeePerformance = canAccessResource("panel:person-sheet.performance", allowedResources, isSuperadmin);
+  const canSeeMedical     = canAccessResource("panel:person-sheet.medical",     allowedResources, isSuperadmin);
+  const defaultView: "info" | "performance" | "medical" = canSeeInfo ? "info" : canSeePerformance ? "performance" : "medical";
+  const [view, setView] = useState<"info" | "performance" | "medical">(defaultView);
+
+  // Si el usuario pierde acceso a la vista actual (p.ej. admin bloquea en vivo), reubicar.
+  useEffect(() => {
+    if (view === "info" && !canSeeInfo) setView(defaultView);
+    else if (view === "performance" && !canSeePerformance) setView(defaultView);
+    else if (view === "medical" && !canSeeMedical) setView(defaultView);
+  }, [view, canSeeInfo, canSeePerformance, canSeeMedical, defaultView]);
+
   const personRequest = buildCycleHoursPersonRequest(cycleKey, personId);
   const {
     data,
@@ -184,42 +201,48 @@ export function PersonHoursOverlay({
     >
           <div className="space-y-8">
             <div className="inline-flex rounded-full border border-border/60 bg-muted/22 p-1">
-              <button
-                type="button"
-                className={cn(
-                  "rounded-full px-4 py-2 text-sm font-medium transition-colors",
-                  view === "info"
-                    ? "bg-card text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground",
-                )}
-                onClick={() => setView("info")}
-              >
-                Informacion
-              </button>
-              <button
-                type="button"
-                className={cn(
-                  "rounded-full px-4 py-2 text-sm font-medium transition-colors",
-                  view === "performance"
-                    ? "bg-card text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground",
-                )}
-                onClick={() => setView("performance")}
-              >
-                Rendimiento
-              </button>
-              <button
-                type="button"
-                className={cn(
-                  "rounded-full px-4 py-2 text-sm font-medium transition-colors",
-                  view === "medical"
-                    ? "bg-card text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground",
-                )}
-                onClick={() => setView("medical")}
-              >
-                Ficha medica
-              </button>
+              {canSeeInfo ? (
+                <button
+                  type="button"
+                  className={cn(
+                    "rounded-full px-4 py-2 text-sm font-medium transition-colors",
+                    view === "info"
+                      ? "bg-card text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
+                  onClick={() => setView("info")}
+                >
+                  Informacion
+                </button>
+              ) : null}
+              {canSeePerformance ? (
+                <button
+                  type="button"
+                  className={cn(
+                    "rounded-full px-4 py-2 text-sm font-medium transition-colors",
+                    view === "performance"
+                      ? "bg-card text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
+                  onClick={() => setView("performance")}
+                >
+                  Rendimiento
+                </button>
+              ) : null}
+              {canSeeMedical ? (
+                <button
+                  type="button"
+                  className={cn(
+                    "rounded-full px-4 py-2 text-sm font-medium transition-colors",
+                    view === "medical"
+                      ? "bg-card text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
+                  onClick={() => setView("medical")}
+                >
+                  Ficha medica
+                </button>
+              ) : null}
             </div>
 
             {isLoading ? (

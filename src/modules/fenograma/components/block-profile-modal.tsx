@@ -52,6 +52,8 @@ import {
   CardTitle,
 } from "@/shared/ui/card";
 import { cn } from "@/lib/utils";
+import { useCurrentUserAccess } from "@/hooks/use-current-user-access";
+import { canAccessResource } from "@/lib/access-control";
 import type {
   BedProfileCard,
   BedProfilePayload,
@@ -206,7 +208,20 @@ function PersonHoursOverlay({
   error: string | null;
   onClose: () => void;
 }) {
-  const [view, setView] = useState<"info" | "performance" | "medical">("info");
+  const { data: access } = useCurrentUserAccess();
+  const allowedResources = access?.allowedResources ?? [];
+  const isSuperadmin = access?.isSuperadmin ?? false;
+  const canSeeInfo        = canAccessResource("panel:person-sheet.info",        allowedResources, isSuperadmin);
+  const canSeePerformance = canAccessResource("panel:person-sheet.performance", allowedResources, isSuperadmin);
+  const canSeeMedical     = canAccessResource("panel:person-sheet.medical",     allowedResources, isSuperadmin);
+  const defaultView: "info" | "performance" | "medical" = canSeeInfo ? "info" : canSeePerformance ? "performance" : "medical";
+  const [view, setView] = useState<"info" | "performance" | "medical">(defaultView);
+
+  useEffect(() => {
+    if (view === "info" && !canSeeInfo) setView(defaultView);
+    else if (view === "performance" && !canSeePerformance) setView(defaultView);
+    else if (view === "medical" && !canSeeMedical) setView(defaultView);
+  }, [view, canSeeInfo, canSeePerformance, canSeeMedical, defaultView]);
 
   const totalEffectiveHours = data?.summary.totalEffectiveHours ?? 0;
   const totalActualHours = data?.summary.totalActualHours ?? 0;
@@ -248,42 +263,48 @@ function PersonHoursOverlay({
         <div className="overflow-y-auto px-6 py-8 sm:px-8">
           <div className="space-y-8">
             <div className="inline-flex rounded-full border border-border/60 bg-muted/22 p-1">
-              <button
-                type="button"
-                className={cn(
-                  "rounded-full px-4 py-2 text-sm font-medium transition-colors",
-                  view === "info"
-                    ? "bg-card text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground",
-                )}
-                onClick={() => setView("info")}
-              >
-                Informacion
-              </button>
-              <button
-                type="button"
-                className={cn(
-                  "rounded-full px-4 py-2 text-sm font-medium transition-colors",
-                  view === "performance"
-                    ? "bg-card text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground",
-                )}
-                onClick={() => setView("performance")}
-              >
-                Rendimiento
-              </button>
-              <button
-                type="button"
-                className={cn(
-                  "rounded-full px-4 py-2 text-sm font-medium transition-colors",
-                  view === "medical"
-                    ? "bg-card text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground",
-                )}
-                onClick={() => setView("medical")}
-              >
-                Ficha medica
-              </button>
+              {canSeeInfo ? (
+                <button
+                  type="button"
+                  className={cn(
+                    "rounded-full px-4 py-2 text-sm font-medium transition-colors",
+                    view === "info"
+                      ? "bg-card text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
+                  onClick={() => setView("info")}
+                >
+                  Informacion
+                </button>
+              ) : null}
+              {canSeePerformance ? (
+                <button
+                  type="button"
+                  className={cn(
+                    "rounded-full px-4 py-2 text-sm font-medium transition-colors",
+                    view === "performance"
+                      ? "bg-card text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
+                  onClick={() => setView("performance")}
+                >
+                  Rendimiento
+                </button>
+              ) : null}
+              {canSeeMedical ? (
+                <button
+                  type="button"
+                  className={cn(
+                    "rounded-full px-4 py-2 text-sm font-medium transition-colors",
+                    view === "medical"
+                      ? "bg-card text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
+                  onClick={() => setView("medical")}
+                >
+                  Ficha medica
+                </button>
+              ) : null}
             </div>
 
             {loading ? (

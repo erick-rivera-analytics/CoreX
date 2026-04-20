@@ -52,6 +52,25 @@ No loguear tokens, cookies, passwords, secretos ni payloads completos.
 - `/api/health/live`: publico, sin datos sensibles, para Docker/monitoreo.
 - `/api/health/db`: protegido, solo superadmin.
 
+## Panel permissions (sub-permisos intra-pagina)
+
+Ademas de los resourceKeys por ruta (`/dashboard/*`), el RBAC soporta recursos virtuales con prefijo `panel:<dominio>.<subseccion>`. Sirven para bloquear sub-secciones dentro de un overlay/sheet sin fragmentar rutas.
+
+Registro actual (`src/lib/access-control.ts`, `PANEL_ACCESS_RESOURCES`):
+
+- `panel:person-sheet.info` - Ficha del personal > Informacion
+- `panel:person-sheet.performance` - Ficha del personal > Rendimiento
+- `panel:person-sheet.medical` - Ficha del personal > Ficha medica (gatea tambien `/api/medical/person/*`)
+
+Flujo para agregar uno nuevo:
+
+1. Agregar entrada en `PANEL_ACCESS_RESOURCES` con `section: "Paneles"`.
+2. En el UI: `useCurrentUserAccess()` + `canAccessResource("panel:...", allowed, isSuperadmin)` y ocultar el tab/panel si false.
+3. Si existe API asociada: agregar regla en `API_ACCESS_RULES` con `requiredResources: ["panel:..."]`.
+4. La UI de Admin > Usuarios los lista automaticamente bajo la seccion "Paneles".
+
+Viewers heredan todos los paneles por defecto (opt-out); el admin los bloquea por usuario.
+
 ## Variables criticas
 
 - `SESSION_SECRET`

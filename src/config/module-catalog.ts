@@ -19,7 +19,7 @@ import {
 
 export type ModuleStatus = "active" | "hidden" | "internal";
 export type ModuleNavigationGroup = "Dashboard" | "Gestion" | "Administracion" | "Personal";
-export type ModuleAccessSection = "Dashboard / Indicadores" | "Gestion" | "Administracion" | "Personal";
+export type ModuleAccessSection = "Dashboard / Indicadores" | "Gestion" | "Administracion" | "Personal" | "Paneles";
 
 export type CatalogModule = {
   key: string;

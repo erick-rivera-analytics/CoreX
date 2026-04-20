@@ -35,17 +35,40 @@ function buildAccessLabel(eyebrow: string, title: string) {
   return prefix.toLowerCase() === title.toLowerCase() ? prefix : `${prefix} / ${title}`;
 }
 
-const ALL_ACCESS_RESOURCES: AccessResource[] = ALL_MANAGED_MODULES.map((module) => ({
+/**
+ * Permisos "panel": recursos virtuales (no son rutas) que permiten bloquear
+ * sub-secciones dentro de una pagina. Se gestionan en la misma UI de
+ * Admin > Usuarios y se evaluan igual que cualquier otro resourceKey.
+ *
+ * Convencion: `panel:<dominio>.<subseccion>`.
+ */
+export const PANEL_ACCESS_RESOURCES: AccessResource[] = [
+  { resourceKey: "panel:person-sheet.info",        label: "Ficha del personal / Informacion",  section: "Paneles" },
+  { resourceKey: "panel:person-sheet.performance", label: "Ficha del personal / Rendimiento",  section: "Paneles" },
+  { resourceKey: "panel:person-sheet.medical",     label: "Ficha del personal / Ficha medica", section: "Paneles" },
+];
+
+const MODULE_ACCESS_RESOURCES: AccessResource[] = ALL_MANAGED_MODULES.map((module) => ({
   resourceKey: module.href,
   label: buildAccessLabel(module.eyebrow, module.title),
   section: module.accessSection,
 }));
 
-export const ACCESS_RESOURCES: AccessResource[] = ACTIVE_MODULES.map((module) => ({
+const ACTIVE_MODULE_ACCESS_RESOURCES: AccessResource[] = ACTIVE_MODULES.map((module) => ({
   resourceKey: module.href,
   label: buildAccessLabel(module.eyebrow, module.title),
   section: module.accessSection,
 }));
+
+const ALL_ACCESS_RESOURCES: AccessResource[] = [
+  ...MODULE_ACCESS_RESOURCES,
+  ...PANEL_ACCESS_RESOURCES,
+];
+
+export const ACCESS_RESOURCES: AccessResource[] = [
+  ...ACTIVE_MODULE_ACCESS_RESOURCES,
+  ...PANEL_ACCESS_RESOURCES,
+];
 
 export const ACCESS_RESOURCES_BY_SECTION = ACCESS_RESOURCES.reduce<Record<string, AccessResource[]>>((groups, resource) => {
   const items = groups[resource.section] ?? [];
@@ -77,12 +100,6 @@ const TALENTO_ACTIVOS_RESOURCE_KEYS = TALENTO_RESOURCE_KEYS.filter(
 );
 
 const TALENTO_PERSONA_RESOURCE_KEYS = [...TALENTO_RESOURCE_KEYS];
-
-const FENOGRAMA_MEDICAL_RESOURCE_KEYS = [
-  "/dashboard/fenograma",
-  "/dashboard/mortality",
-  "/dashboard/productividad",
-];
 
 const CHAT_RESOURCE_KEYS = ACTIVE_MODULES
   .filter((module) => module.navigationGroup !== "Administracion")
@@ -135,7 +152,7 @@ const API_ACCESS_RULES_UNSORTED: ApiAccessRule[] = [
   {
     pathnamePrefix: "/api/medical/person",
     policy: "resource-bound",
-    requiredResources: FENOGRAMA_MEDICAL_RESOURCE_KEYS,
+    requiredResources: ["panel:person-sheet.medical"],
   },
   {
     pathnamePrefix: "/api/mortality",
