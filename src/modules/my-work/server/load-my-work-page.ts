@@ -7,34 +7,20 @@ import {
   listMyWorkSpaces,
 } from "@/lib/my-work-repository";
 import type { MyWorkPageData } from "@/lib/personal-workspace-types";
+import { addDays, endOfMonth, startOfMonth, toIso } from "@/shared/lib/date-utils";
 
 type LoaderAccess = {
   userId: number | string;
   username: string;
 };
 
-function toIso(date: Date) {
-  return date.toISOString();
-}
-
-function startOfMonth(date: Date) {
-  return new Date(date.getFullYear(), date.getMonth(), 1, 0, 0, 0, 0);
-}
-
-function endOfMonth(date: Date) {
-  return new Date(date.getFullYear(), date.getMonth() + 1, 0, 23, 59, 59, 999);
-}
-
-function addDays(date: Date, days: number) {
-  const next = new Date(date);
-  next.setDate(next.getDate() + days);
-  return next;
-}
-
 export async function loadMyWorkPageData(access: LoaderAccess): Promise<MyWorkPageData> {
   const bootstrap = await ensurePersonalWorkspaceBootstrap(access);
   const now = new Date();
 
+  // Dos rangos distintos: el calendario mensual (para la vista mensual)
+  // y la agenda próxima de 7 días (para widgets de "hoy / próximo").
+  // Son consultas independientes y no pueden fusionarse sin cambiar la UI.
   const [spaces, summary, tasks, reminders, calendarItems, agendaItems] = await Promise.all([
     listMyWorkSpaces(bootstrap.authUserId),
     getMyWorkSummary(bootstrap.authUserId, bootstrap.profile.timezoneName),

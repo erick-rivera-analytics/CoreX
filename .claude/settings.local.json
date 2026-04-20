@@ -81,7 +81,18 @@
       "Bash(/c/Users/erick.rivera/AppData/Local/Temp/node-v25.8.2-win-x64/node.exe node_modules/tsx/dist/cli.mjs ./canon-check.ts)",
       "Bash(/c/Users/erick.rivera/AppData/Local/Temp/node-v25.8.2-win-x64/node.exe -e \"require\\('tsx'\\).run\\('./canon-check.ts'\\)\")",
       "Bash(/c/Users/erick.rivera/AppData/Local/Temp/node-v25.8.2-win-x64/node.exe scripts/check-canon.mjs)",
-      "Bash(/c/Users/erick.rivera/AppData/Local/Temp/node-v25.8.2-win-x64/node.exe scripts/check-docs.mjs)"
+      "Bash(/c/Users/erick.rivera/AppData/Local/Temp/node-v25.8.2-win-x64/node.exe scripts/check-docs.mjs)",
+      "Bash(cmd.exe /c \"cd /d C:\\\\Users\\\\erick.rivera\\\\Desktop\\\\CoreX\\\\corex_v4 && npm run typecheck 2>&1\")",
+      "Bash(cmd.exe /c \"cd /d \\\\\"C:\\\\\\\\Users\\\\\\\\erick.rivera\\\\\\\\Desktop\\\\\\\\CoreX\\\\\\\\corex_v4\\\\\" && npx tsc --noEmit 2>&1\")",
+      "Bash(cmd.exe /c \"cd /d \\\\\"C:\\\\\\\\Users\\\\\\\\erick.rivera\\\\\\\\Desktop\\\\\\\\CoreX\\\\\\\\corex_v4\\\\\" && npx tsc --noEmit && echo OK || echo FAIL\")",
+      "Bash(cmd.exe /c \"cd /d \\\\\"C:\\\\\\\\Users\\\\\\\\erick.rivera\\\\\\\\Desktop\\\\\\\\CoreX\\\\\\\\corex_v4\\\\\" && npx tsc --noEmit 2>&1 && echo EXIT_OK\")",
+      "Bash(cmd.exe /c \"cd /d \\\\\"C:\\\\\\\\Users\\\\\\\\erick.rivera\\\\\\\\Desktop\\\\\\\\CoreX\\\\\\\\corex_v4\\\\\" && npx tsc --noEmit && echo TYPE_OK\")",
+      "Bash(grep -E \"\\\\.\\(sql|ts|tsx\\)$\")",
+      "Bash(cmd.exe /c \"cd /d \\\\\"C:\\\\\\\\Users\\\\\\\\erick.rivera\\\\\\\\Desktop\\\\\\\\CoreX\\\\\\\\corex_v4\\\\\" && git diff --stat 2>&1\")",
+      "Bash(cmd.exe /c \"cd /d \\\\\"C:\\\\\\\\Users\\\\\\\\erick.rivera\\\\\\\\Desktop\\\\\\\\CoreX\\\\\\\\corex_v4\\\\\" && git status && git diff --name-only\")",
+      "Bash(cmd.exe /c \"cd /d \\\\\"C:\\\\\\\\Users\\\\\\\\erick.rivera\\\\\\\\Desktop\\\\\\\\CoreX\\\\\\\\corex_v4\\\\\" && git status 2>&1 | more\")",
+      "Bash(powershell.exe -Command \"Set-Location 'C:\\\\Users\\\\erick.rivera\\\\Desktop\\\\CoreX\\\\corex_v4'; git diff --stat HEAD | Select-Object -First 30\")",
+      "Bash(\"C:\\\\Users\\\\erick.rivera\\\\nodejs\\\\node\\\\node.exe\" node_modules/typescript/bin/tsc --noEmit)"
     ]
   }
 }

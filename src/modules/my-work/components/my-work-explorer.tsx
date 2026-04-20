@@ -36,6 +36,8 @@ import type {
   TaskFormValue,
 } from "@/modules/my-work/server/types";
 import { ChartSurface } from "@/shared/data-display/chart-surface";
+import { DateField } from "@/shared/filters/date-field";
+import { SingleSelectField } from "@/shared/filters/single-select-field";
 import { DetailSection, FilterPanel } from "@/shared/layout/filter-panel";
 import { SectionPageShell } from "@/shared/layout/section-page-shell";
 import { DialogShell } from "@/shared/overlays/dialog-shell";
@@ -179,41 +181,39 @@ export function MyWorkExplorer({ initialData }: { initialData: MyWorkInitialData
         <FilterPanel>
           <MyWorkSegmentedControl value={filters.segment} onChange={setSegment} />
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
-            <Input placeholder="Buscar tarea, evento o recordatorio" value={filters.search} onChange={(event) => updateFilter("search", event.target.value)} />
-            <select className="h-11 rounded-[16px] border border-input bg-background px-4 text-sm" value={filters.spaceId} onChange={(event) => updateFilter("spaceId", event.target.value)}>
-              <option value="all">Todos los espacios</option>
-              {spaces.filter((space) => !space.isArchived).map((space) => <option key={space.id} value={space.id}>{space.name}</option>)}
-            </select>
-            <select className="h-11 rounded-[16px] border border-input bg-background px-4 text-sm" value={filters.statusCode} onChange={(event) => updateFilter("statusCode", event.target.value as typeof filters.statusCode)}>
-              <option value="all">Todos los estados</option>
-              <option value="todo">Por hacer</option>
-              <option value="in_progress">En progreso</option>
-              <option value="blocked">Bloqueada</option>
-              <option value="done">Hecha</option>
-            </select>
-            <select className="h-11 rounded-[16px] border border-input bg-background px-4 text-sm" value={filters.priorityCode} onChange={(event) => updateFilter("priorityCode", event.target.value as typeof filters.priorityCode)}>
-              <option value="all">Todas las prioridades</option>
-              <option value="low">Baja</option>
-              <option value="medium">Normal</option>
-              <option value="high">Alta</option>
-              <option value="urgent">Urgente</option>
-            </select>
-            <input
-              type="date"
-              aria-label="Desde"
-              title="Desde"
-              value={filters.dateFrom}
-              onChange={(event) => updateFilter("dateFrom", event.target.value)}
-              className="h-11 w-full rounded-[16px] border border-input bg-background px-4 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/40"
+            <div className="min-w-0 space-y-2">
+              <label className="text-sm font-medium" htmlFor="my-work-search">Buscar</label>
+              <Input id="my-work-search" placeholder="Tarea, evento o recordatorio" value={filters.search} onChange={(event) => updateFilter("search", event.target.value)} />
+            </div>
+            <SingleSelectField
+              id="my-work-space"
+              label="Espacio"
+              value={filters.spaceId}
+              options={spaces.filter((space) => !space.isArchived).map((space) => space.id)}
+              onChange={(value) => updateFilter("spaceId", value)}
+              emptyLabel="Todos los espacios"
+              displayValue={(id) => spaces.find((space) => space.id === id)?.name ?? id}
             />
-            <input
-              type="date"
-              aria-label="Hasta"
-              title="Hasta"
-              value={filters.dateTo}
-              onChange={(event) => updateFilter("dateTo", event.target.value)}
-              className="h-11 w-full rounded-[16px] border border-input bg-background px-4 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/40"
+            <SingleSelectField
+              id="my-work-status"
+              label="Estado"
+              value={filters.statusCode}
+              options={["todo", "in_progress", "blocked", "done"]}
+              onChange={(value) => updateFilter("statusCode", value as typeof filters.statusCode)}
+              emptyLabel="Todos los estados"
+              displayValue={(code) => ({ todo: "Por hacer", in_progress: "En progreso", blocked: "Bloqueada", done: "Hecha" }[code] ?? code)}
             />
+            <SingleSelectField
+              id="my-work-priority"
+              label="Prioridad"
+              value={filters.priorityCode}
+              options={["low", "medium", "high", "urgent"]}
+              onChange={(value) => updateFilter("priorityCode", value as typeof filters.priorityCode)}
+              emptyLabel="Todas las prioridades"
+              displayValue={(code) => ({ low: "Baja", medium: "Normal", high: "Alta", urgent: "Urgente" }[code] ?? code)}
+            />
+            <DateField id="my-work-from" label="Desde" value={filters.dateFrom} onChange={(value) => updateFilter("dateFrom", value)} />
+            <DateField id="my-work-to" label="Hasta" value={filters.dateTo} onChange={(value) => updateFilter("dateTo", value)} />
           </div>
           <MyWorkSummaryCards summary={summary} />
         </FilterPanel>

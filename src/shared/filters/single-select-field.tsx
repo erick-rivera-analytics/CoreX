@@ -12,6 +12,8 @@ export type SingleSelectFieldProps = {
   options: string[];
   onChange: (value: string) => void;
   emptyLabel?: string;
+  emptyValue?: string;
+  displayValue?: (option: string) => string;
   className?: string;
 };
 
@@ -22,8 +24,12 @@ export function SingleSelectField({
   options,
   onChange,
   emptyLabel = "Todos",
+  emptyValue,
+  displayValue,
   className,
 }: SingleSelectFieldProps) {
+  const resolvedEmptyValue = emptyValue ?? (emptyLabel === "Todos" ? "all" : "");
+  const getDisplay = (option: string) => displayValue?.(option) ?? option;
   return (
     <div className={cn("min-w-0 space-y-2", className)}>
       <Label htmlFor={id}>{label}</Label>
@@ -34,10 +40,10 @@ export function SingleSelectField({
           onChange={(event) => onChange(event.target.value)}
           className="h-11 w-full appearance-none rounded-[16px] border border-input bg-background px-4 pr-10 text-sm text-foreground outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring/40"
         >
-          <option value={emptyLabel === "Todos" ? "all" : ""}>{emptyLabel}</option>
+          <option value={resolvedEmptyValue}>{emptyLabel}</option>
           {options.map((option) => (
             <option key={option} value={option}>
-              {option}
+              {getDisplay(option)}
             </option>
           ))}
         </select>
