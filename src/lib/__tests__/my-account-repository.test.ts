@@ -85,6 +85,7 @@ describe("my-account repository", () => {
       defaultCalendarViewCode: "month",
       defaultTaskViewCode: "today",
       weekStartIso: 1,
+      contactEmail: null,
       notificationPrefs: {
         inAppTaskAssigned: true,
         inAppTaskDue: false,

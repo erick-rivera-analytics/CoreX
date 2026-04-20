@@ -29,6 +29,7 @@ type ProfileRow = {
   default_calendar_view_code: string;
   default_task_view_code: string;
   week_start_iso: number;
+  contact_email: string | null;
   notification_prefs_jsonb: unknown;
   created_at: Date;
   updated_at: Date;

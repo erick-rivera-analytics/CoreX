@@ -22,6 +22,7 @@ create table if not exists public.usr_dim_profile_pref_scd0 (
   default_calendar_view_code text not null default 'month',
   default_task_view_code text not null default 'today',
   week_start_iso integer not null default 1 check (week_start_iso between 1 and 7),
+  contact_email text,
   notification_prefs_jsonb jsonb not null default jsonb_build_object(
     'in_app_task_assigned', true,
     'in_app_task_due', true,
@@ -33,6 +34,10 @@ create table if not exists public.usr_dim_profile_pref_scd0 (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+-- Additive migration: columna de correo de contacto (idempotente)
+alter table public.usr_dim_profile_pref_scd0
+  add column if not exists contact_email text;
 
 create table if not exists public.wrk_dim_space_core_scd0 (
   space_id uuid primary key default gen_random_uuid(),

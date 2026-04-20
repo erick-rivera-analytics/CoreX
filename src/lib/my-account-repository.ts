@@ -25,6 +25,7 @@ type ProfileRow = {
   default_calendar_view_code: string;
   default_task_view_code: string;
   week_start_iso: number;
+  contact_email: string | null;
   notification_prefs_jsonb: unknown;
   created_at: Date;
   updated_at: Date;
@@ -65,6 +66,7 @@ export async function updateMyAccountProfile(
           default_calendar_view_code = $9,
           default_task_view_code = $10,
           week_start_iso = $11,
+          contact_email = $13,
           notification_prefs_jsonb = $12::jsonb
         where auth_user_id = $1
         returning *
@@ -82,6 +84,7 @@ export async function updateMyAccountProfile(
         input.defaultTaskViewCode,
         input.weekStartIso,
         JSON.stringify(notificationPrefsToJson(input.notificationPrefs)),
+        input.contactEmail ?? null,
       ],
     );
 

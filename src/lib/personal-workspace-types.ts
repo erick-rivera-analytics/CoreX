@@ -69,6 +69,7 @@ export type PersonalWorkspaceProfile = {
   defaultCalendarViewCode: string;
   defaultTaskViewCode: string;
   weekStartIso: number;
+  contactEmail: string | null;
   notificationPrefs: NotificationPrefs;
   createdAt: IsoDateTime;
   updatedAt: IsoDateTime;
@@ -252,6 +253,7 @@ export function mapWorkspaceProfileRow(row: Record<string, unknown>): PersonalWo
     defaultCalendarViewCode: String(row.default_calendar_view_code ?? "month"),
     defaultTaskViewCode: String(row.default_task_view_code ?? "today"),
     weekStartIso: toNumber(row.week_start_iso, 1),
+    contactEmail: row.contact_email ? String(row.contact_email) : null,
     notificationPrefs: normalizeNotificationPrefs(row.notification_prefs_jsonb),
     createdAt: toIsoString(row.created_at),
     updatedAt: toIsoString(row.updated_at),

@@ -44,6 +44,19 @@ export const profilePatchSchema = z.object({
   defaultCalendarViewCode: z.enum(["month", "agenda"]),
   defaultTaskViewCode: z.enum(["today", "list"]),
   weekStartIso: z.number().int().min(1).max(7),
+  contactEmail: trimmed
+    .max(320)
+    .nullish()
+    .transform((value, ctx) => {
+      const trimmedValue = value?.trim() ?? "";
+      if (!trimmedValue) return null;
+      // Validacion simple de email sin dependencia en z.email() para maxima compat
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedValue)) {
+        ctx.addIssue({ code: "custom", message: "Correo de contacto invalido." });
+        return z.NEVER;
+      }
+      return trimmedValue;
+    }),
   notificationPrefs: notificationPrefsSchema,
 });
 

@@ -2,30 +2,35 @@
 
 import { useState } from "react";
 
-import { ChartSurface } from "@/shared/data-display/chart-surface";
+import { Badge } from "@/shared/ui/badge";
 import { Button } from "@/shared/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui/card";
 import { ToggleSwitch } from "@/shared/forms/toggle-switch";
 import type { MyAccountNotificationPreferences } from "@/modules/my-account/index";
 
-const preferenceLabels: Array<{
+type PreferenceItem = {
   key: keyof MyAccountNotificationPreferences;
   title: string;
-  hint: string;
-}> = [
-  { key: "inAppTaskAssigned", title: "Asignacion de tareas", hint: "Aviso dentro de la app cuando una tarea cambie de contexto." },
-  { key: "inAppTaskDue", title: "Vencimientos", hint: "Resumen en pantalla de tareas proximas a vencer." },
-  { key: "inAppReminder", title: "Recordatorios internos", hint: "Alertas visuales para eventos y pendientes personales." },
-  { key: "emailTaskAssigned", title: "Correo por asignacion", hint: "Persistido para una futura salida por correo, sin envio en este MVP." },
-  { key: "emailTaskDue", title: "Correo por vencimiento", hint: "Persistido para una futura salida por correo, sin envio en este MVP." },
-  { key: "emailReminder", title: "Correo por recordatorio", hint: "Persistido para una futura salida por correo, sin envio en este MVP." },
+  group: "in_app" | "email";
+};
+
+const PREFERENCE_ITEMS: PreferenceItem[] = [
+  { key: "inAppTaskAssigned", title: "Tareas asignadas", group: "in_app" },
+  { key: "inAppTaskDue", title: "Vencimientos", group: "in_app" },
+  { key: "inAppReminder", title: "Recordatorios", group: "in_app" },
+  { key: "emailTaskAssigned", title: "Correo por tarea", group: "email" },
+  { key: "emailTaskDue", title: "Correo por vencimiento", group: "email" },
+  { key: "emailReminder", title: "Correo por recordatorio", group: "email" },
 ];
 
 export function NotificationPreferencesForm({
   value,
   onSave,
+  emailDisabled = true,
 }: {
   value: MyAccountNotificationPreferences;
   onSave: (nextValue: MyAccountNotificationPreferences) => void;
+  emailDisabled?: boolean;
 }) {
   const [draft, setDraft] = useState(value);
 
@@ -34,24 +39,44 @@ export function NotificationPreferencesForm({
   }
 
   return (
-    <ChartSurface title="Notificaciones" subtitle="Preferencias controladas y tipadas para alertas internas y futuras salidas por correo.">
-      <div className="space-y-3">
-        {preferenceLabels.map((item) => (
-          <div key={item.key} className="flex items-center justify-between gap-4 rounded-[18px] border border-border/70 bg-background/70 px-4 py-3">
-            <div className="min-w-0">
-              <p className="text-sm font-medium">{item.title}</p>
-              <p className="text-sm text-muted-foreground">{item.hint}</p>
+    <Card className="bg-card/90">
+      <CardHeader className="pb-3">
+        <CardTitle className="text-sm font-semibold text-muted-foreground">Notificaciones</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-2">
+        {PREFERENCE_ITEMS.map((item) => {
+          const disabled = emailDisabled && item.group === "email";
+          return (
+            <div
+              key={item.key}
+              className={
+                "flex items-center justify-between gap-3 rounded-[14px] border border-border/50 bg-background/60 px-3 py-2.5 " +
+                (disabled ? "opacity-70" : "")
+              }
+            >
+              <div className="flex min-w-0 items-center gap-2">
+                <span className="text-sm">{item.title}</span>
+                {disabled ? (
+                  <Badge variant="outline" className="text-[10px] uppercase tracking-wide">
+                    Proximamente
+                  </Badge>
+                ) : null}
+              </div>
+              <ToggleSwitch
+                checked={draft[item.key]}
+                disabled={disabled}
+                onCheckedChange={() => toggle(item.key)}
+              />
             </div>
-            <ToggleSwitch checked={draft[item.key]} onCheckedChange={() => toggle(item.key)} />
-          </div>
-        ))}
+          );
+        })}
 
-        <div className="flex justify-end pt-1">
+        <div className="flex justify-end pt-2">
           <Button type="button" onClick={() => onSave(draft)}>
             Guardar notificaciones
           </Button>
         </div>
-      </div>
-    </ChartSurface>
+      </CardContent>
+    </Card>
   );
 }

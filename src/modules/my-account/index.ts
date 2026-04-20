@@ -20,6 +20,7 @@ export type MyAccountProfile = {
   defaultCalendarViewCode: string;
   defaultTaskViewCode: string;
   weekStartIso: 1 | 7;
+  contactEmail: string;
   notificationPreferences: MyAccountNotificationPreferences;
   lastUpdatedAt: string;
 };
@@ -29,13 +30,24 @@ export type MyAccountWorkSummary = {
   pendingToday: number;
   overdue: number;
   inProgress: number;
+  upcomingReminders: number;
   nextEventLabel: string;
   nextReminderLabel: string;
+};
+
+export type MyAccountRecentAccess = {
+  id: string;
+  deviceKind: "desktop" | "mobile" | "other";
+  browser: string;
+  osName: string;
+  occurredAt: string;
+  isCurrentSession: boolean;
 };
 
 export type MyAccountInitialData = {
   profile: MyAccountProfile;
   workSummary: MyAccountWorkSummary;
+  recentAccess: MyAccountRecentAccess[];
 };
 
 export { MyAccountPage } from "@/modules/my-account/components/my-account-page";

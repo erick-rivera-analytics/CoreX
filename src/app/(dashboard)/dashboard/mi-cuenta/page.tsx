@@ -39,6 +39,7 @@ function mapAccountPageData(data: MyAccountPageData, username: string): MyAccoun
       defaultCalendarViewCode: data.profile.defaultCalendarViewCode,
       defaultTaskViewCode: data.profile.defaultTaskViewCode,
       weekStartIso: data.profile.weekStartIso === 7 ? 7 : 1,
+      contactEmail: data.profile.contactEmail ?? "",
       notificationPreferences: data.profile.notificationPrefs,
       lastUpdatedAt: data.profile.updatedAt ?? data.profile.createdAt ?? new Date().toISOString(),
     },
@@ -47,10 +48,12 @@ function mapAccountPageData(data: MyAccountPageData, username: string): MyAccoun
       pendingToday: data.summary.pendingToday,
       overdue: data.summary.overdue,
       inProgress: data.summary.inProgress,
+      upcomingReminders: data.summary.upcomingReminders,
       nextEventLabel: data.summary.nextEventTitle ?? "Sin eventos programados",
       nextReminderLabel: data.summary.upcomingReminders
         ? `${data.summary.upcomingReminders} recordatorios pendientes`
         : "Sin recordatorios pendientes",
     },
+    recentAccess: [],
   };
 }
