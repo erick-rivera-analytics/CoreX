@@ -74,6 +74,11 @@ Regla:
 | Acceso a API | `requireAuth` |
 | Fetch cliente | `@/lib/fetch-json` |
 | Formatters | `@/shared/lib/format` |
+| Utilidades de fecha (ISO, startOfMonth, endOfMonth, addDays) | `@/shared/lib/date-utils` |
+| Pool DB personal workspace | `@/lib/personal-workspace-db` (`queryPersonalWorkspace`, `withPersonalWorkspaceTransaction`) |
+| Schemas Zod perfil / tareas / eventos / recordatorios | `@/lib/personal-workspace-schemas` |
+| Mappers Mi cuenta | `@/modules/my-account/server/mappers` |
+| Mappers Mi trabajo | `@/modules/my-work/server/mappers` |
 
 ## Seguridad y operacion
 
