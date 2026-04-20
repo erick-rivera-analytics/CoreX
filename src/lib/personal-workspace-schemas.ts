@@ -116,7 +116,10 @@ export const createEventSchema = z.object({
   allDay: z.boolean().default(false),
   isBusy: z.boolean().default(true),
   locationText: nullableText(255),
-}).refine((value) => new Date(value.endAt).getTime() >= new Date(value.startAt).getTime(), {
+}).refine((value) => {
+  if (!value.startAt || !value.endAt) return false;
+  return new Date(value.endAt).getTime() >= new Date(value.startAt).getTime();
+}, {
   message: "La fecha final no puede ser anterior a la inicial.",
   path: ["endAt"],
 });
