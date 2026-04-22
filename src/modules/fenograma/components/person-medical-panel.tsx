@@ -45,7 +45,7 @@ function formatSignedPercent(value: number | null) {
   }
 
   const sign = value > 0 ? "+" : "";
-  return `${sign}${value.toFixed(1)}%`;
+  return `${sign}${formatDecimal(Math.abs(value), 1)}%`;
 }
 
 function getMarkerTone(color: MedicalMarkerColor) {

@@ -18,7 +18,7 @@ import { Badge } from "@/shared/ui/badge";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
-import { formatDate, formatDecimal, formatInteger } from "@/shared/lib/format";
+import { formatDate, formatDecimal, formatInteger, formatPercent } from "@/shared/lib/format";
 import { fetchJson } from "@/lib/fetch-json";
 import { matchesMultiSelectValue } from "@/lib/multi-select";
 import { cn } from "@/lib/utils";
@@ -108,7 +108,7 @@ function formatDisplayValue(
       return String(value);
     }
 
-    return `${numericValue.toFixed(1)}%`;
+    return formatPercent(numericValue, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
   }
 
   if (column.kind === "number" && typeof value === "number") {
@@ -283,7 +283,7 @@ function NodeDetailModal({
               <KpiGrid columns={5}>
                 <MetricTile
                   label="Macro indicador"
-                  value={visibleSummary.ratioPct === null ? "-" : `${visibleSummary.ratioPct.toFixed(1)}%`}
+                  value={formatPercent(visibleSummary.ratioPct, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
                   accent="success"
                 />
                 <MetricTile

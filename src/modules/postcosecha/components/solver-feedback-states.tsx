@@ -12,6 +12,12 @@ import {
 } from "@/shared/ui/card";
 import { cn } from "@/lib/utils";
 
+/**
+ * Wrapper intencional de MetricTile para el dominio del solver.
+ * Traduce la API semántica `tone` (default/positive/warning) a la API visual
+ * `accent` de MetricTile, evitando que los callers del solver dependan
+ * directamente del enum `MetricTileAccent`.
+ */
 export function SolverMetricTile({
   label,
   value,

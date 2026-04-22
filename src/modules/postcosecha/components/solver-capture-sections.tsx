@@ -9,7 +9,6 @@ import { cn } from "@/lib/utils";
 import { formatInteger } from "@/shared/lib/format";
 import {
   buildClasificacionAvailabilityDerived,
-  buildClasificacionPrecheck,
   getDateLabel,
   lotSlotNetStemsTotal,
   lotSlotMallasTotal,
@@ -252,7 +251,7 @@ export function SolverPrecheckSection({
   onClearResults,
   onRun,
 }: {
-  precheck: ReturnType<typeof buildClasificacionPrecheck>;
+  precheck: PoscosechaClasificacionPrecheck;
   precheckModes: Array<{
     mode: PoscosechaClasificacionRunMode;
     label: string;
