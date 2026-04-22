@@ -10,11 +10,9 @@ import { DialogShell } from "@/shared/overlays/dialog-shell";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
+import { SingleSelectField } from "@/shared/filters/single-select-field";
 import { formatInteger } from "@/shared/lib/format";
 import { OrdersInputTable } from "@/modules/postcosecha/components/solver-form";
-
-const selectClassName =
-  "h-11 w-full rounded-[16px] border border-input bg-background px-4 text-sm text-foreground outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring/40";
 
 export function SolverOrderSlotOverlay({
   open,
@@ -54,38 +52,34 @@ export function SolverOrderSlotOverlay({
       <div className="space-y-5">
         <div className="rounded-[24px] border border-border/70 bg-background/80 p-4">
           <div className="grid gap-3 md:grid-cols-2">
-            <div className="space-y-2">
-              <Label>Restriccion de origen</Label>
-              <select
-                className={selectClassName}
-                value={slot.restriction ?? ""}
-                onChange={(event) =>
-                  onUpdateSlot(slot.key, {
-                    restriction: event.target.value ? (event.target.value as PoscosechaClasificacionOrderSlot["restriction"]) : null,
-                  })
-                }
-              >
-                <option value="">Cualquiera</option>
-                <option value="GV">GV</option>
-                <option value="APERTURA">Apertura</option>
-                <option value="PRECLASIFICACION">Preclasificacion</option>
-              </select>
-            </div>
-            <div className="space-y-2">
-              <Label>Tipo de restriccion</Label>
-              <select
-                className={selectClassName}
-                value={slot.restrictionMode}
-                onChange={(event) =>
-                  onUpdateSlot(slot.key, {
-                    restrictionMode: event.target.value === "STRICT" ? "STRICT" : "SOFT",
-                  })
-                }
-              >
-                <option value="SOFT">Suave</option>
-                <option value="STRICT">Estricta</option>
-              </select>
-            </div>
+            <SingleSelectField
+              id="order-slot-restriction"
+              label="Restriccion de origen"
+              value={slot.restriction ?? ""}
+              emptyValue=""
+              emptyLabel="Cualquiera"
+              options={["GV", "APERTURA", "PRECLASIFICACION"]}
+              displayValue={(v) => v === "APERTURA" ? "Apertura" : v === "PRECLASIFICACION" ? "Preclasificacion" : v}
+              onChange={(v) =>
+                onUpdateSlot(slot.key, {
+                  restriction: v ? (v as PoscosechaClasificacionOrderSlot["restriction"]) : null,
+                })
+              }
+            />
+            <SingleSelectField
+              id="order-slot-restriction-mode"
+              label="Tipo de restriccion"
+              value={slot.restrictionMode}
+              emptyValue="SOFT"
+              emptyLabel="Suave"
+              options={["STRICT"]}
+              displayValue={() => "Estricta"}
+              onChange={(v) =>
+                onUpdateSlot(slot.key, {
+                  restrictionMode: v === "STRICT" ? "STRICT" : "SOFT",
+                })
+              }
+            />
           </div>
           <div className="mt-4 flex flex-wrap gap-6 text-sm text-muted-foreground">
             <span>{formatInteger(orderSlotTotal(orders, [slot.key]))} bunches en total</span>

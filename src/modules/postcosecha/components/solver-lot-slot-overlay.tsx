@@ -9,10 +9,11 @@ import { getDateLabel, lotSlotMallasTotal, lotSlotNetStemsTotal } from "@/lib/po
 import { DialogShell } from "@/shared/overlays/dialog-shell";
 import { Button } from "@/shared/ui/button";
 import { Label } from "@/shared/ui/label";
+import { SingleSelectField } from "@/shared/filters/single-select-field";
 import { AvailabilityInputTable } from "@/modules/postcosecha/components/solver-form";
 import { formatInteger } from "@/shared/lib/format";
 
-const selectClassName =
+const dateInputClassName =
   "h-11 w-full rounded-[16px] border border-input bg-background px-4 text-sm text-foreground outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring/40";
 
 export function SolverLotSlotOverlay({
@@ -51,30 +52,25 @@ export function SolverLotSlotOverlay({
               <Label>Fecha real del lote</Label>
               <input
                 type="date"
-                className={selectClassName}
+                className={dateInputClassName}
                 value={slot.lotDate ?? ""}
                 onChange={(event) => onUpdateSlot(slot.key, { lotDate: event.target.value || null })}
               />
             </div>
-            <div className="space-y-2">
-              <Label>Origen</Label>
-              <select
-                className={selectClassName}
-                value={slot.origin}
-                onChange={(event) =>
-                  onUpdateSlot(slot.key, {
-                    origin:
-                      event.target.value === "APERTURA" || event.target.value === "PRECLASIFICACION"
-                        ? event.target.value
-                        : "GV",
-                  })
-                }
-              >
-                <option value="GV">GV</option>
-                <option value="APERTURA">Apertura</option>
-                <option value="PRECLASIFICACION">Preclasificacion</option>
-              </select>
-            </div>
+            <SingleSelectField
+              id="lot-slot-origin"
+              label="Origen"
+              value={slot.origin}
+              emptyValue="GV"
+              emptyLabel="GV"
+              options={["APERTURA", "PRECLASIFICACION"]}
+              displayValue={(v) => v === "APERTURA" ? "Apertura" : "Preclasificacion"}
+              onChange={(v) =>
+                onUpdateSlot(slot.key, {
+                  origin: v === "APERTURA" || v === "PRECLASIFICACION" ? v : "GV",
+                })
+              }
+            />
           </div>
           <div className="mt-4 flex flex-wrap gap-6 text-sm text-muted-foreground">
             <span>{formatInteger(lotSlotMallasTotal(availability, [slot.key]))} mallas en total</span>
