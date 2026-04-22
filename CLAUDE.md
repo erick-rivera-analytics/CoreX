@@ -206,6 +206,7 @@ Excepciones documentadas:
 - Comparacion no requiere `KpiGrid`; su layout de batalla es el contenido principal.
 - `fenograma-block-modal.tsx` conserva `MetricPill` local porque es clickeable y de dominio.
 - `person-detail-sheet.tsx` puede usar `space-y-6` dentro del overlay para respiracion visual.
+- `multi-select-field.tsx` usa `createPortal` para posicionar el dropdown fuera del contenedor de scroll. Patron legitimo de popovers; no aplica el canon de overlays.
 
 ## Restricciones
 
