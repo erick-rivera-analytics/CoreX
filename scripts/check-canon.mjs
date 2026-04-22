@@ -40,6 +40,7 @@ const officialDocs = new Set([
   "docs/testing.md",
   "docs/security-ops.md",
   "docs/quality-baseline.md",
+  "docs/gestion-postcosecha-clasificacion-en-blanco.md",
 ]);
 
 const legacyDocPrefix = "> LEGACY / reference only.";
@@ -167,6 +168,7 @@ const colorExceptions = new Set([
   "src/modules/campo/components/campo-sjp-inset.tsx",
   "src/modules/campo/components/campo-sub-map-modal.tsx",
   "src/modules/fenograma/components/block-profile-modal.tsx",
+  "src/modules/postcosecha/components/solver-export-pdf-button.tsx",
   "src/modules/programaciones/components/programaciones-explorer.tsx",
   "src/config/programaciones-palettes.ts",
 ]);
@@ -196,6 +198,7 @@ const hugeFileAllowlist = new Set([
   "src/modules/postcosecha/components/balanzas-explorer.tsx",
   "src/modules/postcosecha/components/balanzas-process-viewer.tsx",
   "src/modules/postcosecha/components/skus-explorer.tsx",
+  "src/modules/postcosecha/hooks/use-clasificacion-en-blanco-explorer.ts",
   "src/modules/productividad/components/productividad-explorer.tsx",
   "src/modules/programaciones/components/programaciones-explorer.tsx",
   "src/modules/users/components/users-page.tsx",

@@ -13,10 +13,12 @@ export function SolverResults({
   result,
   canOpenRecipe,
   onOpenRecipe,
+  onOpenSkuInfo,
 }: {
   result: PoscosechaClasificacionResult;
   canOpenRecipe: (sku: string) => boolean;
   onOpenRecipe: (sku: string) => void;
+  onOpenSkuInfo: (sku: string) => void;
 }) {
   if (result.orderRows.length === 0) {
     return <EmptyState label="No hay pedidos resueltos para mostrar." />;
@@ -136,6 +138,7 @@ export function SolverResults({
                     row={row}
                     canOpenRecipe={canOpenRecipe(row.sku)}
                     onOpenRecipe={onOpenRecipe}
+                    onOpenSkuInfo={onOpenSkuInfo}
                   />
                 ))}
               </tbody>
@@ -251,27 +254,47 @@ function SolverOrderRow({
   row,
   canOpenRecipe,
   onOpenRecipe,
+  onOpenSkuInfo,
 }: {
   row: PoscosechaClasificacionResultOrderRow;
   canOpenRecipe: boolean;
   onOpenRecipe: (sku: string) => void;
+  onOpenSkuInfo: (sku: string) => void;
 }) {
   return (
     <tr className="border-b border-border/50 last:border-b-0">
       <td className="px-4 py-3 font-medium">
         {canOpenRecipe ? (
+          <div className="space-y-1">
+            <button
+              type="button"
+              className="block text-left text-foreground transition hover:text-slate-700 hover:underline"
+              onClick={() => onOpenRecipe(row.sku)}
+            >
+              <span className="block">{row.sku}</span>
+              <span className="block text-xs font-normal text-muted-foreground">
+                Ver receta
+              </span>
+            </button>
+            <button
+              type="button"
+              className="text-xs font-normal text-muted-foreground transition hover:text-foreground hover:underline"
+              onClick={() => onOpenSkuInfo(row.sku)}
+            >
+              Editar SKU
+            </button>
+          </div>
+        ) : (
           <button
             type="button"
             className="text-left text-foreground transition hover:text-slate-700 hover:underline"
-            onClick={() => onOpenRecipe(row.sku)}
+            onClick={() => onOpenSkuInfo(row.sku)}
           >
             <span className="block">{row.sku}</span>
             <span className="block text-xs font-normal text-muted-foreground">
-              Ver receta
+              Editar SKU
             </span>
           </button>
-        ) : (
-          row.sku
         )}
       </td>
       <td className="px-4 py-3">

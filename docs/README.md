@@ -73,6 +73,7 @@ Si eres nuevo en el proyecto, lee en este orden:
 | `datos.md` | Schema DB: vistas `gld.*`/`slv.*`/`mdl.*`, naming, business rules, patrones SQL |
 | `modulos.md` | Catálogo de los 13 módulos activos: datos, KPIs, archivos, endpoints |
 | `apis.md` | Referencia de todos los endpoints REST (~35): policy, params, response |
+| `gestion-postcosecha-clasificacion-en-blanco.md` | Flujo funcional del solver multimodo de postcosecha: slots, persistencia local, receta y exportacion |
 | `extender-modulos.md` | Flujo único para agregar o extender módulos — OBLIGATORIO leer |
 | `reuse-index.md` | Matriz de componentes/helpers reutilizables — buscar aquí antes de crear |
 | `ui-canon.md` | Reglas visuales no negociables: layout, componentes, colores, excepciones |

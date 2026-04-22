@@ -74,14 +74,26 @@ export function buildClasificacionAvailabilityDerived(
   });
 }
 
-function getEligibleDateKeys(
-  orderSlots: PoscosechaClasificacionOrderSlot[],
+function slotCanBeSolvedByMode(
+  slot: PoscosechaClasificacionOrderSlot | undefined,
   mode: PoscosechaClasificacionRunMode,
-): SolverDateKey[] {
-  if (!orderSlots.length) return [...SOLVER_DATE_KEYS];
-  return orderSlots
-    .filter((slot) => slot.restriction === null || slot.restriction === mode)
-    .map((slot) => slot.key);
+): boolean {
+  if (!slot?.restriction || slot.restrictionMode !== "STRICT") {
+    return true;
+  }
+
+  return slot.restriction === mode;
+}
+
+function originMatchesMode(
+  slot: PoscosechaClasificacionLotSlot | undefined,
+  mode: PoscosechaClasificacionRunMode,
+) {
+  if (!slot) {
+    return false;
+  }
+
+  return slot.origin === mode;
 }
 
 export function buildClasificacionPrecheck(
@@ -95,8 +107,13 @@ export function buildClasificacionPrecheck(
 ): PoscosechaClasificacionPrecheck {
   const masterBySkuId = new Map(skuMaster.map((record) => [record.skuId, record]));
 
-  const eligibleKeys =
-    orderSlots && mode ? getEligibleDateKeys(orderSlots, mode) : [...SOLVER_DATE_KEYS];
+  const orderEligibleKeys =
+    orderSlots && mode
+      ? SOLVER_DATE_KEYS.filter((key) => {
+          const slot = orderSlots.find((item) => item.key === key);
+          return slotCanBeSolvedByMode(slot, mode);
+        })
+      : [...SOLVER_DATE_KEYS];
 
   let tallosPedidos = 0;
 
@@ -107,7 +124,7 @@ export function buildClasificacionPrecheck(
       continue;
     }
 
-    const totalPedido = eligibleKeys.reduce(
+    const totalPedido = orderEligibleKeys.reduce(
       (accumulator, key) => accumulator + sanitizeDateValue(row[key]),
       0,
     );
@@ -118,9 +135,10 @@ export function buildClasificacionPrecheck(
   let tallosDisponibles: number;
 
   if (lotSlots && lotSlots.length > 0 && mode) {
-    const eligibleLotKeys = lotSlots
-      .filter((slot) => slot.origin === mode || !slot.origin)
-      .map((slot) => slot.key);
+    const eligibleLotKeys = SOLVER_DATE_KEYS.filter((key) => {
+      const slot = lotSlots.find((item) => item.key === key);
+      return originMatchesMode(slot, mode);
+    });
     tallosDisponibles = availability.reduce((acc, row) => {
       const sanitized = sanitizeAvailabilityRow(row);
       const mallasTotales = eligibleLotKeys.reduce(
@@ -159,11 +177,77 @@ export function buildClasificacionPrecheck(
     };
   }
 
-  if (diferencia < 0) {
+  return {
+    isValid: true,
+    message:
+      diferencia < 0
+        ? "Hay mas tallos disponibles que pedidos minimos; el solver usara lo necesario y dejara saldo."
+        : "Validacion previa correcta.",
+    tallosPedidos,
+    tallosDisponibles,
+    diferencia,
+  };
+}
+
+export function buildClasificacionFlexiblePrecheck(
+  orders: PoscosechaClasificacionOrderRow[],
+  availability: PoscosechaClasificacionAvailabilityRow[],
+  skuMaster: PoscosechaSkuRecord[],
+  desperdicio: number,
+  orderSlots: PoscosechaClasificacionOrderSlot[],
+  lotSlots: PoscosechaClasificacionLotSlot[],
+): PoscosechaClasificacionPrecheck {
+  const masterBySkuId = new Map(skuMaster.map((record) => [record.skuId, record]));
+  const flexibleKeys = new Set(
+    orderSlots
+      .filter((slot) => !slot.restriction || slot.restrictionMode !== "STRICT")
+      .map((slot) => slot.key),
+  );
+  const lotKeys = new Set(lotSlots.map((slot) => slot.key));
+
+  let tallosPedidos = 0;
+  for (const row of orders) {
+    const masterRecord = masterBySkuId.get(row.skuId);
+    if (!masterRecord) {
+      continue;
+    }
+
+    const totalPedido = SOLVER_DATE_KEYS.reduce(
+      (accumulator, key) => accumulator + (flexibleKeys.has(key) ? sanitizeDateValue(row[key]) : 0),
+      0,
+    );
+
+    tallosPedidos += totalPedido * Math.max(toInteger(masterRecord.tallosMin, 0), 0);
+  }
+
+  const tallosDisponibles = buildClasificacionAvailabilityDerived(
+    availability.map((row) => ({
+      ...row,
+      fecha_1: lotKeys.has("fecha_1") ? row.fecha_1 : 0,
+      fecha_2: lotKeys.has("fecha_2") ? row.fecha_2 : 0,
+      fecha_3: lotKeys.has("fecha_3") ? row.fecha_3 : 0,
+      fecha_4: lotKeys.has("fecha_4") ? row.fecha_4 : 0,
+      fecha_5: lotKeys.has("fecha_5") ? row.fecha_5 : 0,
+    })),
+    desperdicio,
+  ).reduce((accumulator, row) => accumulator + row.tallosNetos, 0);
+
+  const diferencia = tallosPedidos - tallosDisponibles;
+
+  if (tallosPedidos <= 0) {
     return {
       isValid: false,
-      message:
-        "No se puede ejecutar: los tallos pedidos minimos deben ser al menos iguales a los tallos disponibles.",
+      message: "Debes ingresar pedidos flexibles mayores a cero.",
+      tallosPedidos,
+      tallosDisponibles,
+      diferencia,
+    };
+  }
+
+  if (tallosDisponibles <= 0) {
+    return {
+      isValid: false,
+      message: "Debes ingresar disponibilidad mayor a cero.",
       tallosPedidos,
       tallosDisponibles,
       diferencia,
@@ -172,7 +256,10 @@ export function buildClasificacionPrecheck(
 
   return {
     isValid: true,
-    message: "Validacion previa correcta.",
+    message:
+      diferencia < 0
+        ? "Las ordenes no estrictas tienen disponibilidad total suficiente y aun queda saldo."
+        : "Las ordenes no estrictas consumen toda la disponibilidad y aun queda demanda pendiente.",
     tallosPedidos,
     tallosDisponibles,
     diferencia,

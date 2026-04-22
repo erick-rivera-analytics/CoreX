@@ -1,5 +1,7 @@
 "use client";
 
+import type { KeyboardEvent } from "react";
+
 import type {
   PoscosechaClasificacionAvailabilityRow,
   PoscosechaClasificacionOrderRow,
@@ -66,3 +68,37 @@ export type SolverAvailabilityDateUpdater = (
   dateKey: SolverDateKey,
   value: string,
 ) => void;
+
+export function handleCaptureInputTab(event: KeyboardEvent<HTMLInputElement>) {
+  if (event.key !== "Tab") {
+    return;
+  }
+
+  const currentInput = event.currentTarget;
+  const captureContainer = currentInput.closest("[data-capture-scope='true']");
+
+  if (!captureContainer) {
+    return;
+  }
+
+  const inputs = Array.from(
+    captureContainer.querySelectorAll<HTMLInputElement>("input[data-capture-input='true']"),
+  ).filter((input) => !input.disabled && input.tabIndex !== -1);
+
+  const currentIndex = inputs.indexOf(currentInput);
+
+  if (currentIndex === -1) {
+    return;
+  }
+
+  const nextIndex = event.shiftKey ? currentIndex - 1 : currentIndex + 1;
+  const nextInput = inputs[nextIndex];
+
+  if (!nextInput) {
+    return;
+  }
+
+  event.preventDefault();
+  nextInput.focus();
+  nextInput.select();
+}

@@ -9,7 +9,7 @@ import type {
 const MODE_LABELS: Record<PoscosechaClasificacionRunMode, string> = {
   GV: "GV",
   APERTURA: "Apertura",
-  PRECLASIFICACION: "Preclasificación",
+  PRECLASIFICACION: "Preclasificacion",
 };
 
 export function SolverModeSelector({
@@ -28,6 +28,7 @@ export function SolverModeSelector({
       {runs.map((run) => {
         const isActive = run.mode === activeMode;
         const hasResult = run.result !== null;
+
         return (
           <button
             key={run.mode}
@@ -42,9 +43,7 @@ export function SolverModeSelector({
             )}
           >
             {MODE_LABELS[run.mode]}
-            {!hasResult && (
-              <span className="ml-1.5 text-xs opacity-70">Sin resultado</span>
-            )}
+            {!hasResult ? <span className="ml-1.5 text-xs opacity-70">Sin resultado</span> : null}
           </button>
         );
       })}

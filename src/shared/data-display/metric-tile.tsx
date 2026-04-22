@@ -24,11 +24,11 @@ export function MetricTile({
   className?: string;
 }) {
   return (
-    <Card className={cn("bg-card/90 border-border/70", accentStyles[accent], className)}>
-      <CardContent className="px-4 py-4">
-        <p className="text-xs font-medium text-muted-foreground">{label}</p>
-        <p className="mt-2 text-2xl font-semibold tracking-tight tabular-nums">{value}</p>
-        {hint ? <p className="mt-1 text-xs text-muted-foreground">{hint}</p> : null}
+    <Card className={cn("min-w-0 bg-card/90 border-border/70", accentStyles[accent], className)}>
+      <CardContent className="min-w-0 px-4 py-4">
+        <p className="break-words text-xs font-medium text-muted-foreground">{label}</p>
+        <p className="mt-2 break-words text-xl font-semibold tracking-tight tabular-nums sm:text-2xl">{value}</p>
+        {hint ? <p className="mt-1 break-words text-xs text-muted-foreground">{hint}</p> : null}
       </CardContent>
     </Card>
   );

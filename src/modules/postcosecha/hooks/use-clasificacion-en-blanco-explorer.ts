@@ -4,8 +4,10 @@ import { startTransition, useDeferredValue, useEffect, useMemo, useState } from 
 import { toast } from "sonner";
 
 import { fetchJson } from "@/lib/fetch-json";
+import type { PoscosechaSkuRecord } from "@/lib/postcosecha-sku-types";
 import {
   buildClasificacionAvailabilityDerived,
+  buildClasificacionFlexiblePrecheck,
   buildClasificacionPrecheck,
 } from "@/lib/postcosecha-clasificacion-en-blanco-client";
 import type {
@@ -19,8 +21,27 @@ import type {
   PoscosechaClasificacionRunPayload,
   SolverDateKey,
 } from "@/lib/postcosecha-clasificacion-en-blanco-types";
-import { POSCOSECHA_CLASIFICACION_RUN_MODES } from "@/lib/postcosecha-clasificacion-en-blanco-types";
+import {
+  POSCOSECHA_CLASIFICACION_RUN_MODES,
+  SOLVER_DATE_KEYS,
+} from "@/lib/postcosecha-clasificacion-en-blanco-types";
 import { buildRecipeInput, orderTotal, toFloat, toInteger } from "@/modules/postcosecha/components/solver-utils";
+import {
+  buildHydratedDraftState,
+  clearSolverDraft,
+  writeSolverDraft,
+} from "@/modules/postcosecha/hooks/use-solver-draft-storage";
+
+function getNextAvailableKey(usedKeys: SolverDateKey[]) {
+  return SOLVER_DATE_KEYS.find((key) => !usedKeys.includes(key)) ?? null;
+}
+
+function updateSkuRows(
+  rows: PoscosechaClasificacionBootData["ordersTemplate"],
+  record: PoscosechaSkuRecord,
+) {
+  return rows.map((row) => (row.skuId === record.skuId ? { ...row, sku: record.sku } : row));
+}
 
 export function useClasificacionEnBlancoExplorer(
   initialData: PoscosechaClasificacionBootData,
@@ -35,6 +56,7 @@ export function useClasificacionEnBlancoExplorer(
   const [resultBundle, setResultBundle] = useState<PoscosechaClasificacionModeResult[] | null>(null);
   const [activeMode, setActiveMode] = useState<PoscosechaClasificacionRunMode>(POSCOSECHA_CLASIFICACION_RUN_MODES[0]);
   const [isResultStale, setIsResultStale] = useState(false);
+  const [hasHydratedDraft, setHasHydratedDraft] = useState(false);
   const [search, setSearch] = useState("");
   const [isRunning, setIsRunning] = useState(false);
   const [isReloading, setIsReloading] = useState(false);
@@ -73,6 +95,35 @@ export function useClasificacionEnBlancoExplorer(
       ),
     [availability, bootData.skuMaster, orders, settings.desperdicio, orderSlots, lotSlots, activeMode],
   );
+  const precheckModes = useMemo(
+    () =>
+      POSCOSECHA_CLASIFICACION_RUN_MODES.map((mode) => ({
+        mode,
+        label: mode,
+        precheck: buildClasificacionPrecheck(
+          orders,
+          availability,
+          bootData.skuMaster,
+          settings.desperdicio,
+          orderSlots,
+          lotSlots,
+          mode,
+        ),
+      })),
+    [availability, bootData.skuMaster, lotSlots, orderSlots, orders, settings.desperdicio],
+  );
+  const flexiblePrecheck = useMemo(
+    () =>
+      buildClasificacionFlexiblePrecheck(
+        orders,
+        availability,
+        bootData.skuMaster,
+        settings.desperdicio,
+        orderSlots,
+        lotSlots,
+      ),
+    [availability, bootData.skuMaster, lotSlots, orderSlots, orders, settings.desperdicio],
+  );
 
   const ordersWithCapture = useMemo(() => orders.filter((row) => orderTotal(row) > 0).length, [orders]);
   const gradesWithCapture = useMemo(
@@ -95,6 +146,38 @@ export function useClasificacionEnBlancoExplorer(
   }, [initialError]);
 
   useEffect(() => {
+    const hydratedDraft = buildHydratedDraftState(initialData);
+    if (hydratedDraft) {
+      setOrders(hydratedDraft.orders);
+      setAvailability(hydratedDraft.availability);
+      setSettings(hydratedDraft.settings);
+      setOrderSlots(hydratedDraft.orderSlots);
+      setLotSlots(hydratedDraft.lotSlots);
+      setResultBundle(hydratedDraft.resultBundle);
+      setActiveMode(hydratedDraft.activeMode);
+      setIsResultStale(hydratedDraft.isResultStale);
+    }
+    setHasHydratedDraft(true);
+  }, [initialData]);
+
+  useEffect(() => {
+    if (!hasHydratedDraft) {
+      return;
+    }
+
+    writeSolverDraft({
+      orders,
+      availability,
+      settings,
+      orderSlots,
+      lotSlots,
+      activeMode,
+      resultBundle,
+      isResultStale,
+    });
+  }, [orders, availability, settings, orderSlots, lotSlots, activeMode, resultBundle, isResultStale, hasHydratedDraft]);
+
+  useEffect(() => {
     if (!resultBundle) {
       setSelectedRecipeSku(null);
       setRecipeData(null);
@@ -113,6 +196,7 @@ export function useClasificacionEnBlancoExplorer(
     setLotSlots(nextData.lotSlots);
     setResultBundle(null);
     setIsResultStale(false);
+    clearSolverDraft();
   }
 
   function closeRecipeOverlay() {
@@ -123,7 +207,9 @@ export function useClasificacionEnBlancoExplorer(
   }
 
   function markResultStale() {
-    if (resultBundle) setIsResultStale(true);
+    if (resultBundle) {
+      setIsResultStale(true);
+    }
   }
 
   function clearResults() {
@@ -181,6 +267,40 @@ export function useClasificacionEnBlancoExplorer(
     markResultStale();
   }
 
+  function addOrderSlot() {
+    setOrderSlots((current) => {
+      const nextKey = getNextAvailableKey(current.map((slot) => slot.key));
+      if (!nextKey) {
+        return current;
+      }
+
+      return [...current, { key: nextKey, restriction: null, restrictionMode: "SOFT" }];
+    });
+    markResultStale();
+  }
+
+  function addLotSlot() {
+    setLotSlots((current) => {
+      const nextKey = getNextAvailableKey(current.map((slot) => slot.key));
+      if (!nextKey) {
+        return current;
+      }
+
+      return [...current, { key: nextKey, lotDate: null, origin: "GV" }];
+    });
+    markResultStale();
+  }
+
+  function removeOrderSlot(key: SolverDateKey) {
+    setOrderSlots((current) => (current.length > 1 ? current.filter((slot) => slot.key !== key) : current));
+    markResultStale();
+  }
+
+  function removeLotSlot(key: SolverDateKey) {
+    setLotSlots((current) => (current.length > 1 ? current.filter((slot) => slot.key !== key) : current));
+    markResultStale();
+  }
+
   function resetOrders() {
     setOrders(bootData.ordersTemplate);
     clearResults();
@@ -192,18 +312,29 @@ export function useClasificacionEnBlancoExplorer(
     clearResults();
   }
 
-  function resetSlots() {
-    setOrderSlots(bootData.orderSlots);
-    setLotSlots(bootData.lotSlots);
-    clearResults();
-  }
-
   function updateDesperdicio(value: string) {
     setSettings((current) => ({
       ...current,
       desperdicio: Math.min(Math.max(toFloat(value), 0), 0.95),
     }));
     markResultStale();
+  }
+
+  function applySkuRecordUpdate(record: PoscosechaSkuRecord) {
+    setBootData((current) => ({
+      ...current,
+      skuMaster: current.skuMaster.map((item) => (item.skuId === record.skuId ? record : item)),
+    }));
+    setOrders((current) => updateSkuRows(current, record));
+    markResultStale();
+  }
+
+  function findSkuRecord(target: string) {
+    return (
+      bootData.skuMaster.find((item) => item.skuId === target)
+      ?? bootData.skuMaster.find((item) => item.sku === target)
+      ?? null
+    );
   }
 
   async function handleRunSolver() {
@@ -221,7 +352,9 @@ export function useClasificacionEnBlancoExplorer(
       setResultBundle(payload.data);
       setIsResultStale(false);
       const firstMode = payload.data.find((r) => r.result !== null)?.mode;
-      if (firstMode) setActiveMode(firstMode);
+      if (firstMode) {
+        setActiveMode(firstMode);
+      }
       toast.success("Clasificacion en blanco se resolvio correctamente.");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "No se pudo ejecutar Clasificacion en blanco.");
@@ -288,6 +421,8 @@ export function useClasificacionEnBlancoExplorer(
     isRecipeLoading,
     filteredOrders,
     precheck,
+    precheckModes,
+    flexiblePrecheck,
     ordersWithCapture,
     gradesWithCapture,
     resultOrderRowsBySku,
@@ -302,10 +437,15 @@ export function useClasificacionEnBlancoExplorer(
     updateAvailabilityWeight,
     updateOrderSlot,
     updateLotSlot,
+    addOrderSlot,
+    addLotSlot,
+    removeOrderSlot,
+    removeLotSlot,
     resetOrders,
     resetAvailability,
-    resetSlots,
     updateDesperdicio,
+    applySkuRecordUpdate,
+    findSkuRecord,
     handleRunSolver,
     handleOpenRecipe,
     closeRecipeOverlay,
