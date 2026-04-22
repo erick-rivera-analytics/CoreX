@@ -7,6 +7,7 @@ import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
 import { ToggleSwitch } from "@/shared/forms/toggle-switch";
+import { SingleSelectField } from "@/shared/filters/single-select-field";
 import type { EventFormValue, MyWorkSpace, MyWorkTask } from "@/modules/my-work/server/types";
 
 const selectClassName =
@@ -53,14 +54,16 @@ export function EventFormDialog({
               ))}
             </select>
           </Field>
-          <Field label="Tarea ligada (opcional)">
-            <select className={selectClassName} value={draft.linkedTaskId} onChange={(event) => setDraft((current) => ({ ...current, linkedTaskId: event.target.value }))}>
-              <option value="">Sin tarea ligada</option>
-              {linkedTasks.map((task) => (
-                <option key={task.id} value={task.id}>{task.title}</option>
-              ))}
-            </select>
-          </Field>
+          <SingleSelectField
+            id="event-linked-task"
+            label="Tarea ligada (opcional)"
+            value={draft.linkedTaskId}
+            emptyValue=""
+            emptyLabel="Sin tarea ligada"
+            options={linkedTasks.map((task) => task.id)}
+            displayValue={(v) => linkedTasks.find((task) => task.id === v)?.title ?? v}
+            onChange={(v) => setDraft((current) => ({ ...current, linkedTaskId: v }))}
+          />
         </div>
         <Field label="Titulo">
           <Input value={draft.title} onChange={(event) => setDraft((current) => ({ ...current, title: event.target.value }))} />

@@ -7,6 +7,7 @@ import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
 import { ToggleSwitch } from "@/shared/forms/toggle-switch";
+import { SingleSelectField } from "@/shared/filters/single-select-field";
 import { MY_WORK_PRIORITY_OPTIONS, MY_WORK_STATUS_OPTIONS, type MyWorkSpace, type TaskFormValue } from "@/modules/my-work/server/types";
 
 const selectClassName =
@@ -51,20 +52,26 @@ export function TaskFormDialog({
           <Input value={draft.title} onChange={(event) => setDraft((current) => ({ ...current, title: event.target.value }))} />
         </Field>
         <div className="grid gap-4 md:grid-cols-2">
-          <Field label="Estado">
-            <select className={selectClassName} value={draft.statusCode} onChange={(event) => setDraft((current) => ({ ...current, statusCode: event.target.value as TaskFormValue["statusCode"] }))}>
-              {MY_WORK_STATUS_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>{option.label}</option>
-              ))}
-            </select>
-          </Field>
-          <Field label="Prioridad">
-            <select className={selectClassName} value={draft.priorityCode} onChange={(event) => setDraft((current) => ({ ...current, priorityCode: event.target.value as TaskFormValue["priorityCode"] }))}>
-              {MY_WORK_PRIORITY_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>{option.label}</option>
-              ))}
-            </select>
-          </Field>
+          <SingleSelectField
+            id="task-status"
+            label="Estado"
+            value={draft.statusCode}
+            emptyValue="todo"
+            emptyLabel="Por hacer"
+            options={MY_WORK_STATUS_OPTIONS.filter((o) => o.value !== "todo").map((o) => o.value)}
+            displayValue={(v) => MY_WORK_STATUS_OPTIONS.find((o) => o.value === v)?.label ?? v}
+            onChange={(v) => setDraft((current) => ({ ...current, statusCode: v as TaskFormValue["statusCode"] }))}
+          />
+          <SingleSelectField
+            id="task-priority"
+            label="Prioridad"
+            value={draft.priorityCode}
+            emptyValue="medium"
+            emptyLabel="Normal"
+            options={MY_WORK_PRIORITY_OPTIONS.filter((o) => o.value !== "medium").map((o) => o.value)}
+            displayValue={(v) => MY_WORK_PRIORITY_OPTIONS.find((o) => o.value === v)?.label ?? v}
+            onChange={(v) => setDraft((current) => ({ ...current, priorityCode: v as TaskFormValue["priorityCode"] }))}
+          />
           <Field label="Inicio">
             <Input type="datetime-local" value={draft.startAt} onChange={(event) => setDraft((current) => ({ ...current, startAt: event.target.value }))} />
           </Field>

@@ -6,10 +6,8 @@ import { DialogShell } from "@/shared/overlays/dialog-shell";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
+import { SingleSelectField } from "@/shared/filters/single-select-field";
 import type { MyWorkEvent, MyWorkTask, ReminderFormValue } from "@/modules/my-work/server/types";
-
-const selectClassName =
-  "h-11 w-full rounded-[16px] border border-input bg-background px-4 text-sm text-foreground outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring/40";
 const textareaClassName =
   "flex min-h-[120px] w-full rounded-[16px] border border-input bg-background px-4 py-3 text-sm text-foreground outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring/40";
 
@@ -48,20 +46,26 @@ export function ReminderFormDialog({
     >
       <div className="space-y-4">
         <div className="grid gap-4 md:grid-cols-2">
-          <Field label="Tipo">
-            <select className={selectClassName} value={draft.targetType} onChange={(event) => setDraft((current) => ({ ...current, targetType: event.target.value as ReminderFormValue["targetType"], targetId: "" }))}>
-              <option value="task">Tarea</option>
-              <option value="event">Evento</option>
-            </select>
-          </Field>
-          <Field label="Elemento asociado">
-            <select className={selectClassName} value={draft.targetId} onChange={(event) => setDraft((current) => ({ ...current, targetId: event.target.value }))}>
-              <option value="">Selecciona uno</option>
-              {targetOptions.map((item) => (
-                <option key={item.id} value={item.id}>{item.title}</option>
-              ))}
-            </select>
-          </Field>
+          <SingleSelectField
+            id="reminder-target-type"
+            label="Tipo"
+            value={draft.targetType}
+            emptyValue="task"
+            emptyLabel="Tarea"
+            options={["event"]}
+            displayValue={() => "Evento"}
+            onChange={(v) => setDraft((current) => ({ ...current, targetType: v as ReminderFormValue["targetType"], targetId: "" }))}
+          />
+          <SingleSelectField
+            id="reminder-target-id"
+            label="Elemento asociado"
+            value={draft.targetId}
+            emptyValue=""
+            emptyLabel="Selecciona uno"
+            options={targetOptions.map((item) => item.id)}
+            displayValue={(v) => targetOptions.find((item) => item.id === v)?.title ?? v}
+            onChange={(v) => setDraft((current) => ({ ...current, targetId: v }))}
+          />
         </div>
         <Field label="Titulo">
           <Input value={draft.title} onChange={(event) => setDraft((current) => ({ ...current, title: event.target.value }))} />

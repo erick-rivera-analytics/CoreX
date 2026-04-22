@@ -6,10 +6,8 @@ import { DialogShell } from "@/shared/overlays/dialog-shell";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
+import { SingleSelectField } from "@/shared/filters/single-select-field";
 import { MY_WORK_SPACE_COLORS, type SpaceFormValue } from "@/modules/my-work/server/types";
-
-const selectClassName =
-  "h-11 w-full rounded-[16px] border border-input bg-background px-4 text-sm text-foreground outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring/40";
 
 export function SpaceFormDialog({
   open,
@@ -43,13 +41,16 @@ export function SpaceFormDialog({
           <Input value={draft.name} onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))} />
         </Field>
         <div className="grid gap-4 md:grid-cols-2">
-          <Field label="Color">
-            <select className={selectClassName} value={draft.colorToken} onChange={(event) => setDraft((current) => ({ ...current, colorToken: event.target.value as SpaceFormValue["colorToken"] }))}>
-              {MY_WORK_SPACE_COLORS.map((option) => (
-                <option key={option.value} value={option.value}>{option.label}</option>
-              ))}
-            </select>
-          </Field>
+          <SingleSelectField
+            id="space-color"
+            label="Color"
+            value={draft.colorToken}
+            emptyValue="slate"
+            emptyLabel="Grafito"
+            options={MY_WORK_SPACE_COLORS.slice(1).map((o) => o.value)}
+            displayValue={(v) => MY_WORK_SPACE_COLORS.find((o) => o.value === v)?.label ?? v}
+            onChange={(v) => setDraft((current) => ({ ...current, colorToken: v as SpaceFormValue["colorToken"] }))}
+          />
           <Field label="Orden">
             <Input type="number" min={0} value={String(draft.sortOrder)} onChange={(event) => setDraft((current) => ({ ...current, sortOrder: Number(event.target.value || 0) }))} />
           </Field>
