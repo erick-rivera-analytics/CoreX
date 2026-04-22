@@ -37,8 +37,11 @@ ENV HOSTNAME=0.0.0.0
 WORKDIR /app
 
 # Python 3 + dependencias del solver de postcosecha (numpy, pandas, pulp)
-RUN apk add --no-cache libc6-compat python3 py3-pip py3-numpy \
-  && pip3 install --no-cache-dir pandas pulp \
+# py3-numpy y py3-pandas se instalan desde apk (compilados para musl).
+# pulp no esta en apk -> se instala con pip usando --break-system-packages,
+# que es seguro en contenedores Docker (no hay sistema que proteger).
+RUN apk add --no-cache libc6-compat python3 py3-pip py3-numpy py3-pandas \
+  && pip3 install --no-cache-dir --break-system-packages pulp \
   && ln -sf python3 /usr/bin/python \
   && addgroup -g 1001 -S nodejs \
   && adduser -S nextjs -u 1001 -G nodejs
