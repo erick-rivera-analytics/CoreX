@@ -27,7 +27,11 @@ COPY . .
 RUN mkdir -p public
 RUN npm run build
 
-FROM node:20-alpine AS runner
+# El runner usa Debian (glibc) en lugar de Alpine (musl).
+# PuLP bundlea un binario CBC compilado para glibc; en Alpine/musl falla con
+# "Error while trying to execute .../cbc/linux/i64/cbc". Debian lo ejecuta sin problemas.
+# Los stages de build (base/deps/builder) siguen en Alpine para mayor velocidad.
+FROM node:20-slim AS runner
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
@@ -36,15 +40,13 @@ ENV HOSTNAME=0.0.0.0
 
 WORKDIR /app
 
-# Python 3 + dependencias del solver de postcosecha (numpy, pandas, pulp)
-# py3-numpy y py3-pandas se instalan desde apk (compilados para musl).
-# pulp no esta en apk -> se instala con pip usando --break-system-packages,
-# que es seguro en contenedores Docker (no hay sistema que proteger).
-RUN apk add --no-cache libc6-compat python3 py3-pip py3-numpy py3-pandas \
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends python3 python3-pip python3-numpy python3-pandas \
   && pip3 install --no-cache-dir --break-system-packages pulp \
   && ln -sf python3 /usr/bin/python \
-  && addgroup -g 1001 -S nodejs \
-  && adduser -S nextjs -u 1001 -G nodejs
+  && rm -rf /var/lib/apt/lists/* \
+  && groupadd --system --gid 1001 nodejs \
+  && useradd --system --uid 1001 --gid 1001 --no-create-home nextjs
 
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
