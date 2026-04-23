@@ -36,6 +36,17 @@ Si eres nuevo en el proyecto, lee en este orden:
 
 ---
 
+## Docs por dominio
+
+Referencia rápida de funcionalidad específica. Leer antes de tocar esos módulos.
+
+| Doc | Módulo |
+|-----|--------|
+| [`gestion-calidad-punto-apertura.md`](./gestion-calidad-punto-apertura.md) | Calidad — carta de control, KPIs, baseline, filtros, API |
+| [`gestion-postcosecha-clasificacion-en-blanco.md`](./gestion-postcosecha-clasificacion-en-blanco.md) | Solver clasificación en blanco — slots, modos, receta, Python bridge |
+
+---
+
 ## Para entender las APIs
 
 | Doc | Contenido |

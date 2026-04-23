@@ -36,6 +36,7 @@ npm run canon:v2:build
 - Tailwind CSS 4
 - PostgreSQL via `pg`
 - SWR
+- bpmn-js 18 (NavigatedViewer) + diagram-js-minimap 5
 - shadcn/ui compatible primitives en `src/shared/ui`
 
 ## Frontera de arquitectura
@@ -78,6 +79,10 @@ Dashboard / Indicadores:
 - Composicion laboral
 - Demografia personal
 - Rotacion laboral
+
+Calidad:
+
+- Punto de apertura
 
 Gestion:
 
@@ -303,7 +308,8 @@ Documentación completa: `pdf-canon/docs/`
 - `src/components/dashboard/` queda reducido a `module-placeholder.tsx`. No crear archivos nuevos alli.
 - `fenograma-block-modal.tsx` sigue siendo un componente masivo y debe partirse por subdominios antes de crecer mas.
 - `src/lib/fenograma.ts` y `src/lib/postcosecha-balanzas.ts` son fachadas temporales; no agregar logica nueva ahi.
-- `src/lib/fenograma-core.ts` y `src/lib/postcosecha-balanzas-core.ts` siguen siendo monolitos de dominio y deben partirse por loaders/mappers/graph/table/options.
+- `src/lib/fenograma-core.ts` y `src/lib/postcosecha-balanzas-core.ts` siguen siendo monolitos de dominio y deben partirse por loaders/mappers/graph/table/options. `postcosecha-balanzas-core.ts` ya supera ~2000 lineas — prioridad alta.
+- `src/lib/calidad-punto-apertura.ts` (~441 lineas) — loader unico del dominio calidad; sin tests aun; candidato a split loader/mapper cuando crezca.
 - `src/proxy.ts` se mantiene: en Next.js 16 actua como Proxy/Middleware y el build lo reporta como tal. No renombrar sin validar auth/login en produccion.
 - Clasificacion en blanco y Talento Humano ya tienen split de modulo; mantener sus barrels/orquestadores pequenos.
 - `src/lib/salud.ts` (~806 lineas) — loader unico de dominio medico con mappers internos; no es candidato a split por coherencia de dominio.
