@@ -7,6 +7,10 @@ import { toast } from "sonner";
 
 import { PuntoAperturaControlChart } from "@/modules/calidad/components/punto-apertura-control-chart";
 import { PuntoAperturaRecordOverlay } from "@/modules/calidad/components/punto-apertura-record-overlay";
+import {
+  buildStatusComposition,
+  StatusCompositionDialog,
+} from "@/modules/calidad/components/punto-apertura-status-composition";
 import { fetchJson } from "@/lib/fetch-json";
 import { Button } from "@/shared/ui/button";
 import { Badge } from "@/shared/ui/badge";
@@ -48,6 +52,7 @@ function buildQueryString(filters: PuntoAperturaFilters) {
 export function PuntoAperturaExplorer({ initialData }: { initialData: PuntoAperturaDashboardData }) {
   const [filters, setFilters] = useState<PuntoAperturaFilters>(initialData.filters);
   const [selectedRecord, setSelectedRecord] = useState<PuntoAperturaRecord | null>(null);
+  const [selectedStatusComposition, setSelectedStatusComposition] = useState<"homogeneous" | "nonHomogeneous" | null>(null);
   const deferredFilters = useDeferredValue(filters);
 
   const initialFilterKey = useMemo(() => buildQueryString(initialData.filters), [initialData.filters]);
@@ -71,6 +76,10 @@ export function PuntoAperturaExplorer({ initialData }: { initialData: PuntoApert
     [data.records],
   );
   const visibleComposition = useMemo(() => buildVisibleComposition(data.records), [data.records]);
+  const statusCompositions = useMemo(() => ({
+    homogeneous: buildStatusComposition(data.records, "Homogeneo"),
+    nonHomogeneous: buildStatusComposition(data.records, "No homogeneo"),
+  }), [data.records]);
 
   function updateFilter<K extends keyof PuntoAperturaFilters>(key: K, value: PuntoAperturaFilters[K]) {
     setFilters((current) => ({ ...current, [key]: value }));
@@ -85,7 +94,7 @@ export function PuntoAperturaExplorer({ initialData }: { initialData: PuntoApert
       <SectionPageShell
         eyebrow="Dashboard / Indicadores / Calidad"
         title="Punto de apertura"
-        subtitle="Carta de control por registro para medir homogeneidad de apertura. El límite inferior se calcula como media visible menos una desviación estándar visible."
+        subtitle="Carta de control por registro para medir homogeneidad de apertura."
         icon={<Activity className="size-6" aria-hidden="true" />}
       >
         <FilterPanel>
@@ -104,18 +113,25 @@ export function PuntoAperturaExplorer({ initialData }: { initialData: PuntoApert
             </div>
           </div>
 
-          <KpiGrid columns={5}>
-            <MetricTile label="Meta media macro" value={formatPercent(data.summary.meanPct)} hint="Fija: base histórica completa" accent="success" />
-            <MetricTile label="Desviación macro" value={formatPercent(data.summary.sdPct)} hint="Fija: base histórica completa" />
-            <MetricTile label="Límite inferior" value={formatPercent(data.summary.lowerLimitPct)} hint="Media macro - desviación macro" accent="warning" />
-            <MetricTile label="Homogéneos" value={formatPercent(data.summary.homogeneousPct)} hint={`${formatInteger(data.summary.homogeneousRecords)} registros`} />
-            <MetricTile
-              label="No homogéneos"
-              value={formatPercent(100 - data.summary.homogeneousPct)}
-              hint={`${formatInteger(data.summary.nonHomogeneousRecords)} registros`}
-              accent={data.summary.nonHomogeneousRecords ? "warning" : "success"}
-            />
+          <KpiGrid columns={4}>
+            <MetricTile label="Registros visibles" value={formatInteger(data.summary.totalRecords)} hint={`${formatInteger(data.summary.totalCycles)} ciclos`} />
+            <MetricTile label="Dominante general" value={data.summary.dominantClass} hint={`Media visible: ${formatPercent(data.summary.visibleMeanPct)}`} />
+            <button type="button" className="text-left" onClick={() => setSelectedStatusComposition("homogeneous")}>
+              <MetricTile label="Homogéneos" value={formatPercent(data.summary.homogeneousPct)} hint={`${formatInteger(data.summary.homogeneousRecords)} registros | Ver distribución`} />
+            </button>
+            <button type="button" className="text-left" onClick={() => setSelectedStatusComposition("nonHomogeneous")}>
+              <MetricTile
+                label="No homogéneos"
+                value={formatPercent(100 - data.summary.homogeneousPct)}
+                hint={`${formatInteger(data.summary.nonHomogeneousRecords)} registros | Ver distribución`}
+                accent={data.summary.nonHomogeneousRecords ? "warning" : "success"}
+              />
+            </button>
           </KpiGrid>
+
+          <p className="rounded-[18px] border border-border/70 bg-background/70 px-4 py-3 text-xs text-muted-foreground">
+            Criterio de homogeneidad: un registro cumple cuando la participación de su punto dominante es mayor o igual a {formatPercent(data.summary.lowerLimitPct)}.
+          </p>
 
           <div className="space-y-2">
             <div className="flex flex-wrap items-center justify-between gap-2">
@@ -216,6 +232,24 @@ export function PuntoAperturaExplorer({ initialData }: { initialData: PuntoApert
         lowerLimitPct={data.summary.lowerLimitPct}
         onClose={() => setSelectedRecord(null)}
       />
+
+      {selectedStatusComposition === "homogeneous" ? (
+        <StatusCompositionDialog
+          title="Distribución de homogéneos"
+          composition={statusCompositions.homogeneous}
+          emptyLabel="No hay registros homogéneos para el filtro actual."
+          onClose={() => setSelectedStatusComposition(null)}
+        />
+      ) : null}
+
+      {selectedStatusComposition === "nonHomogeneous" ? (
+        <StatusCompositionDialog
+          title="Distribución de no homogéneos"
+          composition={statusCompositions.nonHomogeneous}
+          emptyLabel="No hay registros no homogéneos para el filtro actual."
+          onClose={() => setSelectedStatusComposition(null)}
+        />
+      ) : null}
     </div>
   );
 }
