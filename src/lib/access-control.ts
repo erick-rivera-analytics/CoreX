@@ -111,6 +111,10 @@ const API_ACCESS_RULES_UNSORTED: ApiAccessRule[] = [
     policy: "internal-dev-only",
   },
   {
+    pathnamePrefix: "/api/postcosecha/balanzas/schema",
+    policy: "internal-dev-only",
+  },
+  {
     pathnamePrefix: "/api/health/db",
     policy: "superadmin-only",
   },

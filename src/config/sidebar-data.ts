@@ -1,5 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 import {
+  BadgeCheck,
   CalendarDays,
   ClipboardList,
   DatabaseZap,
@@ -33,7 +34,7 @@ const GROUP_ICON_BY_LABEL: Record<string, LucideIcon> = {
   Campo: Sprout,
   Postcosecha: Factory,
   "Talento Humano": Users,
-  Calidad: ClipboardList,
+  Calidad: BadgeCheck,
   Planificacion: CalendarDays,
   Registros: ClipboardList,
   Personal: UserCircle2,

@@ -1,4 +1,4 @@
-@import "tailwindcss";
+﻿@import "tailwindcss";
 @source "../../src";
 @source not "../../borrar";
 
@@ -177,56 +177,374 @@
   min-height: 100vh;
 }
 
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+   BPMN Canvas â€” Balanzas Postcosecha
+   Paleta refinada: lÃ­neas finas, jerarquÃ­a visual, fondo con grilla.
+   ExcepciÃ³n documentada: colores directos requeridos por bpmn-js SVG.
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+
+/* â”€â”€ Contenedor â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .balanzas-process .djs-container,
 .balanzas-process .djs-container svg {
   width: 100%;
   height: 100%;
 }
 
+/* Grilla de puntos suave â€” sobre el div HTML que bpmn-js crea,
+   no sobre el SVG (SVG no soporta background-image con CSS) */
+.balanzas-process .djs-container {
+  background-color: rgba(251, 252, 253, 0.97) !important;
+  background-image: radial-gradient(
+    circle,
+    rgba(148, 163, 184, 0.28) 0.75px,
+    transparent 0.75px
+  ) !important;
+  background-size: 22px 22px !important;
+}
+
+/* â”€â”€ Outline de selecciÃ³n â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .balanzas-process .djs-outline,
 .balanzas-process .djs-selection-outline {
-  stroke: color-mix(in oklab, var(--color-primary) 70%, white 30%);
-  stroke-width: 2px;
+  stroke: color-mix(in oklab, var(--color-primary) 65%, white 35%);
+  stroke-width: 1.5px;
+  stroke-dasharray: 5 3;
 }
 
-.balanzas-process .balanzas-node-apertura .djs-visual > :first-child {
-  fill: rgba(191, 219, 254, 0.45) !important;
-  stroke: rgba(14, 116, 144, 0.9) !important;
+/* â”€â”€ TipografÃ­a global del canvas â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.balanzas-process svg text,
+.balanzas-process .djs-label {
+  font-family: var(--font-app), "Inter", "Segoe UI", Arial, sans-serif !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.02em;
+  fill: #1e293b !important;
+  opacity: 1 !important;
+}
+
+/* Halo blanco alrededor del label â€” 4px para legibilidad a 50% zoom */
+.balanzas-process .djs-label {
+  paint-order: stroke;
+  stroke: rgba(255, 255, 255, 0.95);
+  stroke-width: 4px;
+  stroke-linejoin: round;
+}
+
+/* Labels externos: aristas (ARCOIRIS/TINTURADO/BLANCO) y eventos (HIDRATACION/MAX 10 DIAS)
+   En bpmn-js los external labels son .djs-shape.djs-label â€” hermanos del connection, no hijos */
+.balanzas-process .djs-shape.djs-label .djs-visual text {
+  font-size: 10px !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.05em !important;
+  fill: rgba(30, 41, 59, 1) !important;
+  opacity: 1 !important;
+  paint-order: stroke !important;
+  stroke: rgba(230, 235, 241, 1) !important;
+  stroke-width: 6px !important;
+  stroke-linejoin: round !important;
+}
+
+/* â”€â”€ SHAPES BASE (tasks, events, gateways sin clase especial) â”€â”€â”€â”€â”€ */
+
+/* Todos los shapes: fill slate-azul sutil para diferenciar de fondo de lane */
+.balanzas-process .djs-shape:not(.balanzas-node-metric):not(.balanzas-node-aggregate):not(.balanzas-node-unavailable) .djs-visual > :first-child {
+  fill: rgba(240, 244, 248, 0.92) !important;
+  stroke: rgba(148, 163, 184, 0.5) !important;
+  stroke-width: 1px !important;
+}
+
+/* Rects (Tasks): esquinas redondeadas */
+.balanzas-process .djs-shape:not(.balanzas-node-metric):not(.balanzas-node-aggregate):not(.balanzas-node-unavailable) .djs-visual > rect {
+  rx: 7 !important;
+  ry: 7 !important;
+}
+
+/* Eventos de inicio: tono verde muy sutil */
+.balanzas-process .djs-shape[data-element-id*="StartEvent"] .djs-visual > circle {
+  fill: rgba(220, 252, 231, 0.94) !important;
+  stroke: rgba(34, 197, 94, 0.5) !important;
+  stroke-width: 1.5px !important;
+}
+
+/* Eventos de fin: tono rojo muy sutil, borde doble via stroke-width */
+.balanzas-process .djs-shape[data-element-id*="EndEvent"] .djs-visual > circle {
+  fill: rgba(254, 226, 226, 0.92) !important;
+  stroke: rgba(239, 68, 68, 0.5) !important;
   stroke-width: 2.5px !important;
 }
 
-.balanzas-process .balanzas-node-b2 .djs-visual > :first-child {
-  fill: rgba(167, 243, 208, 0.42) !important;
-  stroke: rgba(5, 150, 105, 0.9) !important;
-  stroke-width: 2.5px !important;
+/* Gateways (rombos): extra ligeros, casi solo contorno */
+.balanzas-process .djs-shape:not(.balanzas-node-metric):not(.balanzas-node-aggregate) .djs-visual > path {
+  fill: rgba(241, 245, 249, 0.95) !important;
+  stroke: rgba(148, 163, 184, 0.55) !important;
+  stroke-width: 1.5px !important;
 }
 
-.balanzas-process .balanzas-node-b2a .djs-visual > :first-child {
-  fill: rgba(253, 230, 138, 0.42) !important;
-  stroke: rgba(217, 119, 6, 0.92) !important;
-  stroke-width: 2.5px !important;
+/* Pools y Lanes: fondo muy sutil, sin blanco crudo */
+.balanzas-process .djs-shape .djs-visual > [style*="fill: white"],
+.balanzas-process .djs-shape .djs-visual > [style*="fill:white"] {
+  fill: rgba(248, 250, 252, 0.6) !important;
 }
 
-.balanzas-process .balanzas-node-selected .djs-visual > :first-child {
-  stroke-width: 4px !important;
-  filter: drop-shadow(0 0 16px rgba(56, 189, 248, 0.28));
+/* â”€â”€ CONEXIONES (sequence flows, arrows) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.balanzas-process .djs-connection .djs-visual > path {
+  stroke: rgba(100, 116, 139, 0.80) !important;
+  stroke-width: 1.8px !important;
+  stroke-linecap: round !important;
+  stroke-linejoin: round !important;
 }
 
-.balanzas-process .balanzas-node-unavailable .djs-visual > :first-child {
-  fill: rgba(226, 232, 240, 0.36) !important;
-  stroke: rgba(100, 116, 139, 0.85) !important;
-  stroke-dasharray: 6 4;
+/* Flechas de las conexiones */
+.balanzas-process .djs-connection .djs-visual marker > path,
+.balanzas-process .djs-connection .djs-visual marker > polyline {
+  stroke: rgba(100, 116, 139, 0.90) !important;
+  fill: rgba(100, 116, 139, 0.90) !important;
 }
 
-.balanzas-node-overlay {
-  min-width: 156px;
-  max-width: 240px;
-  transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
+/* â”€â”€ POOL / LANE HEADERS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* El pool principal tiene un header lateral con el nombre del proceso */
+.balanzas-process .djs-shape[data-element-id*="Pool"] .djs-visual > rect,
+.balanzas-process .djs-shape[data-element-id*="Lane"] .djs-visual > rect {
+  fill: rgba(226, 232, 240, 0.85) !important;
+  stroke: rgba(148, 163, 184, 0.55) !important;
+  stroke-width: 1px !important;
 }
 
-.balanzas-node-overlay:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 14px 32px -22px rgba(15, 23, 42, 0.65);
+/* Texto de lanes: mÃ¡s legible y con mayor contraste */
+.balanzas-process .djs-shape[data-element-id*="Lane"] .djs-label,
+.balanzas-process .djs-shape[data-element-id*="Lane"] svg text {
+  font-size: 10px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.04em !important;
+  fill: rgba(71, 85, 105, 0.78) !important;
+  letter-spacing: 0.04em !important;
+}
+
+/* â”€â”€ NODO MÃ‰TRICO (clickeable, azul) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.balanzas-process .balanzas-node-metric .djs-visual > :first-child {
+  fill: rgba(219, 234, 254, 0.97) !important;
+  stroke: rgba(59, 130, 246, 0.85) !important;
+  stroke-width: 2px !important;
+  cursor: pointer;
+  filter: drop-shadow(0 1px 4px rgba(59, 130, 246, 0.14));
+}
+
+.balanzas-process .balanzas-node-metric .djs-visual > rect {
+  rx: 8 !important;
+  ry: 8 !important;
+}
+
+/* Label de nodo mÃ©trico: ligeramente mÃ¡s oscuro para contraste */
+.balanzas-process .balanzas-node-metric .djs-label,
+.balanzas-process .balanzas-node-metric svg text {
+  fill: rgba(29, 55, 150, 1) !important;
+  font-weight: 700 !important;
+}
+
+/* â”€â”€ NODO AGREGADO (GENERAL, naranja) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.balanzas-process .balanzas-node-aggregate .djs-visual > :first-child {
+  fill: rgba(254, 215, 170, 0.97) !important;
+  stroke: rgba(234, 88, 12, 0.85) !important;
+  stroke-width: 2px !important;
+  cursor: pointer;
+  filter: drop-shadow(0 1px 4px rgba(234, 88, 12, 0.14));
+}
+
+.balanzas-process .balanzas-node-aggregate .djs-visual > rect {
+  rx: 8 !important;
+  ry: 8 !important;
+}
+
+/* Label de nodo agregado */
+.balanzas-process .balanzas-node-aggregate .djs-label,
+.balanzas-process .balanzas-node-aggregate svg text {
+  fill: rgba(120, 40, 10, 1) !important;
+  font-weight: 700 !important;
+}
+
+/* â”€â”€ SELECCIONADO â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* Nodo mÃ©trico seleccionado: fill mÃ¡s saturado + stroke primario visible */
+.balanzas-process .balanzas-node-metric.balanzas-node-selected .djs-visual > :first-child {
+  fill: rgba(191, 219, 254, 1) !important;
+  stroke: rgba(37, 99, 235, 1) !important;
+  stroke-width: 3px !important;
+  filter: drop-shadow(0 0 14px rgba(59, 130, 246, 0.50)) !important;
+}
+
+/* Nodo agregado seleccionado: fill mÃ¡s saturado + stroke naranja */
+.balanzas-process .balanzas-node-aggregate.balanzas-node-selected .djs-visual > :first-child {
+  fill: rgba(253, 186, 116, 1) !important;
+  stroke: rgba(194, 65, 12, 1) !important;
+  stroke-width: 3px !important;
+  filter: drop-shadow(0 0 14px rgba(234, 88, 12, 0.48)) !important;
+}
+
+/* â”€â”€ HOVER â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.balanzas-process .balanzas-node-metric.balanzas-node-hover .djs-visual > :first-child {
+  fill: rgba(186, 230, 253, 0.98) !important;
+  stroke: rgba(37, 99, 235, 0.9) !important;
+  stroke-width: 2.2px !important;
+}
+
+.balanzas-process .balanzas-node-aggregate.balanzas-node-hover .djs-visual > :first-child {
+  fill: rgba(253, 186, 116, 0.98) !important;
+  stroke: rgba(194, 65, 12, 0.9) !important;
+  stroke-width: 2.2px !important;
+}
+
+/* â”€â”€ NO DISPONIBLE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* Nodo genÃ©rico sin datos: gris apagado */
+.balanzas-process .balanzas-node-unavailable:not(.balanzas-node-metric):not(.balanzas-node-aggregate) .djs-visual > :first-child {
+  fill: rgba(241, 245, 249, 0.65) !important;
+  stroke: rgba(148, 163, 184, 0.38) !important;
+  stroke-width: 1px !important;
+  opacity: 0.7;
+}
+
+/* Nodo MÃ‰TRICO sin datos: conserva el azul pero atenuado â€” asÃ­ el mapa
+   sigue legible aunque las vistas no estÃ©n disponibles */
+.balanzas-process .balanzas-node-metric.balanzas-node-unavailable .djs-visual > :first-child {
+  fill: rgba(219, 234, 254, 0.55) !important;
+  stroke: rgba(59, 130, 246, 0.45) !important;
+  stroke-width: 1.5px !important;
+  opacity: 0.72;
+}
+
+/* Nodo AGREGADO sin datos: conserva el naranja atenuado */
+.balanzas-process .balanzas-node-aggregate.balanzas-node-unavailable .djs-visual > :first-child {
+  fill: rgba(254, 215, 170, 0.55) !important;
+  stroke: rgba(234, 88, 12, 0.45) !important;
+  stroke-width: 1.5px !important;
+  opacity: 0.72;
+}
+
+/* â”€â”€ ATENUADO (focus selectivo sobre el nodo activo) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.balanzas-process .balanzas-node-dimmed .djs-visual > :first-child {
+  opacity: 0.4 !important;
+  transition: opacity 160ms ease-out;
+}
+.balanzas-process .balanzas-node-dimmed .djs-label,
+.balanzas-process .balanzas-node-dimmed svg text {
+  opacity: 0.45 !important;
+  transition: opacity 160ms ease-out;
+}
+
+
+/* â”€â”€ MINIMAP â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.balanzas-process .djs-minimap {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  overflow: hidden;
+  border: 1px solid color-mix(in oklab, var(--color-border) 88%, transparent);
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--color-card) 92%, transparent);
+  box-shadow: 0 24px 80px -32px rgba(15, 23, 42, 0.28);
+  backdrop-filter: blur(12px);
+  user-select: none;
+}
+
+.balanzas-process .djs-minimap:not(.open) {
+  overflow: hidden;
+  width: 36px;
+  height: 36px;
+}
+
+.balanzas-process .djs-minimap .map {
+  display: none;
+  width: 220px;
+  height: 132px;
+  cursor: crosshair;
+}
+
+.balanzas-process .djs-minimap.open .map {
+  display: block;
+}
+
+.balanzas-process .djs-minimap:not(.open) .toggle {
+  display: flex;
+  width: 36px;
+  height: 36px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  text-align: center;
+}
+
+.balanzas-process .djs-minimap .toggle:before {
+  content: "M";
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: color-mix(in oklab, var(--color-foreground) 72%, transparent);
+}
+
+.balanzas-process .djs-minimap.open .toggle {
+  position: absolute;
+  right: 0;
+  padding: 6px 8px;
+  z-index: 1;
+}
+
+.balanzas-process .djs-minimap .viewport {
+  fill: none;
+  stroke: none;
+}
+
+.balanzas-process .djs-minimap .viewport-dom {
+  position: absolute;
+  box-sizing: border-box;
+  border: 2px solid rgba(59, 130, 246, 0.65);
+  border-radius: 10px;
+  cursor: move;
+}
+
+.balanzas-process .djs-minimap:not(.open) .viewport-dom {
+  display: none;
+}
+
+.balanzas-process .djs-minimap.open .overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.06);
+  pointer-events: none;
+}
+
+/* â”€â”€ DARK MODE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.dark .balanzas-process .djs-container {
+  background-color: rgba(15, 23, 42, 0.97) !important;
+  background-image: radial-gradient(
+    circle,
+    rgba(71, 85, 105, 0.38) 1px,
+    transparent 1px
+  ) !important;
+}
+
+.dark .balanzas-process svg text,
+.dark .balanzas-process .djs-label {
+  fill: #cbd5e1 !important;
+}
+
+.dark .balanzas-process .djs-label {
+  stroke: rgba(15, 23, 42, 0.98);
+}
+
+.dark .balanzas-process .djs-shape:not(.balanzas-node-metric):not(.balanzas-node-aggregate):not(.balanzas-node-unavailable) .djs-visual > :first-child {
+  fill: rgba(30, 41, 59, 0.95) !important;
+  stroke: rgba(71, 85, 105, 0.65) !important;
+}
+
+.dark .balanzas-process .djs-connection .djs-visual > path {
+  stroke: rgba(71, 85, 105, 0.7) !important;
+}
+
+.dark .balanzas-process .djs-minimap {
+  background: rgba(15, 23, 42, 0.92);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+/* â”€â”€ Ocultar branding â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.balanzas-process .bjs-powered-by {
+  display: none !important;
 }
 
 .tabular-nums {

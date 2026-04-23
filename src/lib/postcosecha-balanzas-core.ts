@@ -10,7 +10,40 @@ import { roundValue, toNumber } from "@/shared/lib/number-utils";
 
 export type BalanzasMetric = "peso" | "tallos";
 export type BalanzasWeekMode = "none" | "pre" | "iso";
-export type BalanzasNodeKey = "apertura_pelado_patas" | "b2" | "b2a";
+export type BalanzasLaneId =
+  | "pre-gv"
+  | "pre-directo"
+  | "apertura-gv-pelado"
+  | "apertura-apertura";
+export type BalanzasNodeKind = "metric" | "aggregate";
+export type BalanzasNodeFocus = "source" | "target";
+export type BalanzasNodeKey =
+  | "b1_preclasificacion"
+  | "b1ab_pre_gv"
+  | "b2_pre_gv"
+  | "b3_pre_gv_arcoiris"
+  | "b3_pre_gv_tinturado"
+  | "b3_pre_gv_blanco"
+  | "general_pre_gv"
+  | "b1ab_pre_directo"
+  | "b2_pre_directo"
+  | "b3_pre_directo_arcoiris"
+  | "b3_pre_directo_tinturado"
+  | "b3_pre_directo_blanco"
+  | "general_pre_directo"
+  | "b1_apertura"
+  | "b1c_apertura_gv"
+  | "b2_apertura_max10"
+  | "b2a_apertura_max10_arcoiris"
+  | "b2a_apertura_max10_tinturado"
+  | "b2a_apertura_max10_blanco"
+  | "general_apertura_max10"
+  | "b1c_apertura_directo"
+  | "b2_apertura_directo"
+  | "b2a_apertura_directo_arcoiris"
+  | "b2a_apertura_directo_tinturado"
+  | "b2a_apertura_directo_blanco"
+  | "general_apertura_directo";
 export type BalanzasViewStatus = "ready" | "unavailable";
 
 export type BalanzasFilters = {
@@ -64,22 +97,8 @@ export type BalanzasTableRow = {
 export type BalanzasProcessBinding = {
   taskName: string;
   elementId?: string;
-  destination?: string;
-  pathLabel?: string;
   minY?: number;
   maxY?: number;
-};
-
-export type BalanzasDestinationBreakdown = {
-  destination: string;
-  pathLabel: string;
-  rowCount: number;
-  sourceTotal: number;
-  sourceTotalDisplay: string;
-  targetTotal: number;
-  targetTotalDisplay: string;
-  ratioPct: number | null;
-  ratioDisplay: string;
 };
 
 export type BalanzasNodeData = {
@@ -87,12 +106,15 @@ export type BalanzasNodeData = {
   metric: BalanzasMetric;
   label: string;
   shortLabel: string;
-  compareLabel: string;
+  kind: BalanzasNodeKind;
+  laneId: BalanzasLaneId;
+  laneLabel: string;
   sourceStage: string;
   targetStage: string;
-  branchLabel: string;
+  focusStage: string;
+  focusRole: BalanzasNodeFocus;
   description: string;
-  bpmnBranch: string;
+  fixedDestination: string | null;
   sourceView: string | null;
   status: BalanzasViewStatus;
   statusMessage: string | null;
@@ -106,8 +128,13 @@ export type BalanzasNodeData = {
   ratioPct: number | null;
   ratioDisplay: string;
   latestDate: string | null;
+  primaryTotal: number;
+  primaryTotalDisplay: string;
+  secondaryStage: string | null;
+  secondaryTotal: number | null;
+  secondaryTotalDisplay: string;
   processBindings: BalanzasProcessBinding[];
-  destinationBreakdown: BalanzasDestinationBreakdown[];
+  childrenKeys: BalanzasNodeKey[];
   columnMap: {
     year: string | null;
     month: string | null;
@@ -124,6 +151,8 @@ export type BalanzasNodeData = {
     ratio: string;
     gap: string;
   };
+  /** Nombres reales de columnas detectadas en la vista (útil para diagnóstico). */
+  rawColumnNames: string[];
   localOptions: BalanzasLocalFilterOptions;
   groupDefaults: string[];
   tableColumns: BalanzasTableColumn[];
@@ -157,18 +186,23 @@ type BalanzasProcessNodeDefinition = {
   key: BalanzasNodeKey;
   label: string;
   shortLabel: string;
-  compareLabel: string;
+  kind: BalanzasNodeKind;
+  laneId: BalanzasLaneId;
+  laneLabel: string;
   sourceStage: string;
   targetStage: string;
-  branchLabel: string;
+  focusRole: BalanzasNodeFocus;
   description: string;
-  bpmnBranch: string;
-  views: Partial<Record<BalanzasMetric, string>>;
+  fixedDestination?: string | null;
+  childrenKeys?: BalanzasNodeKey[];
+  views: Partial<Record<BalanzasMetric, string | string[]>>;
   processBindings: BalanzasProcessBinding[];
 };
 
 type BalanzasViewSchema = {
   viewName: string;
+  sourceViews: string[];
+  fromSql: string;
   columns: Array<{
     name: string;
     dataType: string;
@@ -198,78 +232,436 @@ const BALANZAS_SCHEMA_TTL_MS = 5 * 60 * 1000;
 const BALANZAS_OPTIONS_TTL_MS = 5 * 60 * 1000;
 const BALANZAS_DASHBOARD_TTL_MS = 60 * 1000;
 const BALANZAS_MAX_NODE_ROWS = 800;
-const BALANZAS_SCOPE_LABEL = "Rama activa: Apertura -> Apertura pelado patas -> BAL2 -> BAL2A";
-const BALANZAS_SCOPE_NOTE = "En esta version solo se instrumenta la rama baja del BPMN y el tramo BAL2 -> BAL2A se divide en Arcoiris, Tinturado y Blanco.";
-const BALANZAS_DESTINATION_LABEL = "Destino interno B2 -> B2A";
+const BALANZAS_SCOPE_LABEL = "Rutas operativas: Preclasificacion y Apertura";
+const BALANZAS_SCOPE_NOTE = "Cada caja azul del diagrama se modela como un nodo independiente y cada boton GENERAL agrega la rama completa.";
+const BALANZAS_DESTINATION_LABEL = "Destino";
+
+const PRE_SHARED_NOTE =
+  "La fuente actual de preclasificacion no separa GV sin pelar y Directo; este corte se refleja igual en ambas rutas operativas.";
 
 const BALANZAS_PROCESS_NODES: BalanzasProcessNodeDefinition[] = [
   {
-    key: "apertura_pelado_patas",
-    label: "BAL1 / BAL1C",
-    shortLabel: "BAL1 / BAL1C",
-    compareLabel: "BAL 1 vs BAL 1C",
-    sourceStage: "BAL1",
-    targetStage: "BAL1C",
-    branchLabel: "Paso 1 de 3 | Apertura",
-    bpmnBranch: "Apertura -> Apertura pelado patas",
-    description:
-      "Cruce BAL1 vs BAL1C que corresponde unicamente al tramo Apertura -> Apertura pelado patas dentro de la rama instrumentada.",
+    key: "b1_preclasificacion",
+    label: "B1",
+    shortLabel: "B1",
+    kind: "metric",
+    laneId: "pre-gv",
+    laneLabel: "Preclasificacion",
+    sourceStage: "B1",
+    targetStage: "B1AB",
+    focusRole: "source",
+    description: "Nodo inicial de preclasificacion antes de bifurcar hacia GV sin pelar y Directo.",
     views: {
-      peso: "gld.mv_camp_ind_bal_apertura_b1_vs_b1c_peso_xl_np_cur",
-      tallos: "gld.mv_camp_ind_bal_apertura_b1_vs_b1c_tallos_xl_np_cur",
+      peso: "gld.mv_camp_ind_bal_preclasif_b1_vs_b1a_xl_np_weight_cur",
+      tallos: "gld.mv_camp_ind_bal_preclasif_b1_vs_b1a_xl_np_stems_cur",
     },
-    processBindings: [{ taskName: "B1C", elementId: "_453c546c-f64a-496f-9a76-d96c539feea3" }],
+    processBindings: [{ taskName: "B1", elementId: "Task_B1_Preclasificacion" }],
   },
   {
-    key: "b2",
-    label: "BAL1C / BAL2",
-    shortLabel: "BAL1C / BAL2",
-    compareLabel: "BAL 1C vs BAL 2",
-    sourceStage: "BAL1C",
-    targetStage: "BAL2",
-    branchLabel: "Paso 2 de 3 | Hidratacion",
-    bpmnBranch: "Apertura pelado patas -> BAL2",
-    description:
-      "Cruce BAL1C vs BAL2 que sigue la rama de Apertura pelado patas, pasando por Hidratacion y sin mezclar la ruta MAX 10 dias.",
+    key: "b1ab_pre_gv",
+    label: "B1AB",
+    shortLabel: "B1AB",
+    kind: "metric",
+    laneId: "pre-gv",
+    laneLabel: "Preclasificacion / GV sin pelar",
+    sourceStage: "B1",
+    targetStage: "B1AB",
+    focusRole: "target",
+    description: `B1AB de la ruta GV sin pelar. ${PRE_SHARED_NOTE}`,
     views: {
-      peso: "gld.mv_camp_ind_bal_apertura_b1c_vs_b2_peso_xl_np_cur",
-      tallos: "gld.mv_camp_ind_bal_apertura_b1c_vs_b2_tallos_xl_np_cur",
+      peso: "gld.mv_camp_ind_bal_preclasif_b1_vs_b1a_xl_np_weight_cur",
+      tallos: "gld.mv_camp_ind_bal_preclasif_b1_vs_b1a_xl_np_stems_cur",
     },
-    processBindings: [{ taskName: "B2", elementId: "_eab2bad3-db33-4271-91ab-e351349fb27c" }],
+    processBindings: [{ taskName: "B1AB", elementId: "Task_B1AB_Pre_GV" }],
   },
   {
-    key: "b2a",
-    label: "BAL2 / BAL2A",
-    shortLabel: "BAL2 / BAL2A",
-    compareLabel: "BAL 2 vs BAL 2A",
-    sourceStage: "BAL2",
-    targetStage: "BAL2A",
-    branchLabel: "Paso 3 de 3 | Pelado y clasificado",
-    bpmnBranch: "BAL2 -> BAL2A",
-    description:
-      "Cruce BAL2 vs BAL2A dentro de la misma rama, despues del pelado y clasificado de tallos.",
+    key: "b2_pre_gv",
+    label: "B2",
+    shortLabel: "B2",
+    kind: "metric",
+    laneId: "pre-gv",
+    laneLabel: "Preclasificacion / GV sin pelar",
+    sourceStage: "B1AB",
+    targetStage: "B2",
+    focusRole: "target",
+    description: `B2 de la ruta GV sin pelar. ${PRE_SHARED_NOTE}`,
     views: {
-      peso: "gld.mv_camp_ind_bal_apertura_b2_vs_b2a_peso_xl_np_cur",
+      peso: "gld.mv_camp_ind_bal_preclasif_b1a_vs_b2_xl_np_weight_cur",
+      tallos: "gld.mv_camp_ind_bal_preclasif_b1a_vs_b2_xl_np_stems_cur",
     },
-    processBindings: [
-      {
-        taskName: "B2A",
-        elementId: "_9d2e729a-2dfe-460c-b4b6-b8d10f353771",
-        destination: "ARCOIRIS",
-        pathLabel: "Arcoiris",
-      },
-      {
-        taskName: "B2A",
-        elementId: "_f9cd2924-9185-4209-9668-27d2616c3e3f",
-        destination: "TINTURADO",
-        pathLabel: "Tinturado",
-      },
-      {
-        taskName: "B2A",
-        elementId: "_437d1e41-c7f0-49a0-a213-9742dac5ec3e",
-        destination: "BLANCO",
-        pathLabel: "Blanco",
-      },
+    processBindings: [{ taskName: "B2", elementId: "Task_B2_Pre_GV" }],
+  },
+  {
+    key: "b3_pre_gv_arcoiris",
+    label: "B3",
+    shortLabel: "B3",
+    kind: "metric",
+    laneId: "pre-gv",
+    laneLabel: "Preclasificacion / GV sin pelar",
+    sourceStage: "B2",
+    targetStage: "B3",
+    focusRole: "target",
+    description: `B3 Arcoiris de la ruta GV sin pelar. ${PRE_SHARED_NOTE}`,
+    fixedDestination: "ARCOIRIS",
+    views: { peso: "gld.mv_camp_ind_bal_preclasif_b2_vs_b3_xl_np_weight_cur" },
+    processBindings: [{ taskName: "B3", elementId: "Task_B3_Pre_GV_Arcoiris" }],
+  },
+  {
+    key: "b3_pre_gv_tinturado",
+    label: "B3",
+    shortLabel: "B3",
+    kind: "metric",
+    laneId: "pre-gv",
+    laneLabel: "Preclasificacion / GV sin pelar",
+    sourceStage: "B2",
+    targetStage: "B3",
+    focusRole: "target",
+    description: `B3 Tinturado de la ruta GV sin pelar. ${PRE_SHARED_NOTE}`,
+    fixedDestination: "TINTURADO",
+    views: { peso: "gld.mv_camp_ind_bal_preclasif_b2_vs_b3_xl_np_weight_cur" },
+    processBindings: [{ taskName: "B3", elementId: "Task_B3_Pre_GV_Tinturado" }],
+  },
+  {
+    key: "b3_pre_gv_blanco",
+    label: "B3",
+    shortLabel: "B3",
+    kind: "metric",
+    laneId: "pre-gv",
+    laneLabel: "Preclasificacion / GV sin pelar",
+    sourceStage: "B2",
+    targetStage: "B3",
+    focusRole: "target",
+    description: `B3 Blanco de la ruta GV sin pelar. ${PRE_SHARED_NOTE}`,
+    fixedDestination: "BLANCO",
+    views: { peso: "gld.mv_camp_ind_bal_preclasif_b2_vs_b3_xl_np_weight_cur" },
+    processBindings: [{ taskName: "B3", elementId: "Task_B3_Pre_GV_Blanco" }],
+  },
+  {
+    key: "general_pre_gv",
+    label: "GENERAL",
+    shortLabel: "GENERAL",
+    kind: "aggregate",
+    laneId: "pre-gv",
+    laneLabel: "Preclasificacion / GV sin pelar",
+    sourceStage: "B1",
+    targetStage: "B3",
+    focusRole: "target",
+    description: `Agregado B1→B3 con ideal de la ruta GV sin pelar. ${PRE_SHARED_NOTE}`,
+    views: { peso: "gld.mv_camp_ind_bal_preclasif_b1_vs_b3_ideal_weight_xl_np_cur" },
+    processBindings: [{ taskName: "GENERAL", elementId: "Task_General_Pre_GV" }],
+    childrenKeys: ["b3_pre_gv_arcoiris", "b3_pre_gv_tinturado", "b3_pre_gv_blanco"],
+  },
+  {
+    key: "b1ab_pre_directo",
+    label: "B1AB",
+    shortLabel: "B1AB",
+    kind: "metric",
+    laneId: "pre-directo",
+    laneLabel: "Preclasificacion / Directo",
+    sourceStage: "B1",
+    targetStage: "B1AB",
+    focusRole: "target",
+    description: `B1AB de la ruta Directo. ${PRE_SHARED_NOTE}`,
+    views: {
+      peso: "gld.mv_camp_ind_bal_preclasif_b1_vs_b1a_xl_np_weight_cur",
+      tallos: "gld.mv_camp_ind_bal_preclasif_b1_vs_b1a_xl_np_stems_cur",
+    },
+    processBindings: [{ taskName: "B1AB", elementId: "Task_B1AB_Pre_Directo" }],
+  },
+  {
+    key: "b2_pre_directo",
+    label: "B2",
+    shortLabel: "B2",
+    kind: "metric",
+    laneId: "pre-directo",
+    laneLabel: "Preclasificacion / Directo",
+    sourceStage: "B1AB",
+    targetStage: "B2",
+    focusRole: "target",
+    description: `B2 de la ruta Directo. ${PRE_SHARED_NOTE}`,
+    views: {
+      peso: "gld.mv_camp_ind_bal_preclasif_b1a_vs_b2_xl_np_weight_cur",
+      tallos: "gld.mv_camp_ind_bal_preclasif_b1a_vs_b2_xl_np_stems_cur",
+    },
+    processBindings: [{ taskName: "B2", elementId: "Task_B2_Pre_Directo" }],
+  },
+  {
+    key: "b3_pre_directo_arcoiris",
+    label: "B3",
+    shortLabel: "B3",
+    kind: "metric",
+    laneId: "pre-directo",
+    laneLabel: "Preclasificacion / Directo",
+    sourceStage: "B2",
+    targetStage: "B3",
+    focusRole: "target",
+    description: `B3 Arcoiris de la ruta Directo. ${PRE_SHARED_NOTE}`,
+    fixedDestination: "ARCOIRIS",
+    views: { peso: "gld.mv_camp_ind_bal_preclasif_b2_vs_b3_xl_np_weight_cur" },
+    processBindings: [{ taskName: "B3", elementId: "Task_B3_Pre_Directo_Arcoiris" }],
+  },
+  {
+    key: "b3_pre_directo_tinturado",
+    label: "B3",
+    shortLabel: "B3",
+    kind: "metric",
+    laneId: "pre-directo",
+    laneLabel: "Preclasificacion / Directo",
+    sourceStage: "B2",
+    targetStage: "B3",
+    focusRole: "target",
+    description: `B3 Tinturado de la ruta Directo. ${PRE_SHARED_NOTE}`,
+    fixedDestination: "TINTURADO",
+    views: { peso: "gld.mv_camp_ind_bal_preclasif_b2_vs_b3_xl_np_weight_cur" },
+    processBindings: [{ taskName: "B3", elementId: "Task_B3_Pre_Directo_Tinturado" }],
+  },
+  {
+    key: "b3_pre_directo_blanco",
+    label: "B3",
+    shortLabel: "B3",
+    kind: "metric",
+    laneId: "pre-directo",
+    laneLabel: "Preclasificacion / Directo",
+    sourceStage: "B2",
+    targetStage: "B3",
+    focusRole: "target",
+    description: `B3 Blanco de la ruta Directo. ${PRE_SHARED_NOTE}`,
+    fixedDestination: "BLANCO",
+    views: { peso: "gld.mv_camp_ind_bal_preclasif_b2_vs_b3_xl_np_weight_cur" },
+    processBindings: [{ taskName: "B3", elementId: "Task_B3_Pre_Directo_Blanco" }],
+  },
+  {
+    key: "general_pre_directo",
+    label: "GENERAL",
+    shortLabel: "GENERAL",
+    kind: "aggregate",
+    laneId: "pre-directo",
+    laneLabel: "Preclasificacion / Directo",
+    sourceStage: "B1",
+    targetStage: "B3",
+    focusRole: "target",
+    description: `Agregado B1→B3 con ideal de la ruta Directo. ${PRE_SHARED_NOTE}`,
+    views: { peso: "gld.mv_camp_ind_bal_preclasif_b1_vs_b3_ideal_weight_xl_np_cur" },
+    processBindings: [{ taskName: "GENERAL", elementId: "Task_General_Pre_Directo" }],
+    childrenKeys: ["b3_pre_directo_arcoiris", "b3_pre_directo_tinturado", "b3_pre_directo_blanco"],
+  },
+  {
+    key: "b1_apertura",
+    label: "B1",
+    shortLabel: "B1",
+    kind: "metric",
+    laneId: "apertura-gv-pelado",
+    laneLabel: "Apertura",
+    sourceStage: "B1",
+    targetStage: "B1C",
+    focusRole: "source",
+    description: "Nodo inicial compartido de Apertura antes de bifurcar entre GV pelado y Apertura.",
+    views: {
+      peso: [
+        "gld.mv_camp_ind_bal_gv_b1_vs_b1c_weight_xl_np_cur",
+        "gld.mv_camp_ind_bal_apertura_b1_vs_b1c_weight_xl_np_cur",
+      ],
+      tallos: [
+        "gld.mv_camp_ind_bal_gv_b1_vs_b1c_stems_xl_np_cur",
+        "gld.mv_camp_ind_bal_apertura_b1_vs_b1c_stems_xl_np_cur",
+      ],
+    },
+    processBindings: [{ taskName: "B1", elementId: "Task_B1_Apertura" }],
+  },
+  {
+    key: "b1c_apertura_gv",
+    label: "B1C",
+    shortLabel: "B1C",
+    kind: "metric",
+    laneId: "apertura-gv-pelado",
+    laneLabel: "Apertura / GV pelado",
+    sourceStage: "B1",
+    targetStage: "B1C",
+    focusRole: "target",
+    description: "B1C de la ruta GV pelado.",
+    views: {
+      peso: "gld.mv_camp_ind_bal_gv_b1_vs_b1c_weight_xl_np_cur",
+      tallos: "gld.mv_camp_ind_bal_gv_b1_vs_b1c_stems_xl_np_cur",
+    },
+    processBindings: [{ taskName: "B1C", elementId: "Task_B1C_Apertura_GV" }],
+  },
+  {
+    key: "b2_apertura_max10",
+    label: "B2",
+    shortLabel: "B2",
+    kind: "metric",
+    laneId: "apertura-gv-pelado",
+    laneLabel: "Apertura / GV pelado",
+    sourceStage: "B1C",
+    targetStage: "B2",
+    focusRole: "target",
+    description: "B2 de la ruta GV pelado, incluyendo el tramo MAX 10 dias e hidratacion.",
+    views: {
+      peso: "gld.mv_camp_ind_bal_gv_b1c_vs_b2_weight_xl_np_cur",
+      tallos: "gld.mv_camp_ind_bal_gv_b1c_vs_b2_stems_xl_np_cur",
+    },
+    processBindings: [{ taskName: "B2", elementId: "Task_B2_Apertura_Max10" }],
+  },
+  {
+    key: "b2a_apertura_max10_arcoiris",
+    label: "B2A",
+    shortLabel: "B2A",
+    kind: "metric",
+    laneId: "apertura-gv-pelado",
+    laneLabel: "Apertura / GV pelado",
+    sourceStage: "B2",
+    targetStage: "B2A",
+    focusRole: "target",
+    description: "B2A Arcoiris de la ruta GV pelado.",
+    fixedDestination: "ARCOIRIS",
+    views: { peso: "gld.mv_camp_ind_bal_gv_b2_vs_b2a_weight_xl_np_cur" },
+    processBindings: [{ taskName: "B2A", elementId: "Task_B2A_Apertura_Max10_Arcoiris" }],
+  },
+  {
+    key: "b2a_apertura_max10_tinturado",
+    label: "B2A",
+    shortLabel: "B2A",
+    kind: "metric",
+    laneId: "apertura-gv-pelado",
+    laneLabel: "Apertura / GV pelado",
+    sourceStage: "B2",
+    targetStage: "B2A",
+    focusRole: "target",
+    description: "B2A Tinturado de la ruta GV pelado.",
+    fixedDestination: "TINTURADO",
+    views: { peso: "gld.mv_camp_ind_bal_gv_b2_vs_b2a_weight_xl_np_cur" },
+    processBindings: [{ taskName: "B2A", elementId: "Task_B2A_Apertura_Max10_Tinturado" }],
+  },
+  {
+    key: "b2a_apertura_max10_blanco",
+    label: "B2A",
+    shortLabel: "B2A",
+    kind: "metric",
+    laneId: "apertura-gv-pelado",
+    laneLabel: "Apertura / GV pelado",
+    sourceStage: "B2",
+    targetStage: "B2A",
+    focusRole: "target",
+    description: "B2A Blanco de la ruta GV pelado.",
+    fixedDestination: "BLANCO",
+    views: { peso: "gld.mv_camp_ind_bal_gv_b2_vs_b2a_weight_xl_np_cur" },
+    processBindings: [{ taskName: "B2A", elementId: "Task_B2A_Apertura_Max10_Blanco" }],
+  },
+  {
+    key: "general_apertura_max10",
+    label: "GENERAL",
+    shortLabel: "GENERAL",
+    kind: "aggregate",
+    laneId: "apertura-gv-pelado",
+    laneLabel: "Apertura / GV pelado",
+    sourceStage: "B1C",
+    targetStage: "B2A",
+    focusRole: "target",
+    description: "Agregado B1C→B2A con ideal de la ruta GV pelado.",
+    views: { peso: "gld.mv_camp_ind_bal_gv_b1c_vs_b2a_vs_ideal_weight_xl_np_cur" },
+    processBindings: [{ taskName: "GENERAL", elementId: "Task_General_Apertura_Max10" }],
+    childrenKeys: [
+      "b2a_apertura_max10_arcoiris",
+      "b2a_apertura_max10_tinturado",
+      "b2a_apertura_max10_blanco",
+    ],
+  },
+  {
+    key: "b1c_apertura_directo",
+    label: "B1C",
+    shortLabel: "B1C",
+    kind: "metric",
+    laneId: "apertura-apertura",
+    laneLabel: "Apertura / Apertura",
+    sourceStage: "B1",
+    targetStage: "B1C",
+    focusRole: "target",
+    description: "B1C de la ruta Apertura.",
+    views: {
+      peso: "gld.mv_camp_ind_bal_apertura_b1_vs_b1c_weight_xl_np_cur",
+      tallos: "gld.mv_camp_ind_bal_apertura_b1_vs_b1c_stems_xl_np_cur",
+    },
+    processBindings: [{ taskName: "B1C", elementId: "Task_B1C_Apertura_Directo" }],
+  },
+  {
+    key: "b2_apertura_directo",
+    label: "B2",
+    shortLabel: "B2",
+    kind: "metric",
+    laneId: "apertura-apertura",
+    laneLabel: "Apertura / Apertura",
+    sourceStage: "B1C",
+    targetStage: "B2",
+    focusRole: "target",
+    description: "B2 de la ruta Apertura.",
+    views: {
+      peso: "gld.mv_camp_ind_bal_apertura_b1c_vs_b2_weight_xl_np_cur",
+      tallos: "gld.mv_camp_ind_bal_apertura_b1c_vs_b2_stems_xl_np_cur",
+    },
+    processBindings: [{ taskName: "B2", elementId: "Task_B2_Apertura_Directo" }],
+  },
+  {
+    key: "b2a_apertura_directo_arcoiris",
+    label: "B2A",
+    shortLabel: "B2A",
+    kind: "metric",
+    laneId: "apertura-apertura",
+    laneLabel: "Apertura / Apertura",
+    sourceStage: "B2",
+    targetStage: "B2A",
+    focusRole: "target",
+    description: "B2A Arcoiris de la ruta Apertura.",
+    fixedDestination: "ARCOIRIS",
+    views: { peso: "gld.mv_camp_ind_bal_apertura_b2_vs_b2a_weight_xl_np_cur" },
+    processBindings: [{ taskName: "B2A", elementId: "Task_B2A_Apertura_Directo_Arcoiris" }],
+  },
+  {
+    key: "b2a_apertura_directo_tinturado",
+    label: "B2A",
+    shortLabel: "B2A",
+    kind: "metric",
+    laneId: "apertura-apertura",
+    laneLabel: "Apertura / Apertura",
+    sourceStage: "B2",
+    targetStage: "B2A",
+    focusRole: "target",
+    description: "B2A Tinturado de la ruta Apertura.",
+    fixedDestination: "TINTURADO",
+    views: { peso: "gld.mv_camp_ind_bal_apertura_b2_vs_b2a_weight_xl_np_cur" },
+    processBindings: [{ taskName: "B2A", elementId: "Task_B2A_Apertura_Directo_Tinturado" }],
+  },
+  {
+    key: "b2a_apertura_directo_blanco",
+    label: "B2A",
+    shortLabel: "B2A",
+    kind: "metric",
+    laneId: "apertura-apertura",
+    laneLabel: "Apertura / Apertura",
+    sourceStage: "B2",
+    targetStage: "B2A",
+    focusRole: "target",
+    description: "B2A Blanco de la ruta Apertura.",
+    fixedDestination: "BLANCO",
+    views: { peso: "gld.mv_camp_ind_bal_apertura_b2_vs_b2a_weight_xl_np_cur" },
+    processBindings: [{ taskName: "B2A", elementId: "Task_B2A_Apertura_Directo_Blanco" }],
+  },
+  {
+    key: "general_apertura_directo",
+    label: "GENERAL",
+    shortLabel: "GENERAL",
+    kind: "aggregate",
+    laneId: "apertura-apertura",
+    laneLabel: "Apertura / Apertura",
+    sourceStage: "B1C",
+    targetStage: "B2A",
+    focusRole: "target",
+    description: "Agregado B1C→B2A con ideal de la ruta Apertura.",
+    views: { peso: "gld.mv_camp_ind_bal_apertura_b1c_vs_b2a_vs_ideal_weight_xl_np_cur" },
+    processBindings: [{ taskName: "GENERAL", elementId: "Task_General_Apertura_Directo" }],
+    childrenKeys: [
+      "b2a_apertura_directo_arcoiris",
+      "b2a_apertura_directo_tinturado",
+      "b2a_apertura_directo_blanco",
     ],
   },
 ];
@@ -477,20 +869,57 @@ function findMatchingColumn(
   return containsMatch?.name ?? null;
 }
 
-function getSourceStageTokens(stage: string) {
+function getSourceStageTokens(stage: string, metric: BalanzasMetric = "peso") {
+  // Los tokens se usan para detectar columnas de una vista por nombre canónico.
+  // Para el metric "peso", se excluye "count" para no confundir columnas de tallos
+  // (stems_bX_count) con columnas de peso (weight_bX_kg) en vistas mixtas.
+  const isWeight = metric === "peso";
+
   switch (stage) {
     case "B1":
     case "BAL1":
-      return { contains: ["balanza", "1"], excludes: ["1c", "2", "2a"] };
+      // weight_b1_kg / stems_b1 / b1_peso / b1_kg — excluir b1c, b1a, b2, b3
+      return {
+        contains: ["b1"],
+        excludes: isWeight
+          ? ["b1c", "b1a", "b1ab", "2", "3", "count"]
+          : ["b1c", "b1a", "b1ab", "2", "3"],
+      };
+    case "B1AB":
+    case "B1A":
+    case "BAL1AB":
+      // weight_b1ab_kg / stems_b1ab — excluir per_stem (factor de escala, no total)
+      return {
+        contains: ["b1a"],
+        excludes: isWeight ? ["b1c", "per_stem", "count"] : ["b1c", "per_stem"],
+      };
     case "B1C":
     case "BAL1C":
-      return { contains: ["balanza", "1c"], excludes: [] };
+      // weight_b1c_kg / stems_b1c_count — excluir "count" para peso
+      return {
+        contains: ["b1c"],
+        excludes: isWeight ? ["count"] : [],
+      };
     case "B2":
     case "BAL2":
-      return { contains: ["balanza", "2"], excludes: ["2a"] };
+      // weight_b2_kg / stems_b2_count — excluir b2a y "count" para peso
+      return {
+        contains: ["b2"],
+        excludes: isWeight ? ["b2a", "b2_a", "count"] : ["b2a", "b2_a"],
+      };
     case "B2A":
     case "BAL2A":
-      return { contains: ["balanza", "2a"], excludes: [] };
+      // weight_b2a_kg / stems_b2a — excluir "count" para peso
+      return {
+        contains: ["b2a"],
+        excludes: isWeight ? ["count"] : [],
+      };
+    case "B3":
+    case "BAL3":
+      // weight_b3_kg / stems_b3
+      return { contains: ["b3"], excludes: [] as string[] };
+    case "IDEAL":
+      return { contains: ["ideal"], excludes: [] as string[] };
     default:
       return { contains: [canonicalize(stage)], excludes: [] as string[] };
   }
@@ -532,13 +961,18 @@ async function loadBalanzasViewSchema(
   node: BalanzasProcessNodeDefinition,
   metric: BalanzasMetric,
 ): Promise<BalanzasViewSchema | null> {
-  const viewName = node.views[metric] ?? null;
+  const configuredViews = node.views[metric] ?? null;
+  const sourceViews = Array.isArray(configuredViews)
+    ? configuredViews
+    : configuredViews
+      ? [configuredViews]
+      : [];
 
-  if (!viewName) {
+  if (!sourceViews.length) {
     return null;
   }
 
-  const columns = await loadViewColumns(viewName);
+  const columns = await loadViewColumns(sourceViews[0]!);
   const numericColumns = columns
     .filter((column) => (
       column.dataType.includes("numeric")
@@ -550,11 +984,15 @@ async function loadBalanzasViewSchema(
       || column.dataType.includes("smallint")
     ))
     .map((column) => column.name);
-  const sourceTokens = getSourceStageTokens(node.sourceStage);
-  const targetTokens = getSourceStageTokens(node.targetStage);
+  const sourceTokens = getSourceStageTokens(node.sourceStage, metric);
+  const targetTokens = getSourceStageTokens(node.targetStage, metric);
 
   return {
-    viewName,
+    viewName: sourceViews.join(" + "),
+    sourceViews,
+    fromSql: sourceViews.length === 1
+      ? sourceViews[0]!
+      : `(${sourceViews.map((viewName) => `select * from ${viewName}`).join(" union all ")}) as balanzas_union`,
     columns,
     numericColumns,
     aliases: {
@@ -571,15 +1009,42 @@ async function loadBalanzasViewSchema(
       ratio: findMatchingColumn(
         columns,
         [
+          // Nombres exactos de las vistas actuales (gld.mv_camp_ind_bal_*)
+          "dispatch_pct",
+          "dispatch_pct_weight",
+          "dispatch_pct_stems",
+          "weight_diff_pct",
+          "stems_diff_pct",
+          "diff_pct_weight",
+          "diff_pct_stems",
+          "b2a_to_b1c_ratio",
+          "b2a_to_ideal_ratio",
+          "ideal_to_b1c_ratio",
+          "yield_b1_vs_b3",
+          "yield_b1_vs_ideal",
+          // Patrones originales
           "diff_weight",
           "diff_stems",
           "hidr_pct",
           "desp_pct_peso",
           "desp_pct_stems",
-          "diff_pct_stems",
           "ratio_pct",
           "apertura_pct",
+          // Patrones extendidos para vistas modificadas
+          "rendimiento_pct",
+          "rendimiento_porcentaje",
+          "eficiencia_pct",
+          "eficiencia_porcentaje",
+          "pct_rendimiento",
+          "pct_eficiencia",
+          "porcentaje_rendimiento",
+          "porcentaje_eficiencia",
+          "rendimiento",
+          "eficiencia",
+          "macro_indicador",
+          "indicador",
         ],
+        // Fallback: cualquier columna que contenga "pct"
         ["pct"],
       ),
       target: findMatchingColumn(columns, ["target", "objetivo", "meta"], ["target"]),
@@ -708,12 +1173,12 @@ async function loadBalanzasFilterOptions(metric: BalanzasMetric): Promise<Balanz
   const activeSchemas = schemas.filter((schema): schema is BalanzasViewSchema => Boolean(schema));
   const valueSets = await Promise.all(
     activeSchemas.map(async (schema) => ({
-      years: await loadDistinctValues(schema.viewName, buildTextFieldExpression(schema, "year"), true),
-      months: await loadDistinctValues(schema.viewName, buildTextFieldExpression(schema, "month"), true),
-      preWeeks: await loadDistinctValues(schema.viewName, buildTextFieldExpression(schema, "preWeek"), true),
-      isoWeeks: await loadDistinctValues(schema.viewName, buildTextFieldExpression(schema, "isoWeek"), true),
-      dayNames: await loadDistinctValues(schema.viewName, buildTextFieldExpression(schema, "dayName")),
-      destinations: await loadDistinctValues(schema.viewName, buildTextFieldExpression(schema, "destination")),
+      years: await loadDistinctValues(schema.fromSql, buildTextFieldExpression(schema, "year"), true),
+      months: await loadDistinctValues(schema.fromSql, buildTextFieldExpression(schema, "month"), true),
+      preWeeks: await loadDistinctValues(schema.fromSql, buildTextFieldExpression(schema, "preWeek"), true),
+      isoWeeks: await loadDistinctValues(schema.fromSql, buildTextFieldExpression(schema, "isoWeek"), true),
+      dayNames: await loadDistinctValues(schema.fromSql, buildTextFieldExpression(schema, "dayName")),
+      destinations: await loadDistinctValues(schema.fromSql, buildTextFieldExpression(schema, "destination")),
     })),
   );
 
@@ -765,7 +1230,11 @@ function buildFilterSupportIssues(schema: BalanzasViewSchema, filters: BalanzasF
   return issues;
 }
 
-function buildWhereClause(schema: BalanzasViewSchema, filters: BalanzasFilters) {
+function buildWhereClause(
+  schema: BalanzasViewSchema,
+  filters: BalanzasFilters,
+  node: BalanzasProcessNodeDefinition,
+) {
   const conditions: string[] = [];
   const values: unknown[] = [];
 
@@ -800,6 +1269,11 @@ function buildWhereClause(schema: BalanzasViewSchema, filters: BalanzasFilters) 
   if (selectedDestinations.length && destinationExpression) {
     values.push(selectedDestinations);
     conditions.push(`${destinationExpression} = any($${values.length}::text[])`);
+  }
+
+  if (node.fixedDestination && destinationExpression) {
+    values.push(node.fixedDestination);
+    conditions.push(`${destinationExpression} = $${values.length}::text`);
   }
 
   if (filters.weekMode === "pre" && selectedWeeks.length && preWeekExpression) {
@@ -870,11 +1344,26 @@ function buildTableColumns(
     "__gap_value",
     "__ratio_pct",
   ].filter((value, index, array): value is string => Boolean(value) && array.indexOf(value) === index);
+
+  // Cuando las columnas clave (source/target) no se detectaron automáticamente,
+  // exponer TODAS las columnas numéricas de la vista primero para que el usuario
+  // pueda ver los datos aunque el alias-matching haya fallado por cambios en el schema.
+  const hasKeyMetrics = Boolean(schema.aliases.source && schema.aliases.targetValue);
   const remainingColumns = schema.columns
     .map((column) => column.name)
     .filter((columnName) => columnName !== schema.aliases.ratio)
     .filter((columnName) => !desiredColumns.includes(columnName))
-    .slice(0, 4);
+    .sort((a, b) => {
+      if (hasKeyMetrics) {
+        return 0;
+      }
+      // Numéricas primero, luego texto
+      const aNum = schema.numericColumns.includes(a) ? 0 : 1;
+      const bNum = schema.numericColumns.includes(b) ? 0 : 1;
+      return aNum - bNum;
+    })
+    // Si no se detectaron métricas clave, mostrar todas las columnas (sin límite de 4)
+    .slice(0, hasKeyMetrics ? 4 : schema.columns.length);
 
   return [...desiredColumns, ...remainingColumns].map((columnName) => {
     if (columnName === schema.aliases.source) {
@@ -1012,23 +1501,36 @@ function buildNodePeriodLabel(filters: BalanzasFilters) {
   return [...calendarTokens, weekLabel, dateRangeLabel].join(" / ");
 }
 
+function formatConfiguredViews(configuredViews: string | string[] | undefined) {
+  if (!configuredViews) {
+    return null;
+  }
+
+  return Array.isArray(configuredViews) ? configuredViews.join(" + ") : configuredViews;
+}
+
 function createUnavailableNodeData(
   node: BalanzasProcessNodeDefinition,
   filters: BalanzasFilters,
   message: string,
 ): BalanzasNodeData {
+  const focusStage = node.focusRole === "source" ? node.sourceStage : node.targetStage;
+  const secondaryStage = node.focusRole === "source" ? node.targetStage : node.sourceStage;
   return {
     key: node.key,
     metric: filters.metric,
     label: node.label,
     shortLabel: node.shortLabel,
-    compareLabel: node.compareLabel,
+    kind: node.kind,
+    laneId: node.laneId,
+    laneLabel: node.laneLabel,
     sourceStage: node.sourceStage,
     targetStage: node.targetStage,
-    branchLabel: node.branchLabel,
+    focusStage,
+    focusRole: node.focusRole,
     description: node.description,
-    bpmnBranch: node.bpmnBranch,
-    sourceView: node.views[filters.metric] ?? null,
+    fixedDestination: node.fixedDestination ?? null,
+    sourceView: formatConfiguredViews(node.views[filters.metric]),
     status: "unavailable",
     statusMessage: message,
     rowCount: 0,
@@ -1041,8 +1543,13 @@ function createUnavailableNodeData(
     ratioPct: null,
     ratioDisplay: "-",
     latestDate: null,
+    primaryTotal: 0,
+    primaryTotalDisplay: "0",
+    secondaryStage,
+    secondaryTotal: 0,
+    secondaryTotalDisplay: "0",
     processBindings: node.processBindings,
-    destinationBreakdown: [],
+    childrenKeys: node.childrenKeys ?? [],
     columnMap: {
       year: null,
       month: null,
@@ -1059,6 +1566,7 @@ function createUnavailableNodeData(
       ratio: "__ratio_pct",
       gap: "__gap_value",
     },
+    rawColumnNames: [],
     localOptions: {
       destinations: [],
       grades: [],
@@ -1076,68 +1584,6 @@ function createUnavailableNodeData(
     ],
     rows: [],
   };
-}
-
-function buildDestinationBreakdown(
-  rows: GenericQueryRow[],
-  schema: BalanzasViewSchema,
-  node: BalanzasProcessNodeDefinition,
-) {
-  if (!schema.aliases.destination || !schema.aliases.source || !schema.aliases.targetValue) {
-    return [] as BalanzasDestinationBreakdown[];
-  }
-
-  const groups = new Map<string, BalanzasDestinationBreakdown>();
-
-  for (const row of rows) {
-    const destination = toComparableText(row[schema.aliases.destination])?.toUpperCase() ?? null;
-
-    if (!destination) {
-      continue;
-    }
-
-    const current = groups.get(destination) ?? {
-      destination,
-      pathLabel: destination[0] + destination.slice(1).toLowerCase(),
-      rowCount: 0,
-      sourceTotal: 0,
-      sourceTotalDisplay: "0",
-      targetTotal: 0,
-      targetTotalDisplay: "0",
-      ratioPct: null,
-      ratioDisplay: "-",
-    };
-
-    current.rowCount += 1;
-    current.sourceTotal += toNumber(row[schema.aliases.source]) ?? 0;
-    current.targetTotal += toNumber(row[schema.aliases.targetValue]) ?? 0;
-    groups.set(destination, current);
-  }
-
-  const pathLabels = new Map(
-    node.processBindings
-      .filter((binding) => binding.destination && binding.pathLabel)
-      .map((binding) => [binding.destination ?? "", binding.pathLabel ?? ""]),
-  );
-
-  return Array.from(groups.values())
-    .map((entry) => {
-      const ratioPct = entry.sourceTotal > 0
-        ? roundValue(((entry.targetTotal / entry.sourceTotal) - 1) * 100)
-        : null;
-
-      return {
-        ...entry,
-        pathLabel: pathLabels.get(entry.destination) ?? entry.pathLabel,
-        sourceTotal: roundValue(entry.sourceTotal),
-        sourceTotalDisplay: formatNumber(roundValue(entry.sourceTotal)),
-        targetTotal: roundValue(entry.targetTotal),
-        targetTotalDisplay: formatNumber(roundValue(entry.targetTotal)),
-        ratioPct,
-        ratioDisplay: formatPercent(ratioPct),
-      } satisfies BalanzasDestinationBreakdown;
-    })
-    .sort((left, right) => left.pathLabel.localeCompare(right.pathLabel, "en-US"));
 }
 
 async function buildNodeData(
@@ -1164,7 +1610,7 @@ async function buildNodeData(
     );
   }
 
-  const { whereClause, values } = buildWhereClause(schema, filters);
+  const { whereClause, values } = buildWhereClause(schema, filters, node);
   const ratioSql = buildRatioSql(schema);
   const dateSql = buildDateFieldExpression(schema);
   const sourceSql = schema.aliases.source ? `${quoteIdentifier(schema.aliases.source)}::numeric` : "null::numeric";
@@ -1184,7 +1630,7 @@ async function buildNodeData(
         sum(coalesce(${targetSql}, 0)) as target_total,
         avg(${ratioSql}) as avg_ratio_pct,
         ${dateSql ? `to_char(max(${dateSql}), 'YYYY-MM-DD')` : "null"} as latest_date
-      from ${schema.viewName}
+      from ${schema.fromSql}
       ${whereClause}
     `,
     values,
@@ -1193,7 +1639,7 @@ async function buildNodeData(
   const detailResult = await query<GenericQueryRow>(
     `
       select *
-      from ${schema.viewName}
+      from ${schema.fromSql}
       ${whereClause}
       ${orderByColumn ? `order by ${quoteIdentifier(orderByColumn)} desc nulls last` : ""}
       limit $${detailValues.length}
@@ -1212,18 +1658,25 @@ async function buildNodeData(
   const tableRows = buildTableRows(rows, schema);
   const localOptions = buildLocalFilterOptions(rows, schema);
   const tableColumns = trimTableColumns(buildTableColumns(node, schema, filters.metric), schema, localOptions);
+  const primaryTotal = node.focusRole === "source" ? sourceTotal : targetTotal;
+  const secondaryTotal = node.focusRole === "source" ? targetTotal : sourceTotal;
+  const focusStage = node.focusRole === "source" ? node.sourceStage : node.targetStage;
+  const secondaryStage = node.focusRole === "source" ? node.targetStage : node.sourceStage;
 
   return {
     key: node.key,
     metric: filters.metric,
     label: node.label,
     shortLabel: node.shortLabel,
-    compareLabel: node.compareLabel,
+    kind: node.kind,
+    laneId: node.laneId,
+    laneLabel: node.laneLabel,
     sourceStage: node.sourceStage,
     targetStage: node.targetStage,
-    branchLabel: node.branchLabel,
+    focusStage,
+    focusRole: node.focusRole,
     description: node.description,
-    bpmnBranch: node.bpmnBranch,
+    fixedDestination: node.fixedDestination ?? null,
     sourceView: schema.viewName,
     status: "ready",
     statusMessage: null,
@@ -1237,8 +1690,13 @@ async function buildNodeData(
     ratioPct,
     ratioDisplay: formatPercent(ratioPct),
     latestDate: summaryRow?.latest_date ?? null,
+    primaryTotal,
+    primaryTotalDisplay: formatNumber(primaryTotal),
+    secondaryStage,
+    secondaryTotal,
+    secondaryTotalDisplay: formatNumber(secondaryTotal),
     processBindings: node.processBindings,
-    destinationBreakdown: buildDestinationBreakdown(rows, schema, node),
+    childrenKeys: node.childrenKeys ?? [],
     columnMap: {
       year: schema.aliases.year,
       month: schema.aliases.month,
@@ -1255,6 +1713,7 @@ async function buildNodeData(
       ratio: "__ratio_pct",
       gap: "__gap_value",
     },
+    rawColumnNames: schema.columns.map((c) => c.name),
     localOptions,
     groupDefaults: buildGroupDefaults(schema),
     tableColumns,
@@ -1390,4 +1849,152 @@ export async function getBalanzasDashboardData(
 
     throw error;
   }
+}
+
+// ─── Diagnóstico ────────────────────────────────────────────────────────────
+
+async function listAvailableGldViews(): Promise<Array<{ viewName: string; columns: string[] }>> {
+  // Usar pg_class en lugar de information_schema para incluir vistas materializadas (relkind='m')
+  const result = await query<{ view_name: string; column_name: string }>(
+    `
+      select
+        c.relname     as view_name,
+        a.attname     as column_name
+      from pg_class c
+      join pg_namespace n on n.oid = c.relnamespace
+      join pg_attribute a on a.attrelid = c.oid
+      where n.nspname = 'gld'
+        and c.relname like 'mv_camp_ind_bal%'
+        and c.relkind in ('r', 'v', 'm')
+        and a.attnum > 0
+        and not a.attisdropped
+      order by c.relname, a.attnum
+    `,
+  );
+
+  const map = new Map<string, string[]>();
+  for (const row of result.rows) {
+    const key = `gld.${row.view_name}`;
+    if (!map.has(key)) {
+      map.set(key, []);
+    }
+    map.get(key)!.push(row.column_name);
+  }
+
+  return Array.from(map.entries()).map(([viewName, columns]) => ({ viewName, columns }));
+}
+
+export type BalanzasDiagnosticNodeSchema = {
+  nodeKey: string;
+  nodeLabel: string;
+  viewName: string | null;
+  error: string | null;
+  columns: Array<{ name: string; dataType: string }>;
+  aliases: {
+    date: string | null;
+    source: string | null;
+    targetValue: string | null;
+    ratio: string | null;
+    destination: string | null;
+    isoWeek: string | null;
+    month: string | null;
+    dayName: string | null;
+    lot: string | null;
+    grade: string | null;
+    hydrationDays: string | null;
+  };
+  missingAliases: string[];
+};
+
+/**
+ * Devuelve:
+ * 1. `availableViews`: todas las vistas `gld.mv_camp_ind_bal_*` que EXISTEN
+ *    actualmente en la base de datos (con sus columnas).
+ * 2. `nodes`: para cada nodo del proceso, la vista configurada en el código,
+ *    si existe en la BD, y qué aliases se detectaron.
+ *
+ * Si las vistas fueron renombradas, `nodes[].error` indica "vista no encontrada"
+ * y `availableViews` muestra los nombres nuevos para actualizar el código.
+ */
+export async function getBalanzasDiagnosticSchema(
+  metric: BalanzasMetric,
+): Promise<{
+  metric: BalanzasMetric;
+  availableViews: Array<{ viewName: string; columns: string[] }>;
+  nodes: BalanzasDiagnosticNodeSchema[];
+}> {
+  const [availableViews, nodeResults] = await Promise.all([
+    listAvailableGldViews(),
+    Promise.all(
+      BALANZAS_PROCESS_NODES.map(async (node): Promise<BalanzasDiagnosticNodeSchema> => {
+        const configuredViews = node.views[metric] ?? null;
+        const viewName = Array.isArray(configuredViews)
+          ? configuredViews.join(" + ")
+          : configuredViews ?? null;
+
+        try {
+          const schema = await loadBalanzasViewSchema(node, metric);
+          if (!schema) {
+            return {
+              nodeKey: node.key,
+              nodeLabel: node.label,
+              viewName,
+              error: "Sin vista configurada para esta métrica.",
+              columns: [],
+              aliases: {
+                date: null, source: null, targetValue: null, ratio: null,
+                destination: null, isoWeek: null, month: null, dayName: null,
+                lot: null, grade: null, hydrationDays: null,
+              },
+              missingAliases: ["date", "source", "targetValue", "ratio"],
+            };
+          }
+
+          const aliases = {
+            date: schema.aliases.date,
+            source: schema.aliases.source,
+            targetValue: schema.aliases.targetValue,
+            ratio: schema.aliases.ratio,
+            destination: schema.aliases.destination,
+            isoWeek: schema.aliases.isoWeek,
+            month: schema.aliases.month,
+            dayName: schema.aliases.dayName,
+            lot: schema.aliases.lot,
+            grade: schema.aliases.grade,
+            hydrationDays: schema.aliases.hydrationDays,
+          };
+
+          const missingAliases = (Object.entries(aliases) as [string, string | null][])
+            .filter(([, v]) => v === null)
+            .map(([k]) => k);
+
+          return {
+            nodeKey: node.key,
+            nodeLabel: node.label,
+            viewName: schema.viewName,
+            error: null,
+            columns: schema.columns.map((c) => ({ name: c.name, dataType: c.dataType })),
+            aliases,
+            missingAliases,
+          };
+        } catch (err) {
+          return {
+            nodeKey: node.key,
+            nodeLabel: node.label,
+            viewName,
+            error: err instanceof Error ? err.message : String(err),
+            columns: [],
+            aliases: {
+              date: null, source: null, targetValue: null, ratio: null,
+              destination: null, isoWeek: null, month: null, dayName: null,
+              lot: null, grade: null, hydrationDays: null,
+            },
+            missingAliases: ["date", "source", "targetValue", "ratio", "destination"],
+          };
+        }
+      }),
+    ),
+  ]);
+
+  return { metric, availableViews, nodes: nodeResults };
 }

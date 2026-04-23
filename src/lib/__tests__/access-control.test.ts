@@ -21,6 +21,9 @@ describe("access control", () => {
   it("keeps sensitive and debug API policies explicit", () => {
     expect(getApiAccessRule("/api/health/db")?.policy).toBe("superadmin-only");
     expect(getApiAccessRule("/api/programaciones/debug")?.policy).toBe("internal-dev-only");
+    expect(getApiAccessRule("/api/calidad/punto-apertura")?.requiredResources).toEqual([
+      "/dashboard/calidad/punto-apertura",
+    ]);
     expect(getApiAccessRule("/api/dead-plants-reseed/capture")?.requiredResources).toEqual([
       "/dashboard/dead-plants-reseed",
     ]);

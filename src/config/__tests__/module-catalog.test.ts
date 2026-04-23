@@ -31,4 +31,10 @@ describe("module catalog governance", () => {
     expect(hrefs.has("/dashboard/mi-cuenta")).toBe(true);
     expect(hrefs.has("/dashboard/mi-trabajo")).toBe(true);
   });
+
+  it("registers calidad punto de apertura as an active dashboard route", () => {
+    const hrefs = new Set(MODULE_CATALOG.filter((entry) => entry.status === "active").map((entry) => entry.href));
+
+    expect(hrefs.has("/dashboard/calidad/punto-apertura")).toBe(true);
+  });
 });
