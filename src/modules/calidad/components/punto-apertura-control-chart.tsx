@@ -14,7 +14,7 @@ import {
 
 import { EmptyState } from "@/shared/data-display/empty-state";
 import { formatPercent } from "@/shared/lib/format";
-import { CALIDAD_CHART_COLORS } from "@/lib/calidad-punto-apertura";
+import { CALIDAD_CHART_COLORS } from "@/lib/calidad-chart-colors";
 import type { PuntoAperturaRecord } from "@/lib/calidad-punto-apertura";
 
 type ChartPoint = PuntoAperturaRecord & {

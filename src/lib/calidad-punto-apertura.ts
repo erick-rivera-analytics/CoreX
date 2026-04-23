@@ -110,20 +110,7 @@ type RecordRow = {
   dominante_pct: string | number | null;
 };
 
-// Documented exception: docs/ui-canon.md → Excepciones validas — .calidad-punto-apertura
-// Recharts SVG renders outside the CSS tree — concrete hex values required.
-export const CALIDAD_CHART_COLORS = {
-  status: {
-    homogeneous:         "#10b981",
-    nonHomogeneous:      "#f59e0b",
-    homogeneousStroke:   "#047857",
-    nonHomogeneousStroke:"#b45309",
-  },
-  referenceLine: {
-    mean:  "#0f766e",
-    limit: "#dc2626",
-  },
-} as const;
+export { CALIDAD_CHART_COLORS } from "@/lib/calidad-chart-colors";
 
 export const defaultPuntoAperturaFilters: PuntoAperturaFilters = {
   isoWeek: "all",
