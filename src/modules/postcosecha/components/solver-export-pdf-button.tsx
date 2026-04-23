@@ -14,11 +14,9 @@ const BOTTOM_Y = 54;
 const LINE_HEIGHT = 14;
 const MAX_LINE_LENGTH = 96;
 
-type PdfLine = {
-  text: string;
-  size?: number;
-  gapBefore?: number;
-};
+type PdfTextLine = { kind?: "text"; text: string; size?: number; gapBefore?: number };
+type PdfRuleLine = { kind: "rule"; gapBefore?: number };
+type PdfLine = PdfTextLine | PdfRuleLine;
 
 function toPdfSafeText(value: string) {
   return value
@@ -49,7 +47,7 @@ function buildTimestampLabel(date = new Date()) {
   return `${year}${month}${day}_${hours}${minutes}${seconds}`;
 }
 
-function addRunLines(lines: PdfLine[], run: PoscosechaClasificacionModeResult) {
+function addRunLines(lines: PdfTextLine[], run: PoscosechaClasificacionModeResult) {
   lines.push({ text: `ORIGEN: ${run.label}`, size: 13, gapBefore: 10 });
   lines.push({ text: run.originScope, size: 9 });
   lines.push({ text: `Prevalidacion: ${run.precheck.message}`, size: 9 });
@@ -95,15 +93,25 @@ function addRunLines(lines: PdfLine[], run: PoscosechaClasificacionModeResult) {
 
 function buildPdfLines(runs: PoscosechaClasificacionModeResult[]) {
   const generatedAt = new Date();
-  const lines: PdfLine[] = [
-    { text: "Clasificacion en blanco", size: 18 },
-    { text: `Orden de trabajo generada ${generatedAt.toLocaleString("es-EC")}`, size: 10 },
-    { text: "Incluye todas las corridas disponibles del solver por origen.", size: 10 },
-  ];
+  const dateStr = generatedAt.toLocaleDateString("es-EC", { day: "2-digit", month: "2-digit", year: "numeric" });
+  const timeStr = generatedAt.toLocaleTimeString("es-EC");
+  const runLines: PdfTextLine[] = [];
 
   for (const run of runs) {
-    addRunLines(lines, run);
+    addRunLines(runLines, run);
   }
+
+  const lines: PdfLine[] = [
+    { text: "ORDEN DE TRABAJO | CLASIFICACION EN BLANCO", size: 15 },
+    { kind: "rule", gapBefore: 6 },
+    { text: "Area: CLASIFICACION", size: 9 },
+    { text: "Autor: EQUIPO DE PLANIFICACION & PROYECTOS", size: 9 },
+    { text: `Fecha de exportacion: ${dateStr} ${timeStr}`, size: 9 },
+    { text: `Codigo: OT-CLAS-${buildTimestampLabel(generatedAt).slice(0, 8)}`, size: 9 },
+    { kind: "rule", gapBefore: 4 },
+    { text: "Incluye todas las corridas disponibles del solver por origen.", size: 9, gapBefore: 4 },
+    ...runLines,
+  ];
 
   return lines;
 }
@@ -114,14 +122,15 @@ function paginateLines(lines: PdfLine[]) {
 
   for (const line of lines) {
     const gap = line.gapBefore ?? 0;
-    const needed = LINE_HEIGHT + gap;
+    const lineH = line.kind === "rule" ? LINE_HEIGHT / 2 : LINE_HEIGHT;
+    const needed = lineH + gap;
 
     if (y - needed < BOTTOM_Y) {
       pages.push([]);
       y = TOP_Y;
     }
 
-    pages[pages.length - 1].push(line);
+    pages[pages.length - 1]!.push(line);
     y -= needed;
   }
 
@@ -130,21 +139,24 @@ function paginateLines(lines: PdfLine[]) {
 
 function buildPageContent(page: PdfLine[], pageNumber: number, totalPages: number) {
   let y = TOP_Y;
-  const commands = ["BT", "/F1 9 Tf"];
+  const parts: string[] = [];
 
   for (const line of page) {
     y -= line.gapBefore ?? 0;
-    const size = line.size ?? 9;
-    commands.push(`/F1 ${size} Tf`);
-    commands.push(`1 0 0 1 ${MARGIN_X} ${y} Tm (${escapePdfString(truncateLine(line.text))}) Tj`);
-    y -= LINE_HEIGHT;
+
+    if (line.kind === "rule") {
+      parts.push(`q 0.5 w ${MARGIN_X} ${y} m ${PAGE_WIDTH - MARGIN_X} ${y} l S Q`);
+      y -= LINE_HEIGHT / 2;
+    } else {
+      const size = line.size ?? 9;
+      parts.push(`BT /F1 ${size} Tf 1 0 0 1 ${MARGIN_X} ${y} Tm (${escapePdfString(truncateLine(line.text))}) Tj ET`);
+      y -= LINE_HEIGHT;
+    }
   }
 
-  commands.push("/F1 8 Tf");
-  commands.push(`1 0 0 1 ${MARGIN_X} 28 Tm (${escapePdfString(`Pagina ${pageNumber} de ${totalPages}`)}) Tj`);
-  commands.push("ET");
+  parts.push(`BT /F1 8 Tf 1 0 0 1 ${MARGIN_X} 28 Tm (${escapePdfString(`Pagina ${pageNumber} de ${totalPages}`)}) Tj ET`);
 
-  return commands.join("\n");
+  return parts.join("\n");
 }
 
 function buildPdfDocument(lines: PdfLine[]) {
@@ -187,7 +199,7 @@ function downloadPdf(pdf: string) {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = `clasificacion_en_blanco_${buildTimestampLabel()}.pdf`;
+  link.download = `orden_trabajo_clasificacion_en_blanco_${buildTimestampLabel()}.pdf`;
   document.body.appendChild(link);
   link.click();
   link.remove();
