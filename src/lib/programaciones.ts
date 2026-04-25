@@ -7,7 +7,7 @@ import { cachedAsync } from "@/lib/server-cache";
 
 const PROG_TTL_MS = 5 * 60 * 1000; // 5 min
 
-export const ACTIVITY_CODES = ["SPMC", "ILUMINACION", "FMGYP", "03VAFIFMG", "FM13"] as const;
+export const ACTIVITY_CODES = ["SPMC", "ILUMINACION", "FMGYP", "03VAFIFMG", "FM11", "FM13"] as const;
 export type ActivityCode = (typeof ACTIVITY_CODES)[number];
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -88,6 +88,15 @@ export async function getProgramaciones(
           select cycle_key, activity_code, event_date, null::text as ilum_label
           from mdl.prod_ref_vegetativo_subset_scd2
           where activity_code IN ('FMGYP', '03VAFIFMG')
+            and event_date >= $1::date
+            and event_date <= $2::date
+
+          union all
+
+          -- DRENCH: todos los eventos en rango
+          select cycle_key, activity_code, event_date, null::text as ilum_label
+          from mdl.prod_ref_vegetativo_subset_scd2
+          where activity_code = 'FM11'
             and event_date >= $1::date
             and event_date <= $2::date
 
