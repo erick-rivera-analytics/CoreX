@@ -2,4 +2,4 @@
 // is split into smaller files. Add new implementation in dedicated files,
 // not in this facade.
 
-export * from "@/lib/fenograma-core";
+export type * from "@/lib/fenograma-types";

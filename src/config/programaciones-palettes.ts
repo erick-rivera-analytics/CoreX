@@ -30,3 +30,6 @@ export const SPTYPE_ACCENT_COLORS: string[] = [
   "#daa95c",
   "#e8a35d",
 ];
+
+/** Color de acento para el badge "Fumigación Dron" (D) en programaciones. */
+export const FUMIGATION_DRONE_BADGE_COLOR = "#0ea5e9";

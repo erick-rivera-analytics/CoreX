@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useDeferredValue, useMemo, useState } from "react";
-import { ArrowLeftRight, Search, ShieldAlert, Swords, Trophy } from "lucide-react";
+import { ArrowLeftRight, ShieldAlert, Swords, Trophy } from "lucide-react";
 import useSWR from "swr";
 import { toast } from "sonner";
 
@@ -20,6 +20,7 @@ import {
 import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
 import { MultiSelectField } from "@/shared/filters/multi-select-field";
+import { SearchInput } from "@/shared/forms/search-input";
 import { EmptyState } from "@/shared/data-display/empty-state";
 import { fetchJson } from "@/lib/fetch-json";
 import { cn } from "@/lib/utils";
@@ -273,16 +274,12 @@ export function ComparisonExplorer({ initialData }: { initialData: ComparisonDas
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             <div className="space-y-2">
               <Label htmlFor="comparison-q">Buscar</Label>
-              <div className="relative">
-                <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
-                <Input
-                  id="comparison-q"
-                  value={filters.q}
-                  onChange={(event) => updateFilter("q", event.target.value)}
-                  className="pl-10"
-                  placeholder="Area, bloque, ciclo, variedad..."
-                />
-              </div>
+              <SearchInput
+                id="comparison-q"
+                value={filters.q}
+                onChange={(value) => updateFilter("q", value)}
+                placeholder="Area, bloque, ciclo, variedad..."
+              />
             </div>
 
             <MultiSelectField

@@ -14,6 +14,11 @@ import {
   type ActiveLayer,
   type RasterBounds,
 } from "@/modules/campo/components/campo-map";
+import {
+  MAP_INSET_ACCENT,
+  MAP_INSET_BG,
+  MAP_INSET_BORDER,
+} from "@/modules/campo/lib/sub-map-palette";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -113,7 +118,7 @@ export function CampoMapInset({
   return (
     <div
       className={cn(
-        "flex min-h-[280px] flex-col rounded-[26px] border border-border/70 bg-background/76 p-4",
+        "flex min-h-[220px] sm:min-h-[280px] flex-col rounded-[26px] border border-border/70 bg-background/76 p-4",
         className,
       )}
     >
@@ -131,15 +136,15 @@ export function CampoMapInset({
       </div>
 
       {loading ? (
-        <div className="flex h-[280px] items-center justify-center rounded-[22px] bg-muted/40 text-sm text-muted-foreground">
+        <div className="flex h-[220px] sm:h-[280px] items-center justify-center rounded-[22px] bg-muted/40 text-sm text-muted-foreground">
           Cargando geometria...
         </div>
       ) : error ? (
-        <div className="flex h-[280px] items-center justify-center rounded-[22px] border border-dashed border-border/70 bg-muted/20 px-4 text-center text-sm text-muted-foreground">
+        <div className="flex h-[220px] sm:h-[280px] items-center justify-center rounded-[22px] border border-dashed border-border/70 bg-muted/20 px-4 text-center text-sm text-muted-foreground">
           {error}
         </div>
       ) : !geoData || !geoData.features.length || !center ? (
-        <div className="flex h-[280px] items-center justify-center rounded-[22px] border border-dashed border-border/70 bg-muted/20 px-4 text-center text-sm text-muted-foreground">
+        <div className="flex h-[220px] sm:h-[280px] items-center justify-center rounded-[22px] border border-dashed border-border/70 bg-muted/20 px-4 text-center text-sm text-muted-foreground">
           No hay datos disponibles para esta vista.
         </div>
       ) : (
@@ -150,8 +155,8 @@ export function CampoMapInset({
               zoom={15}
               zoomControl={false}
               attributionControl={false}
-              className="h-[280px] w-full"
-              style={{ background: "#eef4ef" }}
+              className="h-[220px] sm:h-[280px] w-full"
+              style={{ background: MAP_INSET_BG }}
               dragging={false}
               doubleClickZoom={false}
               boxZoom={false}
@@ -172,9 +177,9 @@ export function CampoMapInset({
               <GeoJSON
                 data={geoData as GeoJsonObject}
                 style={() => ({
-                  color: "#0f172a",
+                  color: MAP_INSET_BORDER,
                   weight: 1.1,
-                  fillColor: "#8fd4aa",
+                  fillColor: MAP_INSET_ACCENT,
                   fillOpacity: activeLayer === "none" ? 0.34 : 0.1,
                 })}
               />

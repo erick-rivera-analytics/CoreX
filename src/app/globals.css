@@ -10,6 +10,32 @@
   --radius-md: calc(var(--radius-control) - 2px);
   --radius-lg: var(--radius-control);
   --radius-xl: var(--radius-surface);
+  /* Radii canónicos adicionales (Audit #1 Phase 4B). Adopción masiva en Audit #5. */
+  --radius-tag: 6px;
+  --radius-pill-lg: 8px;
+  --radius-tile: 12px;
+  /* Tipografía canónica (Audit #1 Phase 4A). Adopción masiva en Audit #5. */
+  --text-eyebrow: 0.6875rem;
+  --text-eyebrow--line-height: 1.1;
+  --text-eyebrow--letter-spacing: 0.06em;
+  --text-meta: 0.75rem;
+  --text-meta--line-height: 1.3;
+  --text-body: 0.875rem;
+  --text-body--line-height: 1.45;
+  --text-emphasis: 1rem;
+  --text-emphasis--line-height: 1.5;
+  --text-emphasis--font-weight: 500;
+  --text-section: 1.125rem;
+  --text-section--line-height: 1.4;
+  --text-section--font-weight: 600;
+  --text-page-title: 1.5rem;
+  --text-page-title--line-height: 1.2;
+  --text-page-title--letter-spacing: -0.01em;
+  --text-page-title--font-weight: 600;
+  --text-display: 1.875rem;
+  --text-display--line-height: 1.15;
+  --text-display--letter-spacing: -0.02em;
+  --text-display--font-weight: 600;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -54,6 +80,13 @@
   --shadow-dropdown: 0 24px 80px -32px rgba(15,23,42,0.28);
   --shadow-overlay: 0 24px 80px -32px rgba(15,23,42,0.45);
   --shadow-tooltip: 0 22px 60px -28px rgba(15,23,42,0.35);
+  /* Z-index canonical tiers (Audit #3 Phase 6B). Documentado en docs/ui-canon.md. */
+  --z-sticky: 10;
+  --z-modal-primary: 60;
+  --z-modal-secondary: 70;
+  --z-dropdown: 80;
+  --z-toast: 90;
+  --z-map-overlay: 100;
   --dashboard-ui-scale: 1;
   --background: oklch(0.975 0.003 255);
   --foreground: oklch(0.24 0.018 248);
@@ -426,6 +459,17 @@
 .balanzas-process .balanzas-node-dimmed svg text {
   opacity: 0.45 !important;
   transition: opacity 160ms ease-out;
+}
+
+/* Lane inactivo (PRECLASIFICACION / GV) */
+.balanzas-process .balanzas-lane-inactive-node .djs-visual > rect {
+  fill: rgba(241, 245, 249, 0.40) !important;
+  stroke: rgba(148, 163, 184, 0.25) !important;
+  stroke-width: 1px !important;
+}
+.balanzas-process .balanzas-lane-inactive-node .djs-label,
+.balanzas-process .balanzas-lane-inactive-node svg text {
+  opacity: 0.30 !important;
 }
 
 

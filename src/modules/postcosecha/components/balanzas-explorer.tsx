@@ -34,12 +34,9 @@ function toProcessNodes(nodes: BalanzasNodeSummary[]) {
     .filter((n) => n.bpmnElementId !== null)
     .map((n) => ({
       key: n.key,
-      shortLabel: n.shortLabel,
       label: n.label,
       overlayOffsetLeft: n.overlayOffsetLeft,
-      ratioDisplay: n.metrics[2]?.formatted ?? "—",
-      sourceTotalDisplay: n.metrics[0]?.formatted ?? "—",
-      targetTotalDisplay: n.metrics[1]?.formatted ?? "—",
+      metrics: n.metrics.map((m) => ({ label: m.label, formatted: m.formatted })),
       status: (n.rowCount > 0 ? "ready" : "unavailable") as "ready" | "unavailable",
       processBindings: [{ elementId: n.bpmnElementId! }],
       destinationBreakdown: [],

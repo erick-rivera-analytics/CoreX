@@ -6,7 +6,7 @@ import { join } from "node:path";
 import mapaBloques from "@/data/campo-blocks-map.json";
 import { query } from "@/lib/db";
 import type { BlockModalRow } from "@/lib/fenograma";
-import { getBlockModalRowsByParentBlocks } from "@/lib/fenograma";
+import { getBlockModalRowsByParentBlocks } from "@/lib/fenograma-core";
 import { cachedAsync } from "@/lib/server-cache";
 import { normalizeAreaDisplayName } from "@/shared/lib/area-normalization";
 import { roundValue, toNumber } from "@/shared/lib/number-utils";

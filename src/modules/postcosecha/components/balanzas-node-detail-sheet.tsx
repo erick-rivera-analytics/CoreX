@@ -1,18 +1,19 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Download, LoaderCircle } from "lucide-react";
 import useSWR from "swr";
 
+import { BalanzasExpandableTable, type BalanzasGroupBy } from "@/modules/postcosecha/components/balanzas-expandable-table";
 import { Button } from "@/shared/ui/button";
 import { KpiGrid } from "@/shared/layout/filter-panel";
 import { FilterPanel } from "@/shared/layout/filter-panel";
 import { MetricTile } from "@/shared/data-display/metric-tile";
 import { SheetShell } from "@/shared/overlays/sheet-shell";
 import { MultiSelectField } from "@/shared/filters/multi-select-field";
+import { SingleSelectField } from "@/shared/filters/single-select-field";
 import { fetchJson } from "@/lib/fetch-json";
 import { encodeMultiSelectValue } from "@/lib/multi-select";
-import { cn } from "@/lib/utils";
 import type { BalanzasFilters, BalanzasNodeDetail, BalanzasNodeSummary } from "@/lib/postcosecha-balanzas";
 
 type Props = {
@@ -67,9 +68,16 @@ function downloadCsv(detail: BalanzasNodeDetail) {
 
 export function BalanzasNodeDetailSheet({ node, filters, open, onClose }: Props) {
   const [local, setLocal] = useState<LocalFilters>(EMPTY_LOCAL);
+  const [groupBy, setGroupBy] = useState<BalanzasGroupBy>(null);
 
   useEffect(() => {
-    if (!open) setLocal(EMPTY_LOCAL);
+    // Resetea los filtros locales al cerrar para que la próxima apertura empiece limpia.
+    if (!open) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setLocal(EMPTY_LOCAL);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setGroupBy(null);
+    }
   }, [open, node.key]);
 
   const url = open ? buildDetailUrl(node.key, filters, local) : null;
@@ -85,8 +93,6 @@ export function BalanzasNodeDetailSheet({ node, filters, open, onClose }: Props)
   const hasDestination = detail ? detail.destinations.length > 0 : false;
   const hasGrades = detail ? detail.grades.length > 0 : false;
   const hasGradeGroups = detail ? detail.gradeGroups.length > 0 : false;
-  const hasLocalFilters = hasDestination || hasGrades || hasGradeGroups;
-
   const destinationOptions = detail?.destinations ?? [];
   const gradeOptions = detail?.grades ?? [];
   const gradeGroupOptions = detail?.gradeGroups ?? [];
@@ -121,42 +127,59 @@ export function BalanzasNodeDetailSheet({ node, filters, open, onClose }: Props)
           ))}
         </KpiGrid>
 
-        {hasLocalFilters ? (
-          <FilterPanel>
-            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-              {hasDestination ? (
-                <MultiSelectField
-                  id="detail-destinations"
-                  label="Destino"
-                  value={local.destinations}
-                  options={destinationOptions}
-                  onChange={(v) => setLocal((prev) => ({ ...prev, destinations: v }))}
-                  emptyLabel="Todos los destinos"
-                />
-              ) : null}
-              {hasGrades ? (
-                <MultiSelectField
-                  id="detail-grades"
-                  label="Grado"
-                  value={local.grades}
-                  options={gradeOptions}
-                  onChange={(v) => setLocal((prev) => ({ ...prev, grades: v }))}
-                  emptyLabel="Todos los grados"
-                />
-              ) : null}
-              {hasGradeGroups ? (
-                <MultiSelectField
-                  id="detail-grade-groups"
-                  label="Grupo de grado"
-                  value={local.gradeGroups}
-                  options={gradeGroupOptions}
-                  onChange={(v) => setLocal((prev) => ({ ...prev, gradeGroups: v }))}
-                  emptyLabel="Todos los grupos"
-                />
-              ) : null}
-            </div>
-          </FilterPanel>
-        ) : null}
+        <FilterPanel>
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            <SingleSelectField
+              id="detail-groupBy"
+              label="Agrupación"
+              value={groupBy ?? "none"}
+              options={[
+                ...(hasDestination ? ["destination"] : []),
+                ...(hasGrades ? ["grade"] : []),
+                ...(hasGradeGroups ? ["gradeGroup"] : []),
+              ]}
+              displayValue={(v) =>
+                v === "destination" ? "Por destino"
+                  : v === "grade" ? "Por grado"
+                    : v === "gradeGroup" ? "Por grupo de grado"
+                      : v
+              }
+              emptyValue="none"
+              emptyLabel="Sin agrupar (Semana → detalle)"
+              onChange={(v) => setGroupBy(v === "none" ? null : (v as BalanzasGroupBy))}
+            />
+            {hasDestination ? (
+              <MultiSelectField
+                id="detail-destinations"
+                label="Destino"
+                value={local.destinations}
+                options={destinationOptions}
+                onChange={(v) => setLocal((prev) => ({ ...prev, destinations: v }))}
+                emptyLabel="Todos los destinos"
+              />
+            ) : null}
+            {hasGrades ? (
+              <MultiSelectField
+                id="detail-grades"
+                label="Grado"
+                value={local.grades}
+                options={gradeOptions}
+                onChange={(v) => setLocal((prev) => ({ ...prev, grades: v }))}
+                emptyLabel="Todos los grados"
+              />
+            ) : null}
+            {hasGradeGroups ? (
+              <MultiSelectField
+                id="detail-grade-groups"
+                label="Grupo de grado"
+                value={local.gradeGroups}
+                options={gradeGroupOptions}
+                onChange={(v) => setLocal((prev) => ({ ...prev, gradeGroups: v }))}
+                emptyLabel="Todos los grupos"
+              />
+            ) : null}
+          </div>
+        </FilterPanel>
 
         {isLoading && !detail ? (
           <div className="flex items-center gap-3 py-12 text-sm text-muted-foreground">
@@ -164,55 +187,7 @@ export function BalanzasNodeDetailSheet({ node, filters, open, onClose }: Props)
             Cargando detalle…
           </div>
         ) : detail && detail.columns.length > 0 ? (
-          <div className="overflow-auto rounded-[24px] border border-border/70" style={{ maxHeight: "min(55dvh, 600px)" }}>
-            <table className="min-w-full border-separate border-spacing-0 text-sm">
-              <thead className="sticky top-0 z-10">
-                <tr>
-                  {detail.columns.map((col) => (
-                    <th
-                      key={col.key}
-                      className="border-b border-r border-border/70 bg-card/95 px-3 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.10em] text-muted-foreground whitespace-nowrap last:border-r-0"
-                    >
-                      {col.label}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {detail.rows.length > 0 ? (
-                  detail.rows.map((row, i) => (
-                    <tr
-                      key={i}
-                      className={cn(
-                        i % 2 === 0 ? "bg-background/84" : "bg-background/70",
-                      )}
-                    >
-                      {detail.columns.map((col) => (
-                        <td
-                          key={col.key}
-                          className={cn(
-                            "border-b border-r border-border/40 px-3 py-2.5 whitespace-nowrap last:border-r-0",
-                            col.numeric ? "text-right tabular-nums" : "text-left",
-                          )}
-                        >
-                          {formatCell(row[col.key])}
-                        </td>
-                      ))}
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td
-                      colSpan={detail.columns.length}
-                      className="px-4 py-10 text-center text-sm text-muted-foreground"
-                    >
-                      No hay filas para los filtros seleccionados.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+          <BalanzasExpandableTable detail={detail} groupBy={groupBy} />
         ) : detail && detail.columns.length === 0 ? (
           <p className="py-10 text-center text-sm text-muted-foreground">
             No hay datos disponibles para este nodo en el período seleccionado.
@@ -221,17 +196,6 @@ export function BalanzasNodeDetailSheet({ node, filters, open, onClose }: Props)
       </div>
     </SheetShell>
   );
-}
-
-function formatCell(value: unknown): string {
-  if (value === null || value === undefined) return "—";
-  if (value instanceof Date) return value.toISOString().slice(0, 10);
-  if (typeof value === "number") {
-    return Number.isFinite(value) ? value.toLocaleString("es-EC", { maximumFractionDigits: 4 }) : String(value);
-  }
-  const s = String(value);
-  if (/^\d{4}-\d{2}-\d{2}T/.test(s)) return s.slice(0, 10);
-  return s;
 }
 
 export { encodeMultiSelectValue };

@@ -47,13 +47,15 @@ export function EventFormDialog({
     >
       <div className="space-y-4">
         <div className="grid gap-4 md:grid-cols-2">
-          <Field label="Espacio">
-            <select className={selectClassName} value={draft.spaceId} onChange={(event) => setDraft((current) => ({ ...current, spaceId: event.target.value }))}>
-              {spaces.map((space) => (
-                <option key={space.id} value={space.id}>{space.name}</option>
-              ))}
-            </select>
-          </Field>
+          <SingleSelectField
+            id="event-space"
+            label="Espacio"
+            value={draft.spaceId}
+            options={spaces.map((space) => space.id)}
+            displayValue={(id) => spaces.find((space) => space.id === id)?.name ?? id}
+            onChange={(value) => setDraft((current) => ({ ...current, spaceId: value }))}
+            omitEmpty
+          />
           <SingleSelectField
             id="event-linked-task"
             label="Tarea ligada (opcional)"

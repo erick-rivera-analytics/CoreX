@@ -641,7 +641,7 @@ export function CampoRasterLegend({
   return (
     <div
       className={cn(
-        "pointer-events-none w-[280px] rounded-[24px] border border-border/70 bg-background/96 px-4 py-4 shadow-[0_18px_48px_rgba(15,23,42,0.18)] backdrop-blur-md",
+        "pointer-events-none w-[280px] rounded-[24px] border border-border/70 bg-background/96 px-4 py-4 shadow-[var(--shadow-panel)] backdrop-blur-md",
         className,
       )}
     >

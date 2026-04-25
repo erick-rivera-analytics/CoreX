@@ -69,7 +69,7 @@ export function SheetShell({
       >
         <div
           className={cn(
-            "flex h-full w-full flex-col overflow-hidden rounded-[24px] border border-border/80 bg-card shadow-[0_24px_80px_-32px_rgba(15,23,42,0.45)]",
+            "flex h-full w-full flex-col overflow-hidden rounded-[24px] border border-border/80 bg-card shadow-[var(--shadow-overlay)]",
             widthClassName,
           )}
           onClick={(event) => event.stopPropagation()}

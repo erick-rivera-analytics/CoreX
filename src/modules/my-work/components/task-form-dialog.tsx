@@ -39,15 +39,15 @@ export function TaskFormDialog({
       description="Registra o actualiza una tarea personal con persistencia inmediata."
     >
       <div className="space-y-4">
-        <Field label="Espacio">
-          <select className={selectClassName} value={draft.spaceId} onChange={(event) => setDraft((current) => ({ ...current, spaceId: event.target.value }))}>
-            {spaces.map((space) => (
-              <option key={space.id} value={space.id}>
-                {space.name}
-              </option>
-            ))}
-          </select>
-        </Field>
+        <SingleSelectField
+          id="task-space"
+          label="Espacio"
+          value={draft.spaceId}
+          options={spaces.map((space) => space.id)}
+          displayValue={(id) => spaces.find((space) => space.id === id)?.name ?? id}
+          onChange={(value) => setDraft((current) => ({ ...current, spaceId: value }))}
+          omitEmpty
+        />
         <Field label="Titulo">
           <Input value={draft.title} onChange={(event) => setDraft((current) => ({ ...current, title: event.target.value }))} />
         </Field>

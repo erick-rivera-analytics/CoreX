@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { Badge } from "@/shared/ui/badge";
 import { Card, CardContent } from "@/shared/ui/card";
 import { ClickableTableRow } from "@/shared/tables/clickable-table-row";
+import { InteractiveCell } from "@/shared/tables/interactive-cell";
 import { ScrollFadeTable } from "@/shared/tables/scroll-fade-table";
 import { SortableHeader } from "@/shared/tables/sortable-header";
 import { cn } from "@/lib/utils";
@@ -153,9 +154,11 @@ export function MortalityTable({
                   )}
                 >
                   <td className="border-b border-r border-border/50 px-3 py-2.5 font-medium text-slate-700 dark:text-white">
-                    <span className="underline-offset-4 group-hover:underline">
-                      {row.cycleKey}
-                    </span>
+                    <InteractiveCell
+                      variant="underline-text"
+                      decorative
+                      label={row.cycleKey}
+                    />
                   </td>
                   <td className="border-b border-r border-border/50 px-3 py-2.5">{row.area || "-"}</td>
                   <td className="border-b border-r border-border/50 px-3 py-2.5">{row.spType || "-"}</td>

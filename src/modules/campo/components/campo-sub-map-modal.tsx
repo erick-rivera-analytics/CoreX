@@ -25,6 +25,14 @@ import {
   type ActiveLayer,
   type RasterBounds,
 } from "@/modules/campo/components/campo-map";
+import {
+  BED_COLORS,
+  DEFAULT_VALVE_FILL,
+  FALLBACK_FEATURE_FILL,
+  FALLBACK_LEGEND_DOT,
+  MAP_INSET_BG,
+  VALVE_COLORS,
+} from "@/modules/campo/lib/sub-map-palette";
 import { Button } from "@/shared/ui/button";
 
 type SubMapMode = "valves" | "beds";
@@ -62,18 +70,6 @@ type Props = {
   onClose: () => void;
 };
 
-const VALVE_COLORS = [
-  "#2563eb", "#f59e0b", "#10b981", "#8b5cf6",
-  "#ef4444", "#06b6d4", "#84cc16", "#ec4899",
-  "#14b8a6", "#f97316",
-];
-const BED_COLORS = [
-  "#2563eb", "#10b981", "#f59e0b", "#8b5cf6", "#ef4444", "#06b6d4",
-  "#84cc16", "#ec4899", "#14b8a6", "#f97316", "#6366f1", "#22c55e",
-  "#e11d48", "#eab308", "#0ea5e9", "#d946ef", "#4ade80", "#fb923c",
-  "#a78bfa", "#34d399", "#f87171", "#38bdf8", "#facc15", "#c084fc",
-  "#86efac", "#fda4af", "#93c5fd", "#fcd34d",
-];
 const SUBMAP_PANES = {
   raster: "campo-sub-raster-pane",
   vectors: "campo-sub-vectors-pane",
@@ -235,7 +231,7 @@ function ValveMap({
 
   const styleFeature = useCallback(
     (feature: Feature | undefined): L.PathOptions => ({
-      fillColor: valveColorMap.get(feature?.properties?.valveId ?? "") ?? "#c8d6dc",
+      fillColor: valveColorMap.get(feature?.properties?.valveId ?? "") ?? FALLBACK_FEATURE_FILL,
       color: activeLayer === "none" ? "rgba(255,255,255,0.62)" : "rgba(255,255,255,0.78)",
       weight: activeLayer === "none" ? 1.1 : 1.35,
       fillOpacity: activeLayer === "none" ? 0.78 : 0.46,
@@ -291,7 +287,7 @@ function ValveMap({
       <Pane name={SUBMAP_PANES.labels} style={{ zIndex: 520, pointerEvents: "none" }}>
         {Array.from(valveCentroids.entries()).map(([valveId, [lat, lng]]) => {
           const letter = valveId.split("-").pop() ?? valveId;
-          const color = valveColorMap.get(valveId) ?? "#2563eb";
+          const color = valveColorMap.get(valveId) ?? DEFAULT_VALVE_FILL;
 
           return (
             <Marker
@@ -374,7 +370,7 @@ function BedMap({
       const cama = (feature?.properties?.cama as number) ?? 0;
 
       return {
-        fillColor: BED_COLORS[(cama - 1) % BED_COLORS.length] ?? "#c8d6dc",
+        fillColor: BED_COLORS[(cama - 1) % BED_COLORS.length] ?? FALLBACK_FEATURE_FILL,
         color: activeLayer === "none" ? "rgba(255,255,255,0.56)" : "rgba(255,255,255,0.74)",
         weight: activeLayer === "none" ? 1 : 1.25,
         fillOpacity: activeLayer === "none" ? 0.78 : 0.42,
@@ -489,7 +485,7 @@ function ValveLegend({
     <div className="pointer-events-none absolute bottom-4 left-4 z-[800] flex flex-wrap gap-2 rounded-2xl border border-border/70 bg-background/92 px-3 py-2 shadow-sm backdrop-blur-sm">
       {[...valveIds].sort().map((valveId) => (
         <div key={valveId} className="flex items-center gap-1.5">
-          <span className="size-3 rounded-sm" style={{ background: colorMap.get(valveId) ?? "#ccc" }} />
+          <span className="size-3 rounded-sm" style={{ background: colorMap.get(valveId) ?? FALLBACK_LEGEND_DOT }} />
           <span className="text-xs font-medium">{valveId.split("-").pop()}</span>
         </div>
       ))}
@@ -620,7 +616,7 @@ export function CampoSubMapModal({
                   center={[-2.859, -78.796]}
                   zoomControl
                   className="h-full w-full rounded-[24px]"
-                  style={{ background: "#edf4ef" }}
+                  style={{ background: MAP_INSET_BG }}
                   maxBounds={navigationBounds ?? undefined}
                   maxBoundsViscosity={1}
                 >

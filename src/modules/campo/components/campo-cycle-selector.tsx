@@ -6,6 +6,7 @@ import useSWR from "swr";
 
 import { fetchJson } from "@/lib/fetch-json";
 import { Button } from "@/shared/ui/button";
+import { CYCLE_STATUS_LABELS, getLabel } from "@/shared/lib/labels";
 import { cn } from "@/lib/utils";
 
 export type CycleOption = {
@@ -31,12 +32,12 @@ type Props = {
 
 function getStatusLabel(cycle: CycleOption): { label: string; cls: string } {
   if (cycle.isCurrent && cycle.isValid) {
-    return { label: "Activo", cls: "bg-chart-success text-chart-success-bold" };
+    return { label: getLabel(CYCLE_STATUS_LABELS, "active"), cls: "bg-chart-success text-chart-success-bold" };
   }
   if (!cycle.isCurrent && cycle.isValid) {
-    return { label: "Cerrado", cls: "bg-chart-neutral text-muted-foreground" };
+    return { label: getLabel(CYCLE_STATUS_LABELS, "closed"), cls: "bg-chart-neutral text-muted-foreground" };
   }
-  return { label: "Planificado", cls: "bg-chart-info text-chart-info-bold" };
+  return { label: getLabel(CYCLE_STATUS_LABELS, "planned"), cls: "bg-chart-info text-chart-info-bold" };
 }
 
 function cycleLabel(key: string) {

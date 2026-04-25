@@ -52,7 +52,7 @@ export function DialogShell({
       <div className="absolute inset-0 bg-background/60 backdrop-blur-sm" />
       <div
         className={cn(
-          "relative flex max-h-[min(90dvh,960px)] w-full flex-col overflow-hidden rounded-[20px] border border-border/80 bg-card shadow-[0_24px_80px_-32px_rgba(15,23,42,0.45)]",
+          "relative flex max-h-[min(90dvh,960px)] w-full flex-col overflow-hidden rounded-[20px] border border-border/80 bg-card shadow-[var(--shadow-overlay)]",
           maxWidth,
         )}
         onClick={(event) => event.stopPropagation()}

@@ -6,10 +6,11 @@ import useSWR from "swr";
 import { toast } from "sonner";
 
 import { BlockProfileModal } from "@/modules/fenograma/components/block-profile-modal";
-import { PersonHoursOverlay } from "@/modules/productividad/components/person-hours-overlay";
+import { PersonProfileDialog } from "@/shared/overlays/person-profile-dialog";
 import { useBlockProfileModal } from "@/hooks/use-block-profile-modal";
 import { Badge } from "@/shared/ui/badge";
 import { Button } from "@/shared/ui/button";
+import { InteractiveCell } from "@/shared/tables/interactive-cell";
 import { ScrollFadeTable } from "@/shared/tables/scroll-fade-table";
 import { Card, CardContent } from "@/shared/ui/card";
 import { fetchJson } from "@/lib/fetch-json";
@@ -412,18 +413,21 @@ function CycleDetailRows({
                         {activityOpen && activity.people.map((person) => (
                           <tr key={`person|${activityKey}|${person.personId}`} className="bg-background/5 hover:bg-muted/10">
                             <TD>
-                              <button
-                                type="button"
-                                className="ml-[112px] inline-flex items-center gap-1.5 text-left text-[11px] text-muted-foreground/70 transition-colors hover:text-foreground hover:underline underline-offset-2"
-                                onClick={(event) => {
-                                  event.stopPropagation();
-                                  setSelectedPersonId(person.personId);
-                                }}
-                                title="Abrir ficha del personal"
-                              >
-                                <span>{person.personName || "Sin nombre"}</span>
-                                <span className="text-[10px] text-muted-foreground/45">[{person.personId}]</span>
-                              </button>
+                              <span className="ml-[112px] inline-flex items-center gap-1.5">
+                                <InteractiveCell
+                                  variant="link"
+                                  label={
+                                    <span className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground/70">
+                                      <span>{person.personName || "Sin nombre"}</span>
+                                      <span className="text-[10px] text-muted-foreground/45">[{person.personId}]</span>
+                                    </span>
+                                  }
+                                  ariaLabel={`Abrir ficha del personal ${person.personName || person.personId}`}
+                                  onActivate={() => setSelectedPersonId(person.personId)}
+                                  tooltip="Abrir ficha del personal"
+                                  stopPropagation
+                                />
+                              </span>
                             </TD>
                             <TD /><TD /><TD /><TD /><TD />
                             <TD right className="text-[11px] text-muted-foreground/60">{formatDecimal(hCaja(person.effectiveHours))}</TD>
@@ -448,15 +452,13 @@ function CycleDetailRows({
           </React.Fragment>
         );
       })}
-      {selectedPersonId ? (
-        <PersonHoursOverlay
-          key={`person-hours-${cycleKey}-${selectedPersonId}`}
-          cycleKey={cycleKey}
-          personId={selectedPersonId}
-          camas30={camas30}
-          onClose={() => setSelectedPersonId(null)}
-        />
-      ) : null}
+      <PersonProfileDialog
+        key={`person-profile-${cycleKey}-${selectedPersonId ?? "none"}`}
+        open={Boolean(selectedPersonId)}
+        personId={selectedPersonId ?? ""}
+        sourceContext={{ module: "productividad", cycleKey, camas30 }}
+        onClose={() => setSelectedPersonId(null)}
+      />
     </>
   );
 }
@@ -569,9 +571,13 @@ function ProductividadTable({
                           <div className="flex items-center gap-2">
                             <span className="ml-4 flex items-center gap-1.5">
                               {cycleOpen ? <ChevronDown className="size-3.5 shrink-0 text-muted-foreground" /> : <ChevronRight className="size-3.5 shrink-0 text-muted-foreground" />}
-                              <button type="button" className="font-medium text-foreground hover:text-primary hover:underline underline-offset-2" onClick={(e) => { e.stopPropagation(); onCycleClick(cycle.representative); }} title="Ver ficha del bloque">
-                                {cycle.cycleKey}
-                              </button>
+                              <InteractiveCell
+                                variant="link"
+                                label={cycle.cycleKey}
+                                onActivate={() => onCycleClick(cycle.representative)}
+                                tooltip="Ver ficha del bloque"
+                                stopPropagation
+                              />
                             </span>
                             <span className="text-xs text-muted-foreground">{cycle.block}</span>
                           </div>

@@ -1,5 +1,6 @@
 "use client";
 
+import { ScrollFadeTable } from "@/shared/tables/scroll-fade-table";
 import { Input } from "@/shared/ui/input";
 import { buildClasificacionAvailabilityDerived, getDateLabel } from "@/lib/postcosecha-clasificacion-en-blanco-client";
 import type {
@@ -30,10 +31,11 @@ export function OrdersInputTable({
 }) {
   return (
     <div
-      className="max-h-[600px] overflow-auto rounded-[24px] border border-border/70 bg-background/80"
+      className="max-h-[600px] overflow-y-auto rounded-[24px] border border-border/70 bg-background/80"
       data-capture-scope="true"
     >
-      <table className="min-w-[840px] w-full text-sm">
+      <ScrollFadeTable className="rounded-none border-0">
+        <table className="min-w-[840px] w-full text-sm">
         <thead className="sticky top-0 bg-card/96 backdrop-blur">
           <tr className="border-b border-border/70 text-left text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
             <th className="px-4 py-3 font-medium">SKU</th>
@@ -81,7 +83,8 @@ export function OrdersInputTable({
             </tr>
           ))}
         </tbody>
-      </table>
+        </table>
+      </ScrollFadeTable>
     </div>
   );
 }
@@ -106,10 +109,11 @@ export function AvailabilityInputTable({
 
   return (
     <div
-      className="max-h-[600px] overflow-auto rounded-[24px] border border-border/70 bg-background/80"
+      className="max-h-[600px] overflow-y-auto rounded-[24px] border border-border/70 bg-background/80"
       data-capture-scope="true"
     >
-      <table className="min-w-[860px] w-full text-sm">
+      <ScrollFadeTable className="rounded-none border-0">
+        <table className="min-w-[860px] w-full text-sm">
         <thead className="sticky top-0 bg-card/96 backdrop-blur">
           <tr className="border-b border-border/70 text-left text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
             <th className="px-4 py-3 font-medium">Grado</th>
@@ -172,7 +176,8 @@ export function AvailabilityInputTable({
             );
           })}
         </tbody>
-      </table>
+        </table>
+      </ScrollFadeTable>
     </div>
   );
 }

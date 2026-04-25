@@ -2,25 +2,25 @@
 
 import dynamic from "next/dynamic";
 import { Fragment, useEffect, useMemo, useState } from "react";
-import { createPortal } from "react-dom";
 import { ChevronDown, ChevronRight, LineChart, LoaderCircle, Rows3, Sprout, X } from "lucide-react";
 import useSWRImmutable from "swr/immutable";
 
+import { DialogShell } from "@/shared/overlays/dialog-shell";
+import { PersonProfileDialog } from "@/shared/overlays/person-profile-dialog";
+import { SingleSelectField } from "@/shared/filters/single-select-field";
+import { InteractiveCell } from "@/shared/tables/interactive-cell";
+
 import {
   DetailBadges as DetailBadgesPrimitive,
-  HoursPerformanceDonut as HoursPerformanceDonutPrimitive,
-  InfoField as InfoFieldPrimitive,
   MetricPill as MetricPillPrimitive,
 } from "@/modules/fenograma/components/block-profile-primitives";
 import {
-  buildCycleHoursPersonRequest as buildCycleHoursPersonRequestHelper,
   buildCycleHoursRequest as buildCycleHoursRequestHelper,
   buildMortalityBadge as buildMortalityBadgeHelper,
   computeHorasCama as computeHorasCamaHelper,
   computeProgrammedPlantsAcrossCycles as computeProgrammedPlantsAcrossCyclesHelper,
   deriveCycleOperationalStatus as deriveCycleOperationalStatusHelper,
   deriveCyclePhase as deriveCyclePhaseHelper,
-  formatProductivity as formatProductivityHelper,
   getBedSortValue as getBedSortValueHelper,
   getValveDisplayName as getValveDisplayNameHelper,
   getTrailingSegment as getTrailingSegmentHelper,
@@ -29,7 +29,6 @@ import {
 } from "@/modules/fenograma/components/block-profile-utils";
 import { HarvestCurvePanel } from "@/modules/fenograma/components/harvest-curve-panel";
 import { MortalityCurvePanel } from "@/modules/mortality/components/mortality-curve-panel";
-import { PersonMedicalPanel } from "@/modules/fenograma/components/person-medical-panel";
 import { Badge } from "@/shared/ui/badge";
 import { Button } from "@/shared/ui/button";
 import {
@@ -52,14 +51,11 @@ import {
   CardTitle,
 } from "@/shared/ui/card";
 import { cn } from "@/lib/utils";
-import { useCurrentUserAccess } from "@/hooks/use-current-user-access";
-import { canAccessResource } from "@/lib/access-control";
 import type {
   BedProfileCard,
   BedProfilePayload,
   BlockModalRow,
   CycleLaborHoursPayload,
-  CycleLaborPersonDetailPayload,
   CycleLaborPersonSummary,
   CycleProfileBlockPayload,
   CycleProfileCard,
@@ -69,11 +65,6 @@ import type {
 } from "@/lib/fenograma";
 import type { MortalityCurvePayload } from "@/lib/mortality";
 import type { SelectedMortalityCurveState } from "@/hooks/use-block-profile-modal";
-
-// Wrapper with custom fallback behavior
-function formatProductivity(value: number | null, fallback = "-") {
-  return formatProductivityHelper(value, fallback);
-}
 
 function getTrailingSegment(value: string) {
   return getTrailingSegmentHelper(value);
@@ -125,10 +116,6 @@ function buildCycleHoursRequest(cycleKey: string | null) {
   return buildCycleHoursRequestHelper(cycleKey);
 }
 
-function buildCycleHoursPersonRequest(cycleKey: string, personId: string | null) {
-  return buildCycleHoursPersonRequestHelper(cycleKey, personId);
-}
-
 async function swrHoursFetcher<T>([url, fallbackMessage]: readonly [string, string]) {
   return swrHoursFetcherHelper<T>([url, fallbackMessage]);
 }
@@ -175,357 +162,6 @@ function DetailBadges({
   return <DetailBadgesPrimitive items={items} />;
 }
 
-function InfoField({
-  label,
-  value,
-}: {
-  label: string;
-  value: string;
-}) {
-  return <InfoFieldPrimitive label={label} value={value} />;
-}
-
-function HoursPerformanceDonut({
-  percentage,
-}: {
-  percentage: number | null;
-}) {
-  return <HoursPerformanceDonutPrimitive percentage={percentage} />;
-}
-
-function PersonHoursOverlay({
-  cycle,
-  personId,
-  data,
-  loading,
-  error,
-  onClose,
-}: {
-  cycle: CycleProfileCard;
-  personId: string;
-  data: CycleLaborPersonDetailPayload | null;
-  loading: boolean;
-  error: string | null;
-  onClose: () => void;
-}) {
-  const { data: access } = useCurrentUserAccess();
-  const allowedResources = access?.allowedResources ?? [];
-  const isSuperadmin = access?.isSuperadmin ?? false;
-  const canSeeInfo        = canAccessResource("panel:person-sheet.info",        allowedResources, isSuperadmin);
-  const canSeePerformance = canAccessResource("panel:person-sheet.performance", allowedResources, isSuperadmin);
-  const canSeeMedical     = canAccessResource("panel:person-sheet.medical",     allowedResources, isSuperadmin);
-  const defaultView: "info" | "performance" | "medical" = canSeeInfo ? "info" : canSeePerformance ? "performance" : "medical";
-  const [view, setView] = useState<"info" | "performance" | "medical">(defaultView);
-  const activeView: "info" | "performance" | "medical" =
-    view === "info" && canSeeInfo
-      ? "info"
-      : view === "performance" && canSeePerformance
-        ? "performance"
-        : view === "medical" && canSeeMedical
-          ? "medical"
-          : defaultView;
-
-  const totalEffectiveHours = data?.summary.totalEffectiveHours ?? 0;
-  const totalActualHours = data?.summary.totalActualHours ?? 0;
-  const horasCama = computeHorasCama(totalEffectiveHours, cycle.bedArea);
-  const profile = data?.profile ?? null;
-  const displayName = profile?.fullName ?? `Personal ${personId}`;
-
-  const overlayContent = (
-    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/40 px-3 py-4 backdrop-blur-sm sm:px-4 sm:py-6 animate-in fade-in duration-150" role="dialog" aria-modal="true" aria-labelledby="modal-title-person-hours">
-      <button type="button" className="absolute inset-0 border-0 bg-transparent p-0" onClick={onClose} aria-label="Cerrar ficha del personal" />
-      <div className="relative z-10 flex max-h-[min(88dvh,900px)] w-full max-w-sm sm:max-w-2xl md:max-w-4xl lg:max-w-5xl xl:max-w-6xl 2xl:max-w-7xl min-w-0 flex-col overflow-hidden rounded-2xl border border-border/50 bg-card shadow-2xl shadow-slate-950/16 animate-in fade-in slide-in-from-bottom-4 duration-200">
-        <div className="flex items-start justify-between gap-4 border-b border-border/50 bg-muted/20 px-4 py-4 sm:px-6">
-          <div className="min-w-0 space-y-2">
-            <div className="flex flex-wrap gap-2">
-              <Badge variant="outline" className="rounded-full px-3 py-1">
-                Ficha del personal
-              </Badge>
-              <Badge variant="secondary" className="rounded-full px-3 py-1">
-                ID {personId}
-              </Badge>
-              <Badge variant="outline" className="rounded-full px-3 py-1">
-                {cycle.cycleKey}
-              </Badge>
-            </div>
-            <div className="min-w-0">
-              <h3 id="modal-title-person-hours" className="text-2xl font-semibold tracking-tight">
-                {displayName}
-              </h3>
-              <p className="mt-1 text-sm text-muted-foreground">
-                {profile?.jobTitle ?? "Personal de campo"}
-              </p>
-            </div>
-          </div>
-          <Button variant="ghost" size="icon" onClick={onClose}>
-            <X className="size-4" />
-          </Button>
-        </div>
-
-        <div className="overflow-y-auto px-6 py-8 sm:px-8">
-          <div className="space-y-8">
-            <div className="inline-flex rounded-full border border-border/60 bg-muted/22 p-1">
-              <button
-                type="button"
-                disabled={!canSeeInfo}
-                title={canSeeInfo ? undefined : "Sin permiso para este panel"}
-                className={cn(
-                  "rounded-full px-4 py-2 text-sm font-medium transition-colors",
-                  !canSeeInfo
-                    ? "cursor-not-allowed text-muted-foreground/40"
-                    : activeView === "info"
-                      ? "bg-card text-foreground shadow-sm"
-                      : "text-muted-foreground hover:text-foreground",
-                )}
-                onClick={() => canSeeInfo && setView("info")}
-              >
-                Informacion
-              </button>
-              <button
-                type="button"
-                disabled={!canSeePerformance}
-                title={canSeePerformance ? undefined : "Sin permiso para este panel"}
-                className={cn(
-                  "rounded-full px-4 py-2 text-sm font-medium transition-colors",
-                  !canSeePerformance
-                    ? "cursor-not-allowed text-muted-foreground/40"
-                    : activeView === "performance"
-                      ? "bg-card text-foreground shadow-sm"
-                      : "text-muted-foreground hover:text-foreground",
-                )}
-                onClick={() => canSeePerformance && setView("performance")}
-              >
-                Rendimiento
-              </button>
-              <button
-                type="button"
-                disabled={!canSeeMedical}
-                title={canSeeMedical ? undefined : "Sin permiso para este panel"}
-                className={cn(
-                  "rounded-full px-4 py-2 text-sm font-medium transition-colors",
-                  !canSeeMedical
-                    ? "cursor-not-allowed text-muted-foreground/40"
-                    : activeView === "medical"
-                      ? "bg-card text-foreground shadow-sm"
-                      : "text-muted-foreground hover:text-foreground",
-                )}
-                onClick={() => canSeeMedical && setView("medical")}
-              >
-                Ficha medica
-              </button>
-            </div>
-
-            {loading ? (
-              <div className="flex items-center gap-3 py-8 text-sm text-muted-foreground">
-                <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
-                Cargando ficha del personal.
-              </div>
-            ) : error ? (
-              <div className="py-8 text-sm text-destructive">{error}</div>
-            ) : data ? (
-              activeView === "info" ? (
-                <div className="space-y-5">
-                  {/* Datos personales */}
-                  <div className="rounded-2xl border border-border/60 bg-muted/14 px-5 py-5">
-                    <p className="mb-3 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground/65">
-                      Datos personales
-                    </p>
-                    <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
-                      <InfoField label="Nombre completo" value={profile?.fullName ?? "Sin dato"} />
-                      <InfoField label="Cédula / ID" value={profile?.nationalId ?? "Sin dato"} />
-                      <InfoField label="Género" value={profile?.gender ?? "Sin dato"} />
-                      <InfoField label="Estado civil" value={profile?.maritalStatus ?? "Sin dato"} />
-                      <InfoField label="Fecha de nacimiento" value={profile?.birthDate ?? "Sin dato"} />
-                      <InfoField label="Lugar de nacimiento" value={profile?.birthPlace ?? "Sin dato"} />
-                      <InfoField label="Nacionalidad" value={profile?.nationality ?? "Sin dato"} />
-                      <InfoField label="Nivel educativo" value={profile?.educationTitle ?? "Sin dato"} />
-                      <InfoField label="Hijos" value={profile?.childrenCount == null ? "Sin dato" : String(profile.childrenCount)} />
-                      <InfoField label="Dependientes" value={profile?.dependentsCount == null ? "Sin dato" : String(profile.dependentsCount)} />
-                      <InfoField label="Discapacidad" value={profile?.disabledFlag == null ? "Sin dato" : profile.disabledFlag ? "Sí" : "No"} />
-                    </div>
-                  </div>
-
-                  {/* Datos laborales */}
-                  <div className="rounded-2xl border border-border/60 bg-muted/14 px-5 py-5">
-                    <p className="mb-3 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground/65">
-                      Datos laborales
-                    </p>
-                    <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
-                      <InfoField label="Cargo" value={profile?.jobTitle ?? "Sin dato"} />
-                      <InfoField label="Tipo de empleado" value={profile?.employeeType ?? "Sin dato"} />
-                      <InfoField label="Tipo de contrato" value={profile?.contractType ?? "Sin dato"} />
-                      <InfoField label="Clasificación de cargo" value={profile?.jobClassificationCode ?? "Sin dato"} />
-                      <InfoField label="Empleador" value={profile?.employerName ?? "Sin dato"} />
-                      <InfoField label="Código de finca" value={profile?.farmCode ?? "Sin dato"} />
-                      <InfoField label="Trabajador asociado" value={profile?.associatedWorkerName ?? "Sin dato"} />
-                      <InfoField label="Pago por rendimiento" value={profile?.performancePayApplicable == null ? "Sin dato" : profile.performancePayApplicable ? "Sí" : "No"} />
-                    </div>
-                  </div>
-
-                  {/* Contacto */}
-                  <div className="rounded-2xl border border-border/60 bg-muted/14 px-5 py-5">
-                    <p className="mb-3 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground/65">
-                      Contacto
-                    </p>
-                    <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
-                      <InfoField label="Email" value={profile?.email ?? "Sin dato"} />
-                      <InfoField label="Teléfono" value={profile?.phoneNumber ?? "Sin dato"} />
-                      <InfoField label="Dirección" value={profile?.address ?? "Sin dato"} />
-                      <InfoField label="Ciudad" value={profile?.city ?? "Sin dato"} />
-                      <InfoField label="Parroquia" value={profile?.parish ?? "Sin dato"} />
-                    </div>
-                  </div>
-
-                  {/* Acceso */}
-                  <div className="rounded-2xl border border-border/60 bg-muted/14 px-5 py-5">
-                    <p className="mb-3 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground/65">
-                      Acceso a la empresa
-                    </p>
-                    <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
-                      <InfoField label="Última entrada" value={profile?.lastEntryDate ?? "Sin dato"} />
-                      <InfoField label="Última salida" value={profile?.lastExitDate ?? "Sin dato"} />
-                    </div>
-                  </div>
-                </div>
-              ) : activeView === "performance" ? (
-                <div className="space-y-5">
-                  <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_320px]">
-                    <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
-                      <MetricPill
-                        label="Horas presenciales"
-                        value={formatNumber(totalActualHours)}
-                        hint="Actual hours del personal"
-                      />
-                      <MetricPill
-                        label="Horas trabajadas"
-                        value={formatNumber(totalEffectiveHours)}
-                        hint="Effective hours del personal"
-                      />
-                      <MetricPill
-                        label="Horas cama"
-                        value={formatNumber(horasCama)}
-                        hint="Horas trabajadas / camas 30 m2 del ciclo"
-                      />
-                      <MetricPill
-                        label="Rendimiento"
-                        value={formatPercent(data.summary.rendimientoPct)}
-                        hint="Horas trabajadas / horas presenciales"
-                      />
-                    </div>
-
-                    <HoursPerformanceDonut
-                      percentage={data.summary.nonNormalActualHoursPct}
-                    />
-                  </div>
-
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <DetailBadges
-                      items={[
-                        `${data.summary.activityCount} actividades`,
-                        `${formatNumber(totalActualHours)} horas presenciales`,
-                        `${formatNumber(totalEffectiveHours)} horas trabajadas`,
-                      ]}
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Productividad = unidades / horas presenciales. Rendimiento = horas trabajadas / horas presenciales.
-                    </p>
-                  </div>
-
-                  <div className="max-h-[min(40dvh,460px)] overflow-auto rounded-[24px] border border-border/70">
-                    <table className="min-w-full border-separate border-spacing-0 text-sm">
-                      <thead className="sticky top-0 z-20 bg-card/95 backdrop-blur">
-                        <tr>
-                          {[
-                            "Actividad",
-                            "Horas presenciales",
-                            "Horas trabajadas",
-                            "Horas cama",
-                            "Rendimiento",
-                            "Unidades producidas",
-                            "Productividad",
-                            "Productividad historica",
-                            "Productividad ciclo",
-                          ].map((label) => (
-                            <th
-                              key={label}
-                              className="border-b border-r border-border/70 bg-card px-3 py-3 text-left font-semibold text-foreground last:border-r-0"
-                            >
-                              {label}
-                            </th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {data.activities.length ? data.activities.map((activity, index) => (
-                          <tr key={`${activity.activityId}|${activity.activityName}|${activity.unitOfMeasure}`} className={cn(index % 2 === 0 ? "bg-background/84" : "bg-muted/20")}>
-                            <td className="border-b border-r border-border/50 px-3 py-2.5 font-medium text-foreground">
-                              <div className="min-w-[16rem]">
-                                <p>{activity.activityName}</p>
-                                <p className="mt-0.5 text-xs text-muted-foreground">
-                                  {activity.unitOfMeasure || "Sin medida"}
-                                </p>
-                              </div>
-                            </td>
-                            <td className="border-b border-r border-border/50 px-3 py-2.5 text-right tabular-nums">
-                              {formatNumber(activity.actualHours)}
-                            </td>
-                            <td className="border-b border-r border-border/50 px-3 py-2.5 text-right tabular-nums">
-                              {formatNumber(activity.effectiveHours)}
-                            </td>
-                            <td className="border-b border-r border-border/50 px-3 py-2.5 text-right tabular-nums">
-                              {formatNumber(computeHorasCama(activity.effectiveHours, cycle.bedArea))}
-                            </td>
-                            <td className="border-b border-r border-border/50 px-3 py-2.5 text-right tabular-nums">
-                              {formatPercent(activity.rendimientoPct)}
-                            </td>
-                            <td className="border-b border-r border-border/50 px-3 py-2.5 text-right tabular-nums">
-                              {formatNumber(activity.unitsProduced)}
-                            </td>
-                            <td className="border-b border-r border-border/50 px-3 py-2.5 text-right tabular-nums">
-                              {formatProductivity(activity.productivity)}
-                            </td>
-                            <td className="border-b border-r border-border/50 px-3 py-2.5 text-right tabular-nums">
-                              {formatProductivity(activity.historicalProductivity, "Sin historico")}
-                            </td>
-                            <td className="border-b px-3 py-2.5 text-right tabular-nums">
-                              {formatProductivity(activity.cycleProductivity)}
-                            </td>
-                          </tr>
-                        )) : (
-                          <tr>
-                            <td colSpan={9} className="px-4 py-8 text-center text-sm text-muted-foreground">
-                        No hay horas registradas para este personal en el ciclo.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-                    </table>
-                  </div>
-                </div>
-              ) : (
-                <PersonMedicalPanel
-                  personId={personId}
-                  fallbackName={displayName}
-                />
-              )
-            ) : (
-              <div className="py-8 text-sm text-muted-foreground">
-                No se encontro informacion para este personal en el ciclo.
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-
-  if (typeof document === "undefined") {
-    return null;
-  }
-
-  return createPortal(overlayContent, document.body);
-}
-
 function HoursCamaOverlay({
   cycle,
   data,
@@ -548,34 +184,6 @@ function HoursCamaOverlay({
   const totalUnitsProduced = data?.summary.totalUnitsProduced ?? cycle.unitsProduced;
   const horasCama = computeHorasCama(totalEffectiveHours, cycle.bedArea);
   const camas30 = computeCamas30(cycle.bedArea) ?? 1;
-  const personRequest = buildCycleHoursPersonRequest(cycle.cycleKey, selectedPersonId);
-  const {
-    data: personData,
-    error: personRequestError,
-    isLoading: personLoading,
-  } = useSWRImmutable<CycleLaborPersonDetailPayload>(personRequest, swrHoursFetcher, {
-    revalidateOnFocus: false,
-  });
-
-  useEffect(() => {
-    if (!selectedPersonId) {
-      return;
-    }
-
-    function handleEscape(event: KeyboardEvent) {
-      if (event.key !== "Escape") {
-        return;
-      }
-
-      event.preventDefault();
-      event.stopPropagation();
-      event.stopImmediatePropagation?.();
-      setSelectedPersonId(null);
-    }
-
-    window.addEventListener("keydown", handleEscape, true);
-    return () => window.removeEventListener("keydown", handleEscape, true);
-  }, [selectedPersonId]);
 
   function toggleCostArea(key: string) {
     setExpandedCostAreas((current) => (
@@ -598,10 +206,8 @@ function HoursCamaOverlay({
   }
 
   const overlayContent = (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 px-3 py-4 backdrop-blur-sm sm:px-4 sm:py-6 animate-in fade-in duration-150" role="dialog" aria-modal="true" aria-labelledby="modal-title-hours-cama">
-      <button type="button" className="absolute inset-0 border-0 bg-transparent p-0" onClick={onClose} aria-label="Cerrar detalle de horas cama" />
-      <div className="relative z-10 flex max-h-[min(90dvh,960px)] w-full max-w-sm sm:max-w-2xl md:max-w-4xl lg:max-w-5xl xl:max-w-6xl 2xl:max-w-7xl min-w-0 flex-col overflow-hidden rounded-2xl border border-border/50 bg-card shadow-2xl shadow-slate-950/14 animate-in fade-in slide-in-from-bottom-4 duration-200">
-        <div className="flex items-start justify-between gap-4 border-b border-border/50 bg-muted/20 px-4 py-4 sm:px-6">
+    <div className="-mx-5 -my-5 flex min-h-0 flex-col" aria-labelledby="modal-title-hours-cama">
+      <div className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-border/50 bg-muted/20 px-4 py-4 backdrop-blur sm:px-6">
           <div className="min-w-0 space-y-2">
             <div className="flex flex-wrap gap-2">
               <Badge variant="outline" className="rounded-full px-3 py-1">
@@ -791,27 +397,20 @@ function HoursCamaOverlay({
           </div>
         </div>
       </div>
-    </div>
   );
-
-  if (typeof document === "undefined") {
-    return null;
-  }
 
   return (
     <>
-      {createPortal(overlayContent, document.body)}
-      {selectedPersonId ? (
-        <PersonHoursOverlay
-          key={`person-hours-${cycle.cycleKey}-${selectedPersonId}`}
-          cycle={cycle}
-          personId={selectedPersonId}
-          data={personData ?? null}
-          loading={personLoading}
-          error={personRequestError instanceof Error ? personRequestError.message : null}
-          onClose={() => setSelectedPersonId(null)}
-        />
-      ) : null}
+      <DialogShell open onClose={onClose} maxWidth="max-w-7xl">
+        {overlayContent}
+      </DialogShell>
+      <PersonProfileDialog
+        key={`person-profile-${cycle.cycleKey}-${selectedPersonId ?? "none"}`}
+        open={Boolean(selectedPersonId)}
+        personId={selectedPersonId ?? ""}
+        sourceContext={{ module: "fenograma", cycleKey: cycle.cycleKey, camas30 }}
+        onClose={() => setSelectedPersonId(null)}
+      />
     </>
   );
 }
@@ -834,18 +433,14 @@ function HoursCamaPersonRow({
         <div className="flex items-center gap-2">
           <span className="text-foreground leading-snug">{person.personName ?? <span className="italic text-muted-foreground">Sin nombre</span>}</span>
           {onOpenPerson ? (
-            <button
-              type="button"
-              className={cn(
-                "inline-flex shrink-0 rounded-full border px-1.5 py-0.5 text-[11px] font-semibold transition-colors",
-                isSelected
-                  ? "border-slate-700/35 bg-primary/10 text-slate-700 dark:text-white"
-                  : "border-border/60 bg-background text-muted-foreground hover:border-slate-700/35 hover:text-slate-700 dark:text-white",
-              )}
-              onClick={() => onOpenPerson(person.personId)}
-            >
-              {person.personId}
-            </button>
+            <InteractiveCell
+              variant="badge"
+              label={person.personId}
+              isSelected={isSelected}
+              onActivate={() => onOpenPerson(person.personId)}
+              tooltip="Abrir ficha del personal"
+              ariaLabel={`Abrir ficha del personal ${person.personId}`}
+            />
           ) : <span className="text-[11px] text-muted-foreground">{person.personId}</span>}
         </div>
       </td>
@@ -928,13 +523,12 @@ function BedsTable({
                 <td className="border-b border-r border-border/60 px-3 py-2.5 font-medium">{getTrailingSegment(bed.bedId)}</td>
                 <td className="border-b border-r border-border/60 px-3 py-2.5">
                   {bed.valveId && onOpenValve ? (
-                    <button
-                      type="button"
-                      className="font-medium text-slate-700 dark:text-white underline-offset-4 hover:underline"
-                      onClick={() => onOpenValve(bed.valveId)}
-                    >
-                      {getValveDisplayName(null, bed.valveId)}
-                    </button>
+                    <InteractiveCell
+                      variant="link"
+                      label={getValveDisplayName(null, bed.valveId)}
+                      onActivate={() => onOpenValve(bed.valveId!)}
+                      tooltip="Abrir ficha de la válvula"
+                    />
                   ) : (
                     getValveDisplayName(null, bed.valveId)
                   )}
@@ -1449,24 +1043,19 @@ function CycleSelector({
   );
 
   return (
-    <div className="relative">
-      <select
-        className="w-full appearance-none rounded-2xl border border-border/70 bg-background/80 px-4 py-3 pr-10 text-sm font-medium focus:border-slate-700/40 focus:outline-none focus:ring-2 focus:ring-slate-900/20"
-        value={selectedCycleKey ?? ""}
-        onChange={(event) => onSelect(event.target.value)}
-      >
-        {sortedCycles.map((cycle) => (
-          <option key={cycle.cycleKey} value={cycle.cycleKey}>
-            {cycle.cycleKey} — {deriveCycleOperationalStatus(cycle)}
-          </option>
-        ))}
-      </select>
-      <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-4">
-        <svg className="size-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
-        </svg>
-      </div>
-    </div>
+    <SingleSelectField
+      id="cycle-selector"
+      label="Ciclo"
+      hideLabel
+      omitEmpty
+      value={selectedCycleKey ?? ""}
+      options={sortedCycles.map((cycle) => cycle.cycleKey)}
+      displayValue={(key) => {
+        const cycle = sortedCycles.find((entry) => entry.cycleKey === key);
+        return cycle ? `${cycle.cycleKey} — ${deriveCycleOperationalStatus(cycle)}` : key;
+      }}
+      onChange={onSelect}
+    />
   );
 }
 

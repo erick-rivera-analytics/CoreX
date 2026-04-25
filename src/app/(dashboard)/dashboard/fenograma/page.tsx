@@ -1,4 +1,4 @@
-import { defaultFenogramaFilters, getFenogramaDashboardData } from "@/lib/fenograma";
+import { defaultFenogramaFilters, getFenogramaDashboardData } from "@/lib/fenograma-core";
 import { FenogramaPage } from "@/modules/fenograma/components/fenograma-page";
 import { DashboardRouteError, loadProtectedPageData } from "@/modules/core/server-page";
 

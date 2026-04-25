@@ -177,7 +177,7 @@ const BALANZAS_NODES: BalanzasNodeDef[] = [
     hasDestination: true,
     hasGrade: false,
     hasGradeGroup: true,
-    bpmnBinding: { elementId: "Task_B1AB_Pre_GV", overlayOffsetLeft: 0 },
+    bpmnBinding: { elementId: "Task_B1AB_Pre_Directo", overlayOffsetLeft: 0 },
   },
   {
     key: "preclasif-b1-b1a-weight",
@@ -195,7 +195,7 @@ const BALANZAS_NODES: BalanzasNodeDef[] = [
     hasDestination: true,
     hasGrade: false,
     hasGradeGroup: true,
-    bpmnBinding: { elementId: "Task_B1AB_Pre_GV", overlayOffsetLeft: 172 },
+    bpmnBinding: { elementId: "Task_B1AB_Pre_Directo", overlayOffsetLeft: 172 },
   },
   {
     key: "preclasif-b1a-b2-stems",
@@ -213,7 +213,7 @@ const BALANZAS_NODES: BalanzasNodeDef[] = [
     hasDestination: true,
     hasGrade: false,
     hasGradeGroup: true,
-    bpmnBinding: { elementId: "Task_B2_Pre_GV", overlayOffsetLeft: 0 },
+    bpmnBinding: { elementId: "Task_B2_Pre_Directo", overlayOffsetLeft: 0 },
   },
   {
     key: "preclasif-b1a-b2-weight",
@@ -231,7 +231,7 @@ const BALANZAS_NODES: BalanzasNodeDef[] = [
     hasDestination: true,
     hasGrade: false,
     hasGradeGroup: true,
-    bpmnBinding: { elementId: "Task_B2_Pre_GV", overlayOffsetLeft: 172 },
+    bpmnBinding: { elementId: "Task_B2_Pre_Directo", overlayOffsetLeft: 172 },
   },
   {
     key: "preclasif-b2-b3-weight",
@@ -249,7 +249,7 @@ const BALANZAS_NODES: BalanzasNodeDef[] = [
     hasDestination: true,
     hasGrade: false,
     hasGradeGroup: false,
-    bpmnBinding: { elementId: "Task_General_Pre_GV", overlayOffsetLeft: 0 },
+    bpmnBinding: { elementId: "Task_General_Pre_Directo", overlayOffsetLeft: 0 },
   },
   {
     key: "preclasif-b1-b3-ideal",
@@ -267,7 +267,7 @@ const BALANZAS_NODES: BalanzasNodeDef[] = [
     hasDestination: true,
     hasGrade: false,
     hasGradeGroup: false,
-    bpmnBinding: { elementId: "Task_General_Pre_GV", overlayOffsetLeft: 172 },
+    bpmnBinding: { elementId: "Task_General_Pre_Directo", overlayOffsetLeft: 172 },
   },
   // ── COSECHA GV ────────────────────────────────────────────────────────────
   {
@@ -384,7 +384,7 @@ const BALANZAS_NODES: BalanzasNodeDef[] = [
     label: "B1 → B1c (Tallos)",
     shortLabel: "Tallos",
     branch: "apertura",
-    active: false,
+    active: true,
     viewName: `${VIEW_PREFIX}apertura_b1_vs_b1c_stems_xl_np_cur`,
     dateCol: "work_date",
     summaryMetrics: [
@@ -402,7 +402,7 @@ const BALANZAS_NODES: BalanzasNodeDef[] = [
     label: "B1 → B1c (Peso)",
     shortLabel: "Peso",
     branch: "apertura",
-    active: false,
+    active: true,
     viewName: `${VIEW_PREFIX}apertura_b1_vs_b1c_weight_xl_np_cur`,
     dateCol: "work_date",
     summaryMetrics: [
@@ -420,7 +420,7 @@ const BALANZAS_NODES: BalanzasNodeDef[] = [
     label: "B1c → B2 (Tallos)",
     shortLabel: "Tallos",
     branch: "apertura",
-    active: false,
+    active: true,
     viewName: `${VIEW_PREFIX}apertura_b1c_vs_b2_stems_xl_np_cur`,
     dateCol: "lot_date",
     summaryMetrics: [
@@ -438,7 +438,7 @@ const BALANZAS_NODES: BalanzasNodeDef[] = [
     label: "B1c → B2 (Peso)",
     shortLabel: "Peso",
     branch: "apertura",
-    active: false,
+    active: true,
     viewName: `${VIEW_PREFIX}apertura_b1c_vs_b2_weight_xl_np_cur`,
     dateCol: "work_date",
     summaryMetrics: [
@@ -456,7 +456,7 @@ const BALANZAS_NODES: BalanzasNodeDef[] = [
     label: "B2 → B2a (Peso)",
     shortLabel: "B2 → B2A",
     branch: "apertura",
-    active: false,
+    active: true,
     viewName: `${VIEW_PREFIX}apertura_b2_vs_b2a_weight_xl_np_cur`,
     dateCol: "work_date",
     summaryMetrics: [
@@ -474,7 +474,7 @@ const BALANZAS_NODES: BalanzasNodeDef[] = [
     label: "B1c → B2a → Ideal",
     shortLabel: "→ Ideal",
     branch: "apertura",
-    active: false,
+    active: true,
     viewName: `${VIEW_PREFIX}apertura_b1c_vs_b2a_vs_ideal_weight_xl_np_cur`,
     dateCol: "work_date",
     summaryMetrics: [
@@ -492,7 +492,7 @@ const BALANZAS_NODES: BalanzasNodeDef[] = [
     label: "B2a → Ideal × Grado",
     shortLabel: "B2A × Grado",
     branch: "apertura",
-    active: false,
+    active: true,
     viewName: `${VIEW_PREFIX}apertura_b2a_vs_ideal_weight_x_grade_xl_np_cur`,
     dateCol: "work_date",
     summaryMetrics: [
@@ -774,7 +774,7 @@ const COLUMN_LABELS: Record<string, string> = {
 };
 
 function columnLabel(key: string): string {
-  return COLUMN_LABELS[key] ?? key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  return COLUMN_LABELS[key] ?? `[${key}]`;
 }
 
 // ─── Public API ───────────────────────────────────────────────────────────────

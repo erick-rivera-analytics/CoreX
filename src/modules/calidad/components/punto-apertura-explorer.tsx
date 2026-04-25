@@ -18,6 +18,7 @@ import { Card, CardContent } from "@/shared/ui/card";
 import { EmptyState } from "@/shared/data-display/empty-state";
 import { MetricTile } from "@/shared/data-display/metric-tile";
 import { MultiSelectField } from "@/shared/filters/multi-select-field";
+import { ScrollFadeTable } from "@/shared/tables/scroll-fade-table";
 import { ChartSection, DetailSection, FilterPanel, KpiGrid } from "@/shared/layout/filter-panel";
 import { SectionPageShell } from "@/shared/layout/section-page-shell";
 import { formatInteger, formatPercent, formatYearMonth } from "@/shared/lib/format";
@@ -268,9 +269,8 @@ function CriticalRecordsTable({
   }
 
   return (
-    <div className="overflow-hidden rounded-[24px] border border-border/70">
-      <div className="overflow-x-auto">
-        <table className="min-w-[900px] w-full text-sm">
+    <ScrollFadeTable className="rounded-[24px] border border-border/70">
+      <table className="min-w-[900px] w-full text-sm">
           <thead>
             <tr className="bg-muted/50 text-left text-xs text-muted-foreground">
               <th className="px-3 py-2 font-semibold">Fecha</th>
@@ -299,9 +299,8 @@ function CriticalRecordsTable({
               </tr>
             ))}
           </tbody>
-        </table>
-      </div>
-    </div>
+      </table>
+    </ScrollFadeTable>
   );
 }
 

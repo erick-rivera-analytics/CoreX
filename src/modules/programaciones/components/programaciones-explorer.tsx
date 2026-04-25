@@ -9,7 +9,7 @@ import { FilterPanel } from "@/shared/layout/filter-panel";
 import { MultiSelectField } from "@/shared/filters/multi-select-field";
 import { formatInteger, formatDate, parseDateOnly } from "@/shared/lib/format";
 import { EmptyState } from "@/shared/data-display/empty-state";
-import { AREA_PALETTE, SPTYPE_ACCENT_COLORS, VARIETY_COLORS } from "@/config/programaciones-palettes";
+import { AREA_PALETTE, FUMIGATION_DRONE_BADGE_COLOR, SPTYPE_ACCENT_COLORS, VARIETY_COLORS } from "@/config/programaciones-palettes";
 import { fetchJson } from "@/lib/fetch-json";
 import { decodeMultiSelectValue } from "@/lib/multi-select";
 import { cn } from "@/lib/utils";
@@ -158,7 +158,7 @@ function EventPill({ record, onClick, highlighted }: { record: ProgramacionRecor
     >
       {/* Fumigación Dron badge */}
       {isDron && (
-        <span style={{ color: "#0ea5e9", fontSize: "9px", fontWeight: 700, flexShrink: 0, textTransform: "uppercase", letterSpacing: "0.04em" }}>
+        <span style={{ color: FUMIGATION_DRONE_BADGE_COLOR, fontSize: "9px", fontWeight: 700, flexShrink: 0, textTransform: "uppercase", letterSpacing: "0.04em" }}>
           D
         </span>
       )}

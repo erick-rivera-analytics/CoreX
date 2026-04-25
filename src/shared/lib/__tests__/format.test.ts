@@ -10,6 +10,8 @@ import {
   formatInteger,
   parseDateOnly,
   formatPercent,
+  formatRatio,
+  formatCount,
 } from "@/shared/lib/format";
 
 describe("shared formatters", () => {
@@ -48,5 +50,22 @@ describe("shared formatters", () => {
 
     expect(formatted).toContain("2026");
     expect(formatted).not.toMatch(/[\u00A0\u202F]/);
+  });
+
+  it("formatRatio devuelve la razón con el detalle de decimales", () => {
+    expect(formatRatio(50, 200, 2)).toBe("0,25");
+    expect(formatRatio(1, 3, 3)).toBe("0,333");
+    expect(formatRatio(10, 0)).toBe("-");
+    expect(formatRatio(null, 5)).toBe("-");
+    expect(formatRatio(7, null)).toBe("-");
+    expect(formatRatio("8", "4", 2)).toBe("2,00");
+  });
+
+  it("formatCount concatena valor con singular o plural", () => {
+    expect(formatCount(1, "bloque", "bloques")).toBe("1 bloque");
+    expect(formatCount(2, "bloque", "bloques")).toBe("2 bloques");
+    expect(formatCount(0, "bloque", "bloques")).toBe("0 bloques");
+    expect(formatCount(null, "bloque", "bloques")).toBe("-");
+    expect(formatCount(1500, "fila", "filas")).toContain("filas");
   });
 });

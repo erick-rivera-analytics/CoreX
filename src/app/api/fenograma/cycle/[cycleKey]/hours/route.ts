@@ -2,7 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 
 import { handleApiError } from "@/lib/api-error";
 import { requireAuth } from "@/lib/api-auth";
-import { getCycleLaborHoursByCycleKey } from "@/lib/fenograma";
+import { getCycleLaborHoursByCycleKey } from "@/lib/fenograma-core";
 
 export const dynamic = "force-dynamic";
 

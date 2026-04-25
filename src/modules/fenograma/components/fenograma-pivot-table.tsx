@@ -8,6 +8,7 @@ import { SingleSelectField } from "@/shared/filters/single-select-field";
 import { Button } from "@/shared/ui/button";
 import { Card, CardContent } from "@/shared/ui/card";
 import { ClickableTableRow } from "@/shared/tables/clickable-table-row";
+import { InteractiveCell } from "@/shared/tables/interactive-cell";
 import { cn } from "@/lib/utils";
 import { formatDateSlash as formatDate, formatFlexibleNumber } from "@/shared/lib/format";
 import {
@@ -255,9 +256,16 @@ export const FenogramaPivotTable = memo(function FenogramaPivotTable({
                             )}
                           >
                             <div className="min-w-0">
-                              <p className={cn("truncate", isClickable && columnIndex === 0 && "font-semibold underline-offset-4 group-hover:underline")}>
-                                {displayValue}
-                              </p>
+                              {isClickable && columnIndex === 0 ? (
+                                <InteractiveCell
+                                  variant="underline-text"
+                                  decorative
+                                  truncate
+                                  label={<span className="font-semibold">{displayValue}</span>}
+                                />
+                              ) : (
+                                <p className="truncate">{displayValue}</p>
+                              )}
                             <p className="mt-1 text-xs text-muted-foreground">
                               {row.sourceCount === 1 ? "1 ciclo" : `${row.sourceCount} ciclos`}
                             </p>

@@ -41,6 +41,8 @@ const officialDocs = new Set([
   "docs/security-ops.md",
   "docs/quality-baseline.md",
   "docs/gestion-postcosecha-clasificacion-en-blanco.md",
+  "docs/gestion-calidad-punto-apertura.md",
+  "docs/gestion-postcosecha-balanzas-process-engine.md",
 ]);
 
 const legacyDocPrefix = "> LEGACY / reference only.";
@@ -91,8 +93,12 @@ for (const file of walk("src/components/dashboard").filter((file) => file.endsWi
   }
 }
 
+// fenograma.ts re-exports SOLO tipos desde fenograma-types (Audit #1 Phase 0):
+// fenograma-core sigue siendo `import "server-only"` y los tipos viven en
+// fenograma-types para que client components puedan importarlos sin arrastrar
+// el server-only chain.
 const facadeContracts = new Map([
-  ["src/lib/fenograma.ts", 'export * from "@/lib/fenograma-core";'],
+  ["src/lib/fenograma.ts", 'export type * from "@/lib/fenograma-types";'],
   ["src/lib/postcosecha-balanzas.ts", 'export * from "@/lib/postcosecha-balanzas-core";'],
 ]);
 

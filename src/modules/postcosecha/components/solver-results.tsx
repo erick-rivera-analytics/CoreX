@@ -1,6 +1,7 @@
 "use client";
 
 import { EmptyState } from "@/shared/data-display/empty-state";
+import { ScrollFadeTable } from "@/shared/tables/scroll-fade-table";
 import { formatDecimal, formatInteger, formatPercent } from "@/shared/lib/format";
 import type {
   PoscosechaClasificacionResult,
@@ -78,7 +79,7 @@ export function SolverResults({
         title="Prioridad de cumplimiento por fecha"
         description="Secuencia de la etapa interna de resolucion de pedidos."
         table={(
-          <div className="overflow-x-auto rounded-[24px] border border-border/70">
+          <ScrollFadeTable className="rounded-[24px] border border-border/70">
             <table className="min-w-[720px] w-full text-sm">
               <thead className="bg-background/95">
                 <tr className="border-b border-border/70 text-left text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
@@ -103,7 +104,7 @@ export function SolverResults({
                 ))}
               </tbody>
             </table>
-          </div>
+          </ScrollFadeTable>
         )}
       />
 
@@ -111,7 +112,7 @@ export function SolverResults({
         title="Resumen por pedido"
         description="Lectura por SKU del resultado final y del estado de peso. Haz click en un SKU resuelto para ver su receta."
         table={(
-          <div className="overflow-x-auto rounded-[24px] border border-border/70">
+          <ScrollFadeTable className="rounded-[24px] border border-border/70">
             <table className="min-w-[1620px] w-full text-sm">
               <thead className="bg-background/95">
                 <tr className="border-b border-border/70 text-left text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
@@ -143,7 +144,7 @@ export function SolverResults({
                 ))}
               </tbody>
             </table>
-          </div>
+          </ScrollFadeTable>
         )}
       />
 
@@ -151,7 +152,7 @@ export function SolverResults({
         title="Tabla final en mallas"
         description="Matriz SKU por grado que sale del solver redondeada a la vista operativa. Tambien puedes abrir la receta desde cada SKU."
         table={(
-          <div className="overflow-x-auto rounded-[24px] border border-border/70">
+          <ScrollFadeTable className="rounded-[24px] border border-border/70">
             <table className="min-w-[960px] w-full text-sm">
               <thead className="bg-background/95">
                 <tr className="border-b border-border/70 text-left text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
@@ -192,7 +193,7 @@ export function SolverResults({
                   </tr>
                 ))}
                 <tr className="bg-background/70 font-semibold">
-                  <td className="px-4 py-3">TOTAL</td>
+                  <td className="px-4 py-3">Total</td>
                   {result.matrix.gradeLabels.map((gradeLabel) => (
                     <td key={`total-${gradeLabel}`} className="px-4 py-3 text-right">
                       {formatInteger(result.matrix.totals[String(gradeLabel)] ?? 0)}
@@ -202,7 +203,7 @@ export function SolverResults({
                 </tr>
               </tbody>
             </table>
-          </div>
+          </ScrollFadeTable>
         )}
       />
 
@@ -210,7 +211,7 @@ export function SolverResults({
         title="Disponibilidad final por grado"
         description="Lectura de consumo, remanente y peso gestionable despues de la corrida."
         table={(
-          <div className="overflow-x-auto rounded-[24px] border border-border/70">
+          <ScrollFadeTable className="rounded-[24px] border border-border/70">
             <table className="min-w-[1240px] w-full text-sm">
               <thead className="bg-background/95">
                 <tr className="border-b border-border/70 text-left text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
@@ -243,7 +244,7 @@ export function SolverResults({
                 ))}
               </tbody>
             </table>
-          </div>
+          </ScrollFadeTable>
         )}
       />
     </>

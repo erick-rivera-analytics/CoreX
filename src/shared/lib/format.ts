@@ -73,6 +73,40 @@ export function formatHours(value: NumericInput, digits = 2, suffix = " h") {
   return formatted === "-" ? formatted : `${formatted}${suffix}`;
 }
 
+/**
+ * Formatea una razón numerador / denominador con `digits` decimales.
+ * Si el denominador es 0 o cualquier valor es nulo/no finito, devuelve `options.empty` (default `-`).
+ *
+ * Reemplaza el patrón inline `Math.round((num/den) * 100) / 100`.
+ */
+export function formatRatio(
+  numerator: NumericInput,
+  denominator: NumericInput,
+  digits = 2,
+  options: Omit<BaseFormatOptions, "minimumFractionDigits" | "maximumFractionDigits"> = {},
+) {
+  const num = normalizeNumber(numerator);
+  const den = normalizeNumber(denominator);
+  if (num === null || den === null || den === 0) return options.empty ?? "-";
+  return formatDecimal(num / den, digits, options);
+}
+
+/**
+ * Concatena un valor entero con su sustantivo singular o plural según corresponda.
+ * Reemplaza la concatenación manual `${count} ${count === 1 ? singular : plural}`.
+ */
+export function formatCount(
+  value: NumericInput,
+  singular: string,
+  plural: string,
+  options: Omit<BaseFormatOptions, "minimumFractionDigits" | "maximumFractionDigits"> = {},
+) {
+  const numericValue = normalizeNumber(value);
+  if (numericValue === null) return options.empty ?? "-";
+  const formatted = formatInteger(numericValue, options);
+  return `${formatted} ${numericValue === 1 ? singular : plural}`;
+}
+
 export function formatPercent(value: NumericInput, options: PercentFormatOptions = {}) {
   const numericValue = normalizeNumber(value);
   if (numericValue === null) return options.empty ?? "-";

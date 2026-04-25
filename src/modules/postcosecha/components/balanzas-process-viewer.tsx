@@ -32,12 +32,9 @@ type BalanzasProcessViewerProps = {
 
 type BalanzasProcessNodeView = {
   key: string;
-  shortLabel: string;
   label: string;
   overlayOffsetLeft: number;
-  ratioDisplay: string;
-  sourceTotalDisplay: string;
-  targetTotalDisplay: string;
+  metrics: { label: string; formatted: string }[];
   status: BalanzasViewStatus;
   processBindings: BalanzasProcessBinding[];
   destinationBreakdown: BalanzasDestinationBreakdown[];
@@ -106,29 +103,35 @@ function createOverlayElement(node: BalanzasProcessNodeView) {
   const element = document.createElement("button");
   element.type = "button";
   element.className = cn(
-    "balanzas-node-overlay rounded-2xl border px-3 py-2 text-left shadow-lg backdrop-blur-sm",
+    "balanzas-node-overlay rounded-2xl border px-2.5 py-2 text-left shadow-lg backdrop-blur-sm",
     node.status === "ready"
       ? "border-white/80 bg-white/96 text-slate-900"
       : "border-slate-300/80 bg-slate-100/96 text-slate-600",
   );
   element.dataset.nodeKey = node.key;
 
-  const ratio = node.ratioDisplay;
-  const totals = `${node.sourceTotalDisplay} / ${node.targetTotalDisplay}`;
-
-  const ratioIsNegative = ratio.startsWith("-");
-  const ratioColorClass =
-    node.status !== "ready"
-      ? "text-slate-400"
-      : ratioIsNegative
-        ? "text-red-600"
-        : "text-emerald-700";
+  const lastIdx = node.metrics.length - 1;
+  const rows = node.metrics
+    .map((m, i) => {
+      const isLast = i === lastIdx;
+      const isNegative = m.formatted.startsWith("-");
+      const valueClass = isLast
+        ? node.status !== "ready"
+          ? "text-slate-400"
+          : isNegative
+            ? "text-red-600 font-bold"
+            : "text-emerald-700 font-bold"
+        : "text-slate-700";
+      return `<tr>
+        <td class="pr-3 text-[10px] text-slate-500 whitespace-nowrap">${m.label}</td>
+        <td class="text-[10px] tabular-nums whitespace-nowrap ${valueClass}">${m.formatted}</td>
+      </tr>`;
+    })
+    .join("");
 
   element.innerHTML = `
-    <div class="text-[9px] font-semibold uppercase tracking-[0.22em] text-slate-400">${node.shortLabel}</div>
-    <div class="mt-0.5 text-base font-bold leading-tight tabular-nums ${ratioColorClass}">${ratio}</div>
-    <div class="mt-1.5 border-t border-slate-100 pt-1 text-[10px] text-slate-500">${node.label}</div>
-    <div class="mt-0.5 text-[10px] tabular-nums text-slate-400">${totals}</div>
+    <div class="mb-1 text-[9px] font-semibold uppercase tracking-[0.18em] text-slate-400 truncate max-w-[160px]">${node.label}</div>
+    <table class="border-collapse w-full"><tbody>${rows}</tbody></table>
   `;
 
   return element;
@@ -189,6 +192,11 @@ export function BalanzasProcessViewer({
         const nextElementIds: Record<string, string[]> = {};
 
         elementRegistry.forEach((element) => {
+          // Mark tasks in the inactive lane (PRECLASIFICACION / GV) visually
+          if (element.id.includes("_Pre_GV")) {
+            canvas.addMarker(element.id, "balanzas-lane-inactive-node");
+          }
+
           for (const node of nodesRef.current) {
             for (const binding of node.processBindings) {
               if (!matchesSingleBinding(binding, element)) {

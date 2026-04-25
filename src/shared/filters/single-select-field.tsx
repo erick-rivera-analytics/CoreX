@@ -15,6 +15,16 @@ export type SingleSelectFieldProps = {
   emptyValue?: string;
   displayValue?: (option: string) => string;
   className?: string;
+  /**
+   * Si true, no renderiza la opción vacía/comodín (`Todos`, `—`).
+   * Usar para selectores obligatorios donde el usuario debe elegir uno de los valores.
+   */
+  omitEmpty?: boolean;
+  /**
+   * Si true, oculta visualmente el label pero lo deja accesible para lectores de pantalla.
+   * Usar cuando el contexto visual ya incluye una etiqueta externa.
+   */
+  hideLabel?: boolean;
 };
 
 export function SingleSelectField({
@@ -27,12 +37,14 @@ export function SingleSelectField({
   emptyValue,
   displayValue,
   className,
+  omitEmpty = false,
+  hideLabel = false,
 }: SingleSelectFieldProps) {
   const resolvedEmptyValue = emptyValue ?? (emptyLabel === "Todos" ? "all" : "");
   const getDisplay = (option: string) => displayValue?.(option) ?? option;
   return (
     <div className={cn("min-w-0 space-y-2", className)}>
-      <Label htmlFor={id}>{label}</Label>
+      <Label htmlFor={id} className={hideLabel ? "sr-only" : undefined}>{label}</Label>
       <div className="relative">
         <select
           id={id}
@@ -40,7 +52,9 @@ export function SingleSelectField({
           onChange={(event) => onChange(event.target.value)}
           className="h-11 w-full appearance-none rounded-[16px] border border-input bg-background px-4 pr-10 text-sm text-foreground outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring/40"
         >
-          <option value={resolvedEmptyValue}>{emptyLabel}</option>
+          {omitEmpty ? null : (
+            <option value={resolvedEmptyValue}>{emptyLabel}</option>
+          )}
           {options.map((option) => (
             <option key={option} value={option}>
               {getDisplay(option)}
