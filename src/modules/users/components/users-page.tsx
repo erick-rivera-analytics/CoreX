@@ -141,7 +141,7 @@ export function UsersPage() {
   return (
     <div className="space-y-4">
       <SectionPageShell
-        eyebrow="Administracion / Seguridad"
+        eyebrow="Administración / Seguridad"
         title="Usuarios"
         subtitle="Gestiona acceso, estado y permisos por pantalla con el mismo patron visual del resto del dashboard."
         icon={<ShieldCheck className="size-6" aria-hidden="true" />}

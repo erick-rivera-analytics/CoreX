@@ -108,7 +108,7 @@ export function MortalityExplorer({ initialData }: { initialData: MortalityDashb
   return (
     <div className="space-y-4">
       <SectionPageShell
-        eyebrow="Indicadores / Produccion / Campo"
+        eyebrow="Indicadores / Producción / Campo"
         title="Mortandades"
         subtitle="Curva agregada ponderada por filtros y tabla de ciclos con apertura al historial completo del bloque."
         icon={<Activity className="size-6" aria-hidden="true" />}

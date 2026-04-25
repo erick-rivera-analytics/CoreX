@@ -7,7 +7,7 @@ import { Badge } from "@/shared/ui/badge";
 import { Button } from "@/shared/ui/button";
 import { KpiGrid } from "@/shared/layout/filter-panel";
 import { MetricTile } from "@/shared/data-display/metric-tile";
-import { formatInteger, formatPercent } from "@/shared/lib/format";
+import { formatInteger, formatIsoWeekLabel, formatPercent } from "@/shared/lib/format";
 import type { PuntoAperturaRecord } from "@/lib/calidad-punto-apertura";
 
 const APERTURE_ROWS = [
@@ -56,7 +56,7 @@ export function PuntoAperturaRecordOverlay({
           <MetricTile label="Participación dominante" value={formatPercent(record.dominantePct)} hint={record.dominanteClase} accent={record.estado === "Homogeneo" ? "success" : "warning"} />
           <MetricTile label="Total apertura" value={formatInteger(record.totalApertura)} hint="Suma de categorías" />
           <MetricTile label="Tallos malla" value={record.tallosMalla === null ? "-" : formatInteger(record.tallosMalla)} hint="Referencia capturada" />
-          <MetricTile label="Semana ISO" value={record.isoWeekId} hint={`${record.area} / ${record.spType}`} />
+          <MetricTile label="Semana" value={formatIsoWeekLabel(record.isoWeekId)} hint={`${record.area} / ${record.spType}`} />
         </KpiGrid>
 
         <div className="grid gap-4 lg:grid-cols-[1fr_0.85fr]">
@@ -91,8 +91,8 @@ export function PuntoAperturaRecordOverlay({
               <DetailItem label="Ciclo" value={record.ciclo} wide />
               <DetailItem label="Área" value={record.area} />
               <DetailItem label="Tipo SP" value={record.spType} />
-              <DetailItem label="Año registro" value={record.year} />
-              <DetailItem label="Mes registro" value={record.month} />
+              <DetailItem label="Año" value={record.year} />
+              <DetailItem label="Mes" value={record.month} />
               <DetailItem label="Bloque" value={record.bloque} />
               <DetailItem label="Valor dominante" value={formatInteger(record.dominanteValor)} />
               <DetailItem label="Fecha" value={record.fecha} />

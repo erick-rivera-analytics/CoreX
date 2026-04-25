@@ -39,13 +39,13 @@ const HOME_SECTION_META: Record<HomeSectionId, Omit<HomeSection, "views">> = {
   },
   gestion: {
     id: "gestion",
-    title: "Gestion",
-    description: "Herramientas operativas y maestras disponibles para la operacion.",
+    title: "Gestión",
+    description: "Herramientas operativas y maestras disponibles para la operación.",
     navigationGroup: "Gestion",
   },
   administracion: {
     id: "administracion",
-    title: "Administracion",
+    title: "Administración",
     description: "Superficie administrativa disponible para gobierno del sistema.",
     navigationGroup: "Administracion",
   },

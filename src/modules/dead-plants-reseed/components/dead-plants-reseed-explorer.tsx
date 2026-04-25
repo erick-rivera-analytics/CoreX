@@ -220,7 +220,7 @@ export function DeadPlantsReseedExplorer({
   return (
     <div className="space-y-4">
       <SectionPageShell
-        eyebrow="Gestion / Campo / Registros"
+        eyebrow="Gestión / Campo / Registros"
         title="Plantas muertas y resiembras"
         subtitle="Registro operativo por bloque. Las camas duplicadas o sin ciclo vigente se bloquean individualmente."
         icon={<ClipboardList className="size-6" aria-hidden="true" />}

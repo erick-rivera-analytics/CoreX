@@ -304,7 +304,7 @@ export function PoscosechaSkusExplorer({
   return (
     <div className="space-y-4">
       <SectionPageShell
-        eyebrow="Gestion / Poscosecha / Administrar Maestros"
+        eyebrow="Gestión / Postcosecha / Administrar Maestros"
         title="Administrar SKU's"
         subtitle="Gestiona el catalogo de SKU de postcosecha. Cada guardado crea una nueva version vigente y conserva trazabilidad SCD2 en db_postharvest.public."
         icon={<DatabaseZap className="size-5" aria-hidden="true" />}

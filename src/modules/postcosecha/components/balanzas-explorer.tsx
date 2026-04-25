@@ -113,7 +113,7 @@ export function BalanzasExplorer({ initialData, initialError }: BalanzasExplorer
   return (
     <div className="space-y-4">
       <SectionPageShell
-        eyebrow="Indicadores / Produccion / Poscosecha"
+        eyebrow="Indicadores / Producción / Postcosecha"
         title="Indicadores Balanzas"
         subtitle="Monitoreo de puntos de control en el flujo de producción. Haz clic en cualquier nodo para ver el detalle completo."
         icon={<Scale className="size-5" aria-hidden="true" />}

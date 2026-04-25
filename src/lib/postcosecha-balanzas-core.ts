@@ -123,11 +123,9 @@ function toYYWW(date: Date): string {
 }
 
 export function formatWeekLabel(yyww: string): string {
-  if (yyww.length !== 4) return yyww;
-  const yy = parseInt(yyww.slice(0, 2), 10);
-  const ww = parseInt(yyww.slice(2, 4), 10);
-  const year = yy < 50 ? 2000 + yy : 1900 + yy;
-  return `Sem. ${ww} · ${year}`;
+  // Formato canónico de semana en CoreX: `YYWW` (4 dígitos: 2 año + 2 semana).
+  // Devolvemos el valor crudo para que el usuario lo vea como `2614`, `2613`, etc.
+  return yyww;
 }
 
 // ─── Month helpers ────────────────────────────────────────────────────────────

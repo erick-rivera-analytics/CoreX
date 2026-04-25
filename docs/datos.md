@@ -471,11 +471,11 @@ Ver tests: `src/shared/lib/__tests__/format.test.ts` (12 casos cubren ambos cont
 
 | Contexto | Formato | Ejemplo |
 |---|---|---|
-| Backend (`iso_week_id` en SQL) | `YYYYWW` numérico string | `"202614"` |
-| Filtros UI (selectores) | `YYYYWW` (mismo que backend) | El usuario ve `"202614"` en el selector |
-| Etiquetas en gráficos / tooltips | `Sem WW (YYYY)` o solo `WW` si el año es contextual | `Sem 14 (2026)` |
-| Componente canónico cliente | `WeekField` / `MultiSelectField` con lista de `availableWeeks` del endpoint | — |
+| Backend (`iso_week_id` en SQL) | varía por dominio: `YYYYWW`, `YYWW`, o `YYYY-WW` | `"202613"`, `"2613"`, `"2026-13"` |
+| **UI visible al usuario (canon)** | **`YYWW` (4 dígitos)** | `"2613"`, `"2614"` |
+| Helper de formateo | `formatIsoWeekLabel` de `@/shared/lib/format` | normaliza cualquier formato backend → `YYWW` |
+| Componente canónico cliente | `WeekField` / `MultiSelectField` con `displayValue={formatIsoWeekLabel}` | — |
 
-**Regla:** mientras el formato visual al usuario sea consistente dentro de un explorer, está OK. NO mezclar `YYYYWW` con `YYYY-Wxx` ni con número de semana suelto en el mismo módulo. El formato `"202614"` es el más común y aceptable.
+**Regla:** la pantalla muestra siempre `YYWW`. Si el backend devuelve otro formato (`YYYYWW`, `YYYY-WW`), `formatIsoWeekLabel` lo normaliza al `displayValue` del filtro. El value almacenado puede seguir siendo el del backend (para queries) — solo el LABEL visible se canoniza.
 
-`WeekField` (`src/shared/filters/week-field.tsx`) está disponible para casos de selección puntual de una semana. Para rangos / multi-selección, los explorers actuales usan `SingleSelectField` / `MultiSelectField` con la lista de `availableWeeks` del endpoint — patrón válido y documentado aquí.
+`WeekField` (`src/shared/filters/week-field.tsx`) está disponible para casos de selección puntual de una semana. Para rangos / multi-selección, los explorers actuales usan `SingleSelectField` / `MultiSelectField` con la lista de `availableWeeks` del endpoint + `displayValue={formatIsoWeekLabel}` — patrón válido y documentado aquí.

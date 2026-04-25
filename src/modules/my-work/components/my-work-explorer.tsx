@@ -154,7 +154,7 @@ export function MyWorkExplorer({ initialData }: { initialData: MyWorkInitialData
   return (
     <div className="space-y-4">
       <SectionPageShell
-        eyebrow="Gestion / Personal"
+        eyebrow="Gestión / Personal"
         title="Mi trabajo"
         subtitle={`Espacio operativo personal de ${initialData.profile.displayName || initialData.profile.username}: tareas, calendario, agenda y recordatorios.`}
         icon={<CalendarDays className="size-6" aria-hidden="true" />}

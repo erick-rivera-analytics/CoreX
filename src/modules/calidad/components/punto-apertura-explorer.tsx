@@ -21,7 +21,7 @@ import { MultiSelectField } from "@/shared/filters/multi-select-field";
 import { ScrollFadeTable } from "@/shared/tables/scroll-fade-table";
 import { ChartSection, DetailSection, FilterPanel, KpiGrid } from "@/shared/layout/filter-panel";
 import { SectionPageShell } from "@/shared/layout/section-page-shell";
-import { formatInteger, formatPercent, formatYearMonth } from "@/shared/lib/format";
+import { formatInteger, formatIsoWeekLabel, formatPercent, formatYearMonth } from "@/shared/lib/format";
 import type {
   PuntoAperturaDashboardData,
   PuntoAperturaFilters,
@@ -101,9 +101,9 @@ export function PuntoAperturaExplorer({ initialData }: { initialData: PuntoApert
       >
         <FilterPanel>
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <MultiSelectField id="pa-week" label="Semana ISO" value={filters.isoWeek} options={data.options.isoWeeks} onChange={(value) => updateFilter("isoWeek", value)} />
+            <MultiSelectField id="pa-week" label="Semana" value={filters.isoWeek} options={data.options.isoWeeks} onChange={(value) => updateFilter("isoWeek", value)} displayValue={formatIsoWeekLabel} />
             <MultiSelectField id="pa-year" label="Año" value={filters.year} options={data.options.years} onChange={(value) => updateFilter("year", value)} />
-            <MultiSelectField id="pa-month" label="Mes registro" value={filters.month} options={data.options.months} onChange={(value) => updateFilter("month", value)} displayValue={formatYearMonth} />
+            <MultiSelectField id="pa-month" label="Mes" value={filters.month} options={data.options.months} onChange={(value) => updateFilter("month", value)} displayValue={formatYearMonth} />
             <MultiSelectField id="pa-area" label="Área" value={filters.area} options={data.options.areas} onChange={(value) => updateFilter("area", value)} />
             <MultiSelectField id="pa-sp-type" label="Tipo SP" value={filters.spType} options={data.options.spTypes} onChange={(value) => updateFilter("spType", value)} />
             <MultiSelectField id="pa-dominant" label="Dominante" value={filters.dominantClass} options={data.options.dominantClasses} onChange={(value) => updateFilter("dominantClass", value)} />

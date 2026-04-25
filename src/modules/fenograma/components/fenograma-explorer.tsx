@@ -12,7 +12,7 @@ import { FenogramaMetricSelector } from "@/modules/fenograma/components/fenogram
 import { FenogramaPivotTable } from "@/modules/fenograma/components/fenograma-pivot-table";
 import { FenogramaWeeklyBarsChart } from "@/modules/fenograma/components/fenograma-weekly-bars-chart";
 import { Button } from "@/shared/ui/button";
-import { formatDate, formatInteger } from "@/shared/lib/format";
+import { formatDate, formatInteger, formatIsoWeekLabel } from "@/shared/lib/format";
 import { MultiSelectField } from "@/shared/filters/multi-select-field";
 import { DetailSection, FilterPanel, KpiGrid, ChartSection } from "@/shared/layout/filter-panel";
 import { SectionPageShell } from "@/shared/layout/section-page-shell";
@@ -149,8 +149,8 @@ export function FenogramaExplorer({ initialData }: { initialData: FenogramaDashb
             <MultiSelectField id="fenograma-area" label="Área" value={filters.area} options={data.options.areas} onChange={(value) => updateFilter("area", value)} />
             <MultiSelectField id="fenograma-variety" label="Variedad" value={filters.variety} options={data.options.varieties} onChange={(value) => updateFilter("variety", value)} />
             <MultiSelectField id="fenograma-sp-type" label="Tipo SP" value={filters.spType} options={data.options.spTypes} onChange={(value) => updateFilter("spType", value)} />
-            <SingleSelectField id="fenograma-start-week" label="Semana desde" value={filters.startWeek} options={data.availableWeeks} emptyLabel="Inicio disponible" onChange={(value) => updateWeekRange("startWeek", value)} />
-            <SingleSelectField id="fenograma-end-week" label="Semana hasta" value={filters.endWeek} options={data.availableWeeks} emptyLabel="Fin disponible" onChange={(value) => updateWeekRange("endWeek", value)} />
+            <SingleSelectField id="fenograma-start-week" label="Semana desde" value={filters.startWeek} options={data.availableWeeks} emptyLabel="Inicio disponible" displayValue={formatIsoWeekLabel} onChange={(value) => updateWeekRange("startWeek", value)} />
+            <SingleSelectField id="fenograma-end-week" label="Semana hasta" value={filters.endWeek} options={data.availableWeeks} emptyLabel="Fin disponible" displayValue={formatIsoWeekLabel} onChange={(value) => updateWeekRange("endWeek", value)} />
             <div className="min-w-0 space-y-2">
               <p className="text-sm font-medium leading-none">Rango visible</p>
               <div className="rounded-[24px] border border-border/70 bg-background/80 px-4 py-3 text-sm text-muted-foreground">

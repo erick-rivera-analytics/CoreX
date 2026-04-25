@@ -24,7 +24,7 @@ export function SolverShell({
 }) {
   return (
     <SectionPageShell
-      eyebrow="Gestion / Poscosecha / Planificacion / Solver"
+      eyebrow="Gestión / Postcosecha / Planificación / Solver"
       title="Clasificacion en blanco"
       subtitle="Esta vista usa el maestro activo de SKU de postcosecha como fuente oficial y ejecuta el solver real para resolver bunches por fecha, mezcla de grados y tabla final en mallas."
       icon={<BrainCircuit className="size-6" aria-hidden="true" />}

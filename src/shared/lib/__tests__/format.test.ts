@@ -8,6 +8,7 @@ import {
   formatDecimal,
   formatFlexibleNumber,
   formatInteger,
+  formatIsoWeekLabel,
   parseDateOnly,
   formatPercent,
   formatRatio,
@@ -98,6 +99,30 @@ describe("shared formatters", () => {
       expect(formatPercent(undefined)).toBe("-");
       expect(formatPercent(Number.NaN)).toBe("-");
       expect(formatPercent("")).toBe("-");
+    });
+  });
+
+  describe("formatIsoWeekLabel — canon YYWW", () => {
+    it("YYYYWW (6 dígitos) → YYWW", () => {
+      expect(formatIsoWeekLabel("202613")).toBe("2613");
+      expect(formatIsoWeekLabel("202601")).toBe("2601");
+      expect(formatIsoWeekLabel("202614")).toBe("2614");
+    });
+
+    it("YYWW (4 dígitos) se mantiene tal cual", () => {
+      expect(formatIsoWeekLabel("2613")).toBe("2613");
+      expect(formatIsoWeekLabel("2614")).toBe("2614");
+    });
+
+    it("YYYY-WW (con guión) → YYWW", () => {
+      expect(formatIsoWeekLabel("2026-13")).toBe("2613");
+      expect(formatIsoWeekLabel("2026-1")).toBe("2601");
+    });
+
+    it("vacío o no reconocido se devuelve tal cual o '-'", () => {
+      expect(formatIsoWeekLabel(null)).toBe("-");
+      expect(formatIsoWeekLabel("")).toBe("-");
+      expect(formatIsoWeekLabel("abc")).toBe("abc");
     });
   });
 });

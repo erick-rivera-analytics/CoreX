@@ -87,10 +87,17 @@ export const sidebarGroups: NavGroup[] = [
       { label: "Inicio", href: "/dashboard", icon: Home },
     ],
   },
-  ...(["Dashboard", "Gestion", "Administracion"] as const)
-    .map((title) => ({
+  // Las KEYS internas (Gestion/Administracion) viajan sin tilde para mantener
+  // match con `module-catalog.navigationGroup`. Los TÍTULOS visibles se traducen
+  // a su forma con tilde acá.
+  ...([
+    { key: "Dashboard", title: "Dashboard" },
+    { key: "Gestion", title: "Gestión" },
+    { key: "Administracion", title: "Administración" },
+  ] as const)
+    .map(({ key, title }) => ({
       title,
-      items: buildGroupItems(title),
+      items: buildGroupItems(key),
     }))
     .filter((group) => group.items.length > 0),
 ];

@@ -255,7 +255,7 @@ export function ComparisonExplorer({ initialData }: { initialData: ComparisonDas
   return (
     <div className="space-y-4">
       <SectionPageShell
-        eyebrow="Indicadores / Produccion / Campo"
+        eyebrow="Indicadores / Producción / Campo"
         title="Comparación"
         subtitle="Selecciona dos ciclos reales para enfrentarlos metrica a metrica y visualizar sus diferencias operativas."
         icon={<Swords className="size-6" aria-hidden="true" />}

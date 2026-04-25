@@ -74,6 +74,48 @@ export function formatHours(value: NumericInput, digits = 2, suffix = " h") {
 }
 
 /**
+ * Formatea una semana ISO al formato canónico visual `YYWW` (4 dígitos).
+ *
+ * Acepta los formatos de almacenamiento usados en CoreX y los normaliza a `YYWW`:
+ * - `YYYYWW` (6 dígitos, fenograma `iso_week_id`) → toma últimos 4 dígitos visibles
+ * - `YYWW` (4 dígitos, balanzas) → se devuelve tal cual
+ * - `YYYY-WW` (calidad punto-apertura, con guión) → `YYWW`
+ *
+ * Si el valor no matchea, se devuelve tal cual.
+ *
+ * Ejemplos: `"202613"` → `"2613"`, `"2613"` → `"2613"`, `"2026-13"` → `"2613"`.
+ */
+export function formatIsoWeekLabel(value: NumericInput): string {
+  if (value === null || value === undefined || value === "") return "-";
+  const raw = String(value).trim();
+  if (!raw) return "-";
+
+  // YYYY-WW
+  const dashed = raw.match(/^(\d{4})-(\d{1,2})$/);
+  if (dashed) {
+    const year = Number(dashed[1]);
+    const week = Number(dashed[2]);
+    const yy = year % 100;
+    return `${String(yy).padStart(2, "0")}${String(week).padStart(2, "0")}`;
+  }
+
+  // YYYYWW (6 dígitos): toma últimos 2 del año + 2 de semana
+  if (/^\d{6}$/.test(raw)) {
+    const year = Number(raw.slice(0, 4));
+    const week = Number(raw.slice(4, 6));
+    const yy = year % 100;
+    return `${String(yy).padStart(2, "0")}${String(week).padStart(2, "0")}`;
+  }
+
+  // YYWW (4 dígitos) — formato canónico, se devuelve tal cual
+  if (/^\d{4}$/.test(raw)) {
+    return raw;
+  }
+
+  return raw;
+}
+
+/**
  * Formatea una razón numerador / denominador con `digits` decimales.
  * Si el denominador es 0 o cualquier valor es nulo/no finito, devuelve `options.empty` (default `-`).
  *
