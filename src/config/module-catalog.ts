@@ -179,7 +179,7 @@ export const MODULE_CATALOG: CatalogModule[] = [
     label: "Programaciones",
     title: "Programaciones",
     eyebrow: "Gestion / Campo / Planificacion",
-    summary: "Calendario de programaciones de campo: plantas muertas, iluminacion y riego.",
+    summary: "Calendario de programaciones de campo: plantas muertas, iluminacion, fumigacion, drench, GA3 y riego.",
     href: "/dashboard/programaciones",
     icon: CalendarClock,
     navigationGroup: "Gestion",

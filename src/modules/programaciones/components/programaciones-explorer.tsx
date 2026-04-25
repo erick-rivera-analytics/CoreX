@@ -17,7 +17,7 @@ import type { ProgramacionRecord } from "@/lib/programaciones";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-type ProgramacionTab = "plantas_muertas" | "iluminacion" | "fumigacion" | "aplicacion_ga3" | "riego";
+type ProgramacionTab = "plantas_muertas" | "iluminacion" | "fumigacion" | "drench" | "aplicacion_ga3" | "riego";
 type FumigacionFilter = "todos" | "dron" | "regular";
 
 const TABS: {
@@ -32,6 +32,8 @@ const TABS: {
   { key: "aplicacion_ga3",  label: "Aplicación GA3",  icon: SprayCan,   activityCode: "FM13" },
   { key: "riego",           label: "Riego",           icon: Droplets,   activityCode: null },
 ];
+
+TABS.splice(3, 0, { key: "drench", label: "Drench", icon: Droplets, activityCode: "FM11" });
 
 const DAY_LABELS  = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
 const MONTH_NAMES = [
