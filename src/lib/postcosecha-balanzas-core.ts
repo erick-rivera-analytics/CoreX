@@ -177,7 +177,7 @@ const BALANZAS_NODES: BalanzasNodeDef[] = [
     hasDestination: true,
     hasGrade: false,
     hasGradeGroup: true,
-    bpmnBinding: { elementId: "Task_B1AB_Pre_Directo", overlayOffsetLeft: 0 },
+    bpmnBinding: { elementId: "Task_B1AB_Pre_GV", overlayOffsetLeft: 0 },
   },
   {
     key: "preclasif-b1-b1a-weight",
@@ -195,7 +195,7 @@ const BALANZAS_NODES: BalanzasNodeDef[] = [
     hasDestination: true,
     hasGrade: false,
     hasGradeGroup: true,
-    bpmnBinding: { elementId: "Task_B1AB_Pre_Directo", overlayOffsetLeft: 172 },
+    bpmnBinding: { elementId: "Task_B1AB_Pre_GV", overlayOffsetLeft: 172 },
   },
   {
     key: "preclasif-b1a-b2-stems",
@@ -213,7 +213,7 @@ const BALANZAS_NODES: BalanzasNodeDef[] = [
     hasDestination: true,
     hasGrade: false,
     hasGradeGroup: true,
-    bpmnBinding: { elementId: "Task_B2_Pre_Directo", overlayOffsetLeft: 0 },
+    bpmnBinding: { elementId: "Task_B2_Pre_GV", overlayOffsetLeft: 0 },
   },
   {
     key: "preclasif-b1a-b2-weight",
@@ -231,7 +231,7 @@ const BALANZAS_NODES: BalanzasNodeDef[] = [
     hasDestination: true,
     hasGrade: false,
     hasGradeGroup: true,
-    bpmnBinding: { elementId: "Task_B2_Pre_Directo", overlayOffsetLeft: 172 },
+    bpmnBinding: { elementId: "Task_B2_Pre_GV", overlayOffsetLeft: 172 },
   },
   {
     key: "preclasif-b2-b3-weight",
@@ -249,7 +249,7 @@ const BALANZAS_NODES: BalanzasNodeDef[] = [
     hasDestination: true,
     hasGrade: false,
     hasGradeGroup: false,
-    bpmnBinding: { elementId: "Task_General_Pre_Directo", overlayOffsetLeft: 0 },
+    bpmnBinding: { elementId: "Task_General_Pre_GV", overlayOffsetLeft: 0 },
   },
   {
     key: "preclasif-b1-b3-ideal",
@@ -267,7 +267,7 @@ const BALANZAS_NODES: BalanzasNodeDef[] = [
     hasDestination: true,
     hasGrade: false,
     hasGradeGroup: false,
-    bpmnBinding: { elementId: "Task_General_Pre_Directo", overlayOffsetLeft: 172 },
+    bpmnBinding: { elementId: "Task_General_Pre_GV", overlayOffsetLeft: 172 },
   },
   // ── COSECHA GV ────────────────────────────────────────────────────────────
   {

@@ -16,6 +16,8 @@ import type {
   TalentoSalidaRecord,
 } from "@/lib/talento-humano";
 
+export { getPersonRendimiento } from "@/lib/talento-humano-rendimiento-loader";
+
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
@@ -631,3 +633,7 @@ export async function getPersonProfile(personId: string): Promise<TalentoPersonP
     };
   });
 }
+
+// `getPersonRendimiento` vive en `@/lib/talento-humano-rendimiento-loader`
+// (re-exportado al inicio del archivo) para mantener este archivo dentro
+// del límite estructural canónico.

@@ -1,13 +1,29 @@
 import { memo } from "react";
 
+import { FENOGRAMA_METRIC_META, type FenogramaMetric } from "@/lib/fenograma-types";
 import type { FenogramaWeeklyTotal } from "@/lib/fenograma";
-import { formatInteger } from "@/shared/lib/format";
+import { formatFlexibleNumber, formatInteger } from "@/shared/lib/format";
+
+function getValueForMetric(entry: FenogramaWeeklyTotal, metric: FenogramaMetric): number {
+  if (metric === "stems") return entry.stems;
+  if (metric === "greenBoxes") return entry.greenBoxes ?? 0;
+  if (metric === "whiteBoxes") return entry.whiteBoxes ?? 0;
+  // weightPerStem — ratio de sumas
+  const stems = entry.stems;
+  const greenWeightKg = entry.greenWeightKg ?? 0;
+  if (!stems || stems <= 0) return 0;
+  return (greenWeightKg * 1000) / stems;
+}
 
 export const FenogramaWeeklyBarsChart = memo(function FenogramaWeeklyBarsChart({
   data,
+  metric = "stems",
 }: {
   data: FenogramaWeeklyTotal[];
+  metric?: FenogramaMetric;
 }) {
+  const meta = FENOGRAMA_METRIC_META[metric];
+
   if (!data.length) {
     return (
       <div className="flex h-[260px] items-center justify-center rounded-2xl border border-dashed border-border/70 bg-background/60 text-sm text-muted-foreground">
@@ -26,14 +42,18 @@ export const FenogramaWeeklyBarsChart = memo(function FenogramaWeeklyBarsChart({
   };
   const chartWidth = width - padding.left - padding.right;
   const chartHeight = height - padding.top - padding.bottom;
-  const maxValue = Math.max(...data.map((entry) => entry.stems), 1);
+  const values = data.map((entry) => getValueForMetric(entry, metric));
+  const maxValue = Math.max(...values, 1);
   const barWidth = chartWidth / data.length;
   const labelStep = data.length > 24 ? Math.ceil(data.length / 12) : 1;
   const gridSteps = 4;
+  const fmt = (value: number) =>
+    meta.isRatio
+      ? formatFlexibleNumber(value, { maximumFractionDigits: meta.decimals })
+      : formatInteger(Math.round(value));
   const yTicks = Array.from({ length: gridSteps + 1 }, (_, index) => {
-    const value = Math.round((maxValue * (gridSteps - index)) / gridSteps);
+    const value = (maxValue * (gridSteps - index)) / gridSteps;
     const y = padding.top + (chartHeight * index) / gridSteps;
-
     return { value, y };
   });
 
@@ -43,7 +63,7 @@ export const FenogramaWeeklyBarsChart = memo(function FenogramaWeeklyBarsChart({
         viewBox={`0 0 ${width} ${height}`}
         className="h-[260px] min-w-[720px] w-full"
         role="img"
-        aria-label="Acumulado semanal de tallos"
+        aria-label={`Acumulado semanal de ${meta.label.toLowerCase()}`}
       >
         {yTicks.map((tick) => (
           <g key={tick.y}>
@@ -62,13 +82,14 @@ export const FenogramaWeeklyBarsChart = memo(function FenogramaWeeklyBarsChart({
               fontSize="12"
               fill="var(--color-muted-foreground)"
             >
-              {formatInteger(tick.value)}
+              {fmt(tick.value)}
             </text>
           </g>
         ))}
 
         {data.map((entry, index) => {
-          const barHeight = (entry.stems / maxValue) * chartHeight;
+          const value = values[index]!;
+          const barHeight = (value / maxValue) * chartHeight;
           const x = padding.left + index * barWidth + barWidth * 0.14;
           const y = padding.top + chartHeight - barHeight;
           const renderedBarWidth = Math.max(barWidth * 0.72, 6);
@@ -85,7 +106,7 @@ export const FenogramaWeeklyBarsChart = memo(function FenogramaWeeklyBarsChart({
                 ry="8"
                 fill="var(--color-slate-900)"
               >
-                <title>{`${entry.week}: ${formatInteger(entry.stems)} tallos`}</title>
+                <title>{`${entry.week}: ${fmt(value)} ${meta.unit}`}</title>
               </rect>
               {showLabel ? (
                 <text

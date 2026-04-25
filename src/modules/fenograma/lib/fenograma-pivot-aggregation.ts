@@ -1,4 +1,8 @@
-import type { FenogramaPivotRow } from "@/lib/fenograma";
+import type {
+  FenogramaMetric,
+  FenogramaPivotRow,
+  FenogramaWeekMetricValues,
+} from "@/lib/fenograma";
 
 const collator = new Intl.Collator("es-EC", {
   numeric: true,
@@ -35,11 +39,24 @@ export type AggregatedPivotRow = {
   id: string;
   groupValues: Partial<Record<PivotDimensionKey, string>>;
   weekValues: Record<string, number | null>;
+  /**
+   * Valores brutos por métrica para cada semana del rango visible.
+   * Habilita el selector de métrica del Fenograma (Tallos / Cajas verde / Cajas blanco / Peso por tallo).
+   */
+  weekMetrics: Record<string, FenogramaWeekMetricValues | null>;
   totalStems: number;
+  totalGreenBoxes: number;
+  totalWhiteBoxes: number;
+  totalGreenWeightKg: number;
   sourceRows: FenogramaPivotRow[];
   sourceCount: number;
   sortValues: Record<PivotSortKey, SortValue>;
 };
+
+// Helpers `getCellValueForMetric` y `getTotalForMetric` viven en
+// `@/modules/fenograma/lib/fenograma-metric-helpers` para mantener este
+// archivo dentro del límite estructural canónico.
+export { getCellValueForMetric, getTotalForMetric } from "@/modules/fenograma/lib/fenograma-metric-helpers";
 
 export const lifecycleLabelMap: Record<FenogramaPivotRow["lifecycleStatus"], string> = {
   active: "Activo",
@@ -152,35 +169,60 @@ export function aggregateRows(
   weeks: string[],
   selectedDimensions: PivotDimensionKey[],
 ) {
-  const groups = new Map<string, {
+  type GroupAccum = {
     groupValues: Partial<Record<PivotDimensionKey, string>>;
     sourceRows: FenogramaPivotRow[];
     totalStems: number;
-    weekValues: Record<string, number | null>;
-  }>();
+    totalGreenBoxes: number;
+    totalWhiteBoxes: number;
+    totalGreenWeightKg: number;
+    weekValues: Record<string, number>;
+    weekMetrics: Record<string, FenogramaWeekMetricValues>;
+  };
+
+  const groups = new Map<string, GroupAccum>();
 
   for (const row of rows) {
     const groupKey = selectedDimensions.length
       ? selectedDimensions.map((key) => getDimensionValue(row, key)).join("|")
       : "__total__";
-    const existingGroup = groups.get(groupKey) ?? {
-      groupValues: Object.fromEntries(
-        selectedDimensions.map((key) => [key, getDimensionValue(row, key)]),
-      ) as Partial<Record<PivotDimensionKey, string>>,
-      sourceRows: [],
-      totalStems: 0,
-      weekValues: Object.fromEntries(weeks.map((week) => [week, null])) as Record<string, number | null>,
-    };
+
+    let existingGroup = groups.get(groupKey);
+    if (!existingGroup) {
+      existingGroup = {
+        groupValues: Object.fromEntries(
+          selectedDimensions.map((key) => [key, getDimensionValue(row, key)]),
+        ) as Partial<Record<PivotDimensionKey, string>>,
+        sourceRows: [],
+        totalStems: 0,
+        totalGreenBoxes: 0,
+        totalWhiteBoxes: 0,
+        totalGreenWeightKg: 0,
+        weekValues: Object.fromEntries(weeks.map((week) => [week, 0])) as Record<string, number>,
+        weekMetrics: Object.fromEntries(
+          weeks.map((week) => [week, { stems: 0, greenBoxes: 0, whiteBoxes: 0, greenWeightKg: 0 }]),
+        ) as Record<string, FenogramaWeekMetricValues>,
+      };
+      groups.set(groupKey, existingGroup);
+    }
 
     existingGroup.sourceRows.push(row);
     existingGroup.totalStems += row.totalStems;
+    existingGroup.totalGreenBoxes += row.totalGreenBoxes ?? 0;
+    existingGroup.totalWhiteBoxes += row.totalWhiteBoxes ?? 0;
+    existingGroup.totalGreenWeightKg += row.totalGreenWeightKg ?? 0;
 
     for (const week of weeks) {
-      const currentValue = existingGroup.weekValues[week] ?? 0;
-      existingGroup.weekValues[week] = currentValue + (row.weekValues[week] ?? 0);
+      existingGroup.weekValues[week] = (existingGroup.weekValues[week] ?? 0) + (row.weekValues[week] ?? 0);
+      const sourceMetrics = row.weekMetrics?.[week];
+      if (sourceMetrics) {
+        const accum = existingGroup.weekMetrics[week]!;
+        accum.stems += sourceMetrics.stems;
+        accum.greenBoxes += sourceMetrics.greenBoxes;
+        accum.whiteBoxes += sourceMetrics.whiteBoxes;
+        accum.greenWeightKg += sourceMetrics.greenWeightKg;
+      }
     }
-
-    groups.set(groupKey, existingGroup);
   }
 
   return Array.from(groups.entries()).map(([groupKey, group]) => {
@@ -191,11 +233,23 @@ export function aggregateRows(
       }),
     ) as Record<string, number | null>;
 
+    const weeklyMetrics = Object.fromEntries(
+      weeks.map((week) => {
+        const m = group.weekMetrics[week] ?? { stems: 0, greenBoxes: 0, whiteBoxes: 0, greenWeightKg: 0 };
+        const isEmpty = m.stems === 0 && m.greenBoxes === 0 && m.whiteBoxes === 0 && m.greenWeightKg === 0;
+        return [week, isEmpty ? null : m];
+      }),
+    ) as Record<string, FenogramaWeekMetricValues | null>;
+
     return {
       id: groupKey,
       groupValues: group.groupValues,
       weekValues: weeklyValues,
+      weekMetrics: weeklyMetrics,
       totalStems: Number(group.totalStems.toFixed(2)),
+      totalGreenBoxes: Number(group.totalGreenBoxes.toFixed(2)),
+      totalWhiteBoxes: Number(group.totalWhiteBoxes.toFixed(2)),
+      totalGreenWeightKg: Number(group.totalGreenWeightKg.toFixed(2)),
       sourceRows: group.sourceRows,
       sourceCount: group.sourceRows.length,
       sortValues: {

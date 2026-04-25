@@ -106,6 +106,41 @@ export type TalentoRotacionData = {
   salidas: TalentoSalidaRecord[];
 };
 
+export type TalentoPersonRendimientoActivity = {
+  activityId: string;
+  activityName: string;
+  activityType: string;
+  unitOfMeasure: string;
+  actualHours: number;
+  effectiveHours: number;
+  unitsProduced: number;
+  productivity: number | null;
+  rendimientoPct: number | null;
+};
+
+export type TalentoPersonRendimientoCycle = {
+  cycleKey: string;
+  totalActualHours: number;
+  totalEffectiveHours: number;
+  totalUnitsProduced: number;
+  rendimientoPct: number | null;
+  activities: TalentoPersonRendimientoActivity[];
+};
+
+export type TalentoPersonRendimientoPayload = {
+  personId: string;
+  generatedAt: string;
+  totals: {
+    totalActualHours: number;
+    totalEffectiveHours: number;
+    totalUnitsProduced: number;
+    rendimientoPct: number | null;
+    cycleCount: number;
+    activityCount: number;
+  };
+  cycles: TalentoPersonRendimientoCycle[];
+};
+
 export type TalentoPersonProfile = {
   personId: string;
   personName: string | null;
@@ -219,5 +254,5 @@ export function normalizeTalentoSnapshotFilters(raw: Record<string, string | und
 // Async loaders — implemented in talento-humano-loaders.ts
 // ---------------------------------------------------------------------------
 
-export { getActivosPersonas, getRotacionData, getPersonProfile } from "./talento-humano-loaders";
+export { getActivosPersonas, getRotacionData, getPersonProfile, getPersonRendimiento } from "./talento-humano-loaders";
 

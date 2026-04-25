@@ -205,6 +205,44 @@ const rules = [
     scopes: [SRC_MODULES],
     expected: "Migrar a ExpandableTreeTable (deuda estructural — visual ya unificado vía InteractiveCell)",
   },
+
+  // ── Bloque E — Audit final 2026-04-25: Frankenstein guards ──────────────
+  // Estos componentes fueron consolidados en `PersonProfileInfoCanon`.
+  // Reintroducirlos rompe la unificación visual de la ficha del personal.
+  {
+    name: "person-hours-info-section-legacy",
+    severity: "ERROR",
+    pattern: /\bPersonHoursInfoSection\b/,
+    skipFile: /person-profile-info-canon\.tsx/,
+    scopes: [SRC_MODULES, SRC_SHARED, "src/app"],
+    expected: "Reemplazar por PersonProfileInfoCanon (sourceContext-agnostic)",
+  },
+  {
+    name: "person-profile-talento-info-legacy",
+    severity: "ERROR",
+    pattern: /\bPersonProfileTalentoInfoSection\b/,
+    skipFile: /person-profile-info-canon\.tsx|person-profile-talento-info\.tsx/,
+    scopes: [SRC_MODULES, SRC_SHARED, "src/app"],
+    expected: "Reemplazar por PersonProfileInfoCanon (sourceContext-agnostic)",
+  },
+  // El tab Rendimiento debe mostrar datos en cualquier sourceContext.
+  // El literal "Sin contexto de ciclo" estaba bloqueando talento/composicion-laboral.
+  {
+    name: "sin-contexto-ciclo-legacy",
+    severity: "ERROR",
+    pattern: /Sin contexto de ciclo/,
+    scopes: [SRC_MODULES, SRC_SHARED],
+    expected: "El tab Rendimiento debe mostrar datos en cualquier sourceContext (incluído talento)",
+  },
+  // BPMN preclasif debe apuntar a tasks `_Pre_GV` (no `_Pre_Directo`).
+  // Decisión confirmada en Audit final 2026-04-25.
+  {
+    name: "balanzas-preclasif-pre-directo",
+    severity: "ERROR",
+    pattern: /Task_[A-Za-z0-9]+_Pre_Directo/,
+    scopes: ["src/lib/postcosecha-balanzas-core.ts"],
+    expected: "preclasif-* debe apuntar a Task_*_Pre_GV (Audit final 2026-04-25)",
+  },
 ];
 
 const allFiles = [...walk(SRC_MODULES), ...walk(SRC_SHARED), ...walk("src/app")];

@@ -8,6 +8,7 @@ import { toast } from "sonner";
 
 import { BlockProfileModal } from "@/modules/fenograma/components/block-profile-modal";
 import { useBlockProfileModal } from "@/hooks/use-block-profile-modal";
+import { FenogramaMetricSelector } from "@/modules/fenograma/components/fenograma-metric-selector";
 import { FenogramaPivotTable } from "@/modules/fenograma/components/fenograma-pivot-table";
 import { FenogramaWeeklyBarsChart } from "@/modules/fenograma/components/fenograma-weekly-bars-chart";
 import { Button } from "@/shared/ui/button";
@@ -21,6 +22,7 @@ import { SingleSelectField } from "@/shared/filters/single-select-field";
 import { ToggleChipGroup } from "@/shared/filters/toggle-chip-group";
 import { EmptyState } from "@/shared/data-display/empty-state";
 import { fetchJson } from "@/lib/fetch-json";
+import { FENOGRAMA_METRIC_DEFAULT, type FenogramaMetric } from "@/lib/fenograma-types";
 import type {
   FenogramaDashboardData,
   FenogramaFilters,
@@ -59,6 +61,13 @@ const lifecycleFilterKeys: Record<FenogramaLifecycle, "includeActive" | "include
 export function FenogramaExplorer({ initialData }: { initialData: FenogramaDashboardData }) {
   const [filters, setFilters] = useState<FenogramaFilters>(initialData.filters);
   const [selectedRow, setSelectedRow] = useState<FenogramaPivotRow | null>(null);
+  /**
+   * Estado del selector de métrica.
+   *
+   * NO se resetea con `Restablecer` — el usuario lo elige independientemente
+   * de los filtros. La métrica activa se propaga a tabla y chart.
+   */
+  const [metric, setMetric] = useState<FenogramaMetric>(FENOGRAMA_METRIC_DEFAULT);
   const deferredFilters = useDeferredValue(filters);
   const initialFilterKey = useMemo(() => buildQueryString(initialData.filters), [initialData.filters]);
   const filterKey = useMemo(() => buildQueryString(deferredFilters), [deferredFilters]);
@@ -120,6 +129,7 @@ export function FenogramaExplorer({ initialData }: { initialData: FenogramaDashb
         title="Fenograma"
         subtitle="Pivot semanal por dimensiones con rango manual, estados operativos y apertura a la ficha completa del ciclo."
         icon={<Sprout className="size-6" aria-hidden="true" />}
+        actions={<FenogramaMetricSelector value={metric} onChange={setMetric} />}
       >
         <FilterPanel>
           <ToggleChipGroup
@@ -177,12 +187,12 @@ export function FenogramaExplorer({ initialData }: { initialData: FenogramaDashb
 
       <ChartSection>
         <ChartSurface title="Acumulado semanal">
-          <FenogramaWeeklyBarsChart data={data.weeklyTotals} />
+          <FenogramaWeeklyBarsChart data={data.weeklyTotals} metric={metric} />
         </ChartSurface>
       </ChartSection>
 
       <DetailSection>
-        {data.rows.length === 0 ? <EmptyState /> : <FenogramaPivotTable data={data} onRowSelect={setSelectedRow} />}
+        {data.rows.length === 0 ? <EmptyState /> : <FenogramaPivotTable data={data} metric={metric} onRowSelect={setSelectedRow} />}
       </DetailSection>
 
       <BlockProfileModal

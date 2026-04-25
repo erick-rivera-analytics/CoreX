@@ -11,10 +11,14 @@ import type { TalentoPersonProfile } from "@/lib/talento-humano";
 import { useCurrentUserAccess } from "@/hooks/use-current-user-access";
 import { canAccessResource } from "@/lib/access-control";
 import { PersonMedicalPanel } from "@/modules/fenograma/components/person-medical-panel";
-import { PersonHoursInfoSection } from "@/modules/productividad/components/person-hours-info-section";
 import { PersonHoursPerformanceSection } from "@/modules/productividad/components/person-hours-performance-section";
 import { DialogShell } from "@/shared/overlays/dialog-shell";
-import { PersonProfileTalentoInfoSection } from "@/shared/overlays/person-profile-talento-info";
+import {
+  PersonProfileInfoCanon,
+  mapCyclePayloadToInfoCanon,
+  mapTalentoPayloadToInfoCanon,
+} from "@/shared/overlays/person-profile-info-canon";
+import { PersonProfileTalentoPerformanceSection } from "@/shared/overlays/person-profile-talento-performance-section";
 import { Badge } from "@/shared/ui/badge";
 
 export type PersonProfileSourceContext =
@@ -164,6 +168,7 @@ export function PersonProfileDialog({
       description={jobTitle}
       maxWidth="max-w-7xl"
       headerActions={headerActions}
+      priority="secondary"
     >
       <div className="space-y-6">
         <TabBar
@@ -186,12 +191,12 @@ export function PersonProfileDialog({
             {activeTab === "informacion" ? (
               isCycleContext ? (
                 cyclePayload ? (
-                  <PersonHoursInfoSection profile={cyclePayload.profile} />
+                  <PersonProfileInfoCanon {...mapCyclePayloadToInfoCanon(cyclePayload.profile)} />
                 ) : (
                   <EmptyTab>No se encontró información para este personal en el ciclo.</EmptyTab>
                 )
               ) : talentoProfile ? (
-                <PersonProfileTalentoInfoSection profile={talentoProfile} />
+                <PersonProfileInfoCanon {...mapTalentoPayloadToInfoCanon(talentoProfile)} />
               ) : (
                 <EmptyTab>No se encontró información para este personal.</EmptyTab>
               )
@@ -200,10 +205,10 @@ export function PersonProfileDialog({
             {activeTab === "rendimiento" ? (
               isCycleContext && cyclePayload ? (
                 <PersonHoursPerformanceSection data={cyclePayload} camas30={camas30} />
+              ) : !isCycleContext ? (
+                <PersonProfileTalentoPerformanceSection personId={personId} />
               ) : (
-                <EmptyTab>
-                  Sin contexto de ciclo. El rendimiento se muestra cuando se abre la ficha desde Productividad o Fenograma.
-                </EmptyTab>
+                <EmptyTab>Sin datos de rendimiento para mostrar.</EmptyTab>
               )
             ) : null}
 

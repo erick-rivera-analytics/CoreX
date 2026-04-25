@@ -3,6 +3,19 @@
 import { useEffect } from "react";
 import { cn } from "@/lib/utils";
 
+/**
+ * Tier de z-index canónico del DialogShell.
+ *
+ * - `primary` (default): `z-[60]` — para modales sobre la página.
+ * - `secondary`: `z-[70]` — para modales que se abren ENCIMA de otro modal
+ *   primary. Caso típico: la ficha de persona abierta desde dentro de
+ *   `HoursCamaOverlay` (que ya es un DialogShell primary).
+ *
+ * Nota: el tier numérico está alineado con `--z-modal-primary`/`--z-modal-secondary`
+ * en `globals.css`.
+ */
+export type DialogShellPriority = "primary" | "secondary";
+
 export function DialogShell({
   open = true,
   title,
@@ -11,6 +24,7 @@ export function DialogShell({
   maxWidth = "max-w-4xl",
   children,
   headerActions,
+  priority = "primary",
 }: {
   open?: boolean;
   title?: string;
@@ -19,6 +33,7 @@ export function DialogShell({
   maxWidth?: string;
   children: React.ReactNode;
   headerActions?: React.ReactNode;
+  priority?: DialogShellPriority;
 }) {
   useEffect(() => {
     if (!open) return;
@@ -48,7 +63,16 @@ export function DialogShell({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" onClick={onClose}>
+    <div
+      className={cn(
+        "fixed inset-0 flex items-center justify-center p-4",
+        priority === "secondary" ? "z-[70]" : "z-[60]",
+      )}
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-label={title ?? undefined}
+    >
       <div className="absolute inset-0 bg-background/60 backdrop-blur-sm" />
       <div
         className={cn(

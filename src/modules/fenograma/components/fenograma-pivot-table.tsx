@@ -15,7 +15,9 @@ import {
   aggregateRows,
   buildLeadingColumns,
   dimensionOptions,
+  getCellValueForMetric,
   getStickyStyle,
+  getTotalForMetric,
   isLastLeadingColumn,
   lifecycleLabelMap,
   sortAggregatedRows,
@@ -24,14 +26,25 @@ import {
   type PivotSortKey,
   type SortDirection,
 } from "@/modules/fenograma/lib/fenograma-pivot-aggregation";
+import { FENOGRAMA_METRIC_META, type FenogramaMetric } from "@/lib/fenograma-types";
 import type { FenogramaDashboardData, FenogramaPivotRow } from "@/lib/fenograma";
 
-function formatCellValue(value: number | null | undefined) {
+function formatCellValue(value: number | null | undefined, metric: FenogramaMetric = "stems") {
   if (value === null || value === undefined || value === 0) {
     return "";
   }
 
-  return formatFlexibleNumber(value, { empty: "" });
+  const meta = FENOGRAMA_METRIC_META[metric];
+  return formatFlexibleNumber(value, { empty: "", maximumFractionDigits: meta.decimals });
+}
+
+function totalsFromRow(row: AggregatedPivotRow) {
+  return {
+    stems: row.totalStems,
+    greenBoxes: row.totalGreenBoxes,
+    whiteBoxes: row.totalWhiteBoxes,
+    greenWeightKg: row.totalGreenWeightKg,
+  };
 }
 
 function formatDimensionValue(key: PivotDimensionKey, value: string | undefined) {
@@ -70,11 +83,14 @@ function lifecycleTone(rows: FenogramaPivotRow[]) {
 
 export const FenogramaPivotTable = memo(function FenogramaPivotTable({
   data,
+  metric = "stems",
   onRowSelect,
 }: {
   data: FenogramaDashboardData;
+  metric?: FenogramaMetric;
   onRowSelect?: (row: FenogramaPivotRow) => void;
 }) {
+  const metricMeta = FENOGRAMA_METRIC_META[metric];
   const [selectedDimensions, setSelectedDimensions] = useState<PivotDimensionKey[]>(["area"]);
   const [sortBy, setSortBy] = useState<PivotSortKey>("area");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
@@ -146,7 +162,7 @@ export const FenogramaPivotTable = memo(function FenogramaPivotTable({
               emptyValue={dimensionOptions[0]!.key}
               emptyLabel={dimensionOptions[0]!.label}
               options={[...dimensionOptions.slice(1).map((o) => o.key), "totalStems"]}
-              displayValue={(v) => v === "totalStems" ? "Total tallos" : (dimensionOptions.find((o) => o.key === v)?.label ?? v)}
+              displayValue={(v) => v === "totalStems" ? `Total ${metricMeta.label.toLowerCase()}` : (dimensionOptions.find((o) => o.key === v)?.label ?? v)}
               onChange={(v) => setSortBy(v as PivotSortKey)}
             />
 
@@ -203,7 +219,10 @@ export const FenogramaPivotTable = memo(function FenogramaPivotTable({
                     key={week}
                     className="sticky top-0 border-b border-r border-border/70 bg-card px-3 py-3 text-right font-semibold text-foreground"
                   >
-                    <div className="min-w-[92px]">{week}</div>
+                    <div className="min-w-[92px]">
+                      <p>{week}</p>
+                      <p className="text-[10px] font-normal text-muted-foreground/70">{metricMeta.unit}</p>
+                    </div>
                   </th>
                 ))}
               </tr>
@@ -236,7 +255,7 @@ export const FenogramaPivotTable = memo(function FenogramaPivotTable({
                               isLastColumn && "shadow-[14px_0_20px_-16px_rgba(15,23,42,0.22)]",
                             )}
                           >
-                            {formatCellValue(row.totalStems)}
+                            {formatCellValue(getTotalForMetric(totalsFromRow(row), metric), metric)}
                           </td>
                         );
                       }
@@ -282,7 +301,9 @@ export const FenogramaPivotTable = memo(function FenogramaPivotTable({
                           isClickable && "group-hover:bg-primary/6",
                         )}
                       >
-                        <div className="min-w-[92px]">{formatCellValue(row.weekValues[week])}</div>
+                        <div className="min-w-[92px]">
+                          {formatCellValue(getCellValueForMetric(row.weekMetrics[week], metric), metric)}
+                        </div>
                       </td>
                     ))}
                   </ClickableTableRow>
@@ -302,8 +323,17 @@ export const FenogramaPivotTable = memo(function FenogramaPivotTable({
               <tr>
                 {leadingColumns.map((column, columnIndex) => {
                   const isLastColumn = isLastLeadingColumn(column.key, leadingColumns);
+                  const grandTotal = sortedRows.reduce(
+                    (acc, row) => ({
+                      stems: acc.stems + row.totalStems,
+                      greenBoxes: acc.greenBoxes + row.totalGreenBoxes,
+                      whiteBoxes: acc.whiteBoxes + row.totalWhiteBoxes,
+                      greenWeightKg: acc.greenWeightKg + row.totalGreenWeightKg,
+                    }),
+                    { stems: 0, greenBoxes: 0, whiteBoxes: 0, greenWeightKg: 0 },
+                  );
                   const content = column.key === "totalStems"
-                    ? formatCellValue(data.summary.totalStems)
+                    ? formatCellValue(getTotalForMetric(grandTotal, metric), metric)
                     : columnIndex === 0
                       ? "Total general"
                       : "";
@@ -322,14 +352,25 @@ export const FenogramaPivotTable = memo(function FenogramaPivotTable({
                     </td>
                   );
                 })}
-                {data.weeklyTotals.map((entry) => (
-                  <td
-                    key={`total-${entry.week}`}
-                    className="sticky bottom-0 border-t border-r border-border/70 bg-card px-3 py-3 text-right font-semibold tabular-nums text-foreground"
-                  >
-                    <div className="min-w-[92px]">{formatCellValue(entry.stems)}</div>
-                  </td>
-                ))}
+                {data.weeklyTotals.map((entry) => {
+                  const cellValue = getCellValueForMetric(
+                    {
+                      stems: entry.stems,
+                      greenBoxes: entry.greenBoxes ?? 0,
+                      whiteBoxes: entry.whiteBoxes ?? 0,
+                      greenWeightKg: entry.greenWeightKg ?? 0,
+                    },
+                    metric,
+                  );
+                  return (
+                    <td
+                      key={`total-${entry.week}`}
+                      className="sticky bottom-0 border-t border-r border-border/70 bg-card px-3 py-3 text-right font-semibold tabular-nums text-foreground"
+                    >
+                      <div className="min-w-[92px]">{formatCellValue(cellValue, metric)}</div>
+                    </td>
+                  );
+                })}
               </tr>
             </tfoot>
           </table>

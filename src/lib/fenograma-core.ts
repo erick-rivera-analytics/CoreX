@@ -11,6 +11,9 @@ import { roundValue, toNumber } from "@/shared/lib/number-utils";
 import type {
   FenogramaLifecycle,
   FenogramaFilters,
+  FenogramaMetric,
+  FenogramaMetricMeta,
+  FenogramaWeekMetricValues,
   BlockModalRow,
   FenogramaPivotRow,
   FenogramaWeeklyTotal,
@@ -39,6 +42,9 @@ import type {
 export type {
   FenogramaLifecycle,
   FenogramaFilters,
+  FenogramaMetric,
+  FenogramaMetricMeta,
+  FenogramaWeekMetricValues,
   BlockModalRow,
   FenogramaPivotRow,
   FenogramaWeeklyTotal,
@@ -76,6 +82,8 @@ type FenogramaQueryRow = {
   lifecycle_status: FenogramaLifecycle;
   iso_week_id: string;
   stems_count: number | string | null;
+  green_weight_kg: number | string | null;
+  post_weight_kg: number | string | null;
 };
 
 type FenogramaOptionsRow = {
@@ -981,8 +989,16 @@ export async function getFenogramaDashboardData(
                 else 'history'
               end as lifecycle_status,
               mv.iso_week_id,
-              coalesce(mv.stems_count, 0) as stems_count
+              coalesce(mv.stems_count, 0)        as stems_count,
+              coalesce(prg.green_weight_kg, 0)   as green_weight_kg,
+              coalesce(prp.post_weight_kg, 0)    as post_weight_kg
             from ${FENOGRAMA_SOURCE} mv
+            left join gld.mv_prod_productivity_green_cur prg
+              on prg.cycle_key   = mv.cycle_key
+              and prg.iso_week_id = mv.iso_week_id
+            left join gld.mv_prod_productivity_post_cur prp
+              on prp.cycle_key   = mv.cycle_key
+              and prp.iso_week_id = mv.iso_week_id
             left join lateral (
               select
                 sp_date           as cp_sp_date,
@@ -1006,7 +1022,9 @@ export async function getFenogramaDashboardData(
             harvest_end_date,
             lifecycle_status,
             iso_week_id,
-            sum(stems_count) as stems_count
+            sum(stems_count)      as stems_count,
+            sum(green_weight_kg)  as green_weight_kg,
+            sum(post_weight_kg)   as post_weight_kg
           from filtered
           group by 1, 2, 3, 4, 5, 6, 7, 8, 9, 10
           order by
@@ -1023,8 +1041,12 @@ export async function getFenogramaDashboardData(
 
       const options = await optionsPromise;
       const weeksSet = new Set<string>();
-      const rowsMap = new Map<string, FenogramaPivotRow>();
-      const weeklyTotalsMap = new Map<string, number>();
+      type FenogramaPivotRowAccum = FenogramaPivotRow & {
+        weekMetrics: Record<string, FenogramaWeekMetricValues | null>;
+      };
+      const rowsMap = new Map<string, FenogramaPivotRowAccum>();
+      type WeeklyAccum = { stems: number; greenBoxes: number; whiteBoxes: number; greenWeightKg: number };
+      const weeklyTotalsMap = new Map<string, WeeklyAccum>();
 
       for (const entry of result.rows) {
         const isoWeek = cleanText(entry.iso_week_id);
@@ -1034,7 +1056,12 @@ export async function getFenogramaDashboardData(
         }
 
         const stemsCount = roundValue(Number(entry.stems_count ?? 0));
-        const normalizedRow: Omit<FenogramaPivotRow, "id" | "totalStems" | "weekValues"> = {
+        const greenWeightKg = roundValue(Number(entry.green_weight_kg ?? 0));
+        const postWeightKg = roundValue(Number(entry.post_weight_kg ?? 0));
+        const greenBoxes = roundValue(greenWeightKg / 10);
+        const whiteBoxes = roundValue(postWeightKg / 10);
+
+        const normalizedRow: Omit<FenogramaPivotRow, "id" | "totalStems" | "weekValues" | "weekMetrics"> = {
           cycleKey: cleanText(entry.cycle_key),
           block: cleanText(entry.block),
           area: normalizeAreaDisplayName(entry.area),
@@ -1048,7 +1075,12 @@ export async function getFenogramaDashboardData(
         const rowKey = buildRowKey(normalizedRow);
 
         weeksSet.add(isoWeek);
-        weeklyTotalsMap.set(isoWeek, roundValue((weeklyTotalsMap.get(isoWeek) ?? 0) + stemsCount));
+        const weeklyAccum = weeklyTotalsMap.get(isoWeek) ?? { stems: 0, greenBoxes: 0, whiteBoxes: 0, greenWeightKg: 0 };
+        weeklyAccum.stems = roundValue(weeklyAccum.stems + stemsCount);
+        weeklyAccum.greenBoxes = roundValue(weeklyAccum.greenBoxes + greenBoxes);
+        weeklyAccum.whiteBoxes = roundValue(weeklyAccum.whiteBoxes + whiteBoxes);
+        weeklyAccum.greenWeightKg = roundValue(weeklyAccum.greenWeightKg + greenWeightKg);
+        weeklyTotalsMap.set(isoWeek, weeklyAccum);
 
         if (!rowsMap.has(rowKey)) {
           rowsMap.set(rowKey, {
@@ -1056,12 +1088,21 @@ export async function getFenogramaDashboardData(
             ...normalizedRow,
             totalStems: 0,
             weekValues: {},
+            weekMetrics: {},
           });
         }
 
         const currentRow = rowsMap.get(rowKey)!;
         const currentWeekValue = currentRow.weekValues[isoWeek] ?? 0;
         currentRow.weekValues[isoWeek] = roundValue(currentWeekValue + stemsCount);
+
+        const currentMetrics = currentRow.weekMetrics[isoWeek] ?? { stems: 0, greenBoxes: 0, whiteBoxes: 0, greenWeightKg: 0 };
+        currentRow.weekMetrics[isoWeek] = {
+          stems: roundValue(currentMetrics.stems + stemsCount),
+          greenBoxes: roundValue(currentMetrics.greenBoxes + greenBoxes),
+          whiteBoxes: roundValue(currentMetrics.whiteBoxes + whiteBoxes),
+          greenWeightKg: roundValue(currentMetrics.greenWeightKg + greenWeightKg),
+        };
       }
 
       const availableWeeks = Array.from(weeksSet).sort((left, right) => Number(left) - Number(right));
@@ -1072,19 +1113,41 @@ export async function getFenogramaDashboardData(
           const visibleWeekValues = Object.fromEntries(
             weeks.map((week) => [week, row.weekValues[week] ?? null]),
           ) as Record<string, number | null>;
+          const visibleWeekMetrics = Object.fromEntries(
+            weeks.map((week) => [week, row.weekMetrics[week] ?? null]),
+          ) as Record<string, FenogramaWeekMetricValues | null>;
           const totalStems = sumNumbers(weeks.map((week) => visibleWeekValues[week]));
+          const totalGreenBoxes = roundValue(
+            weeks.reduce((acc, week) => acc + (visibleWeekMetrics[week]?.greenBoxes ?? 0), 0),
+          );
+          const totalWhiteBoxes = roundValue(
+            weeks.reduce((acc, week) => acc + (visibleWeekMetrics[week]?.whiteBoxes ?? 0), 0),
+          );
+          const totalGreenWeightKg = roundValue(
+            weeks.reduce((acc, week) => acc + (visibleWeekMetrics[week]?.greenWeightKg ?? 0), 0),
+          );
 
           return {
             ...row,
             totalStems,
             weekValues: visibleWeekValues,
+            weekMetrics: visibleWeekMetrics,
+            totalGreenBoxes,
+            totalWhiteBoxes,
+            totalGreenWeightKg,
           };
         })
-        .filter((row) => row.totalStems > 0);
-      const weeklyTotals = weeks.map((week) => ({
-        week,
-        stems: roundValue(weeklyTotalsMap.get(week) ?? 0),
-      }));
+        .filter((row) => row.totalStems > 0 || (row.totalGreenBoxes ?? 0) > 0 || (row.totalWhiteBoxes ?? 0) > 0);
+      const weeklyTotals = weeks.map((week) => {
+        const accum = weeklyTotalsMap.get(week) ?? { stems: 0, greenBoxes: 0, whiteBoxes: 0, greenWeightKg: 0 };
+        return {
+          week,
+          stems: roundValue(accum.stems),
+          greenBoxes: roundValue(accum.greenBoxes),
+          whiteBoxes: roundValue(accum.whiteBoxes),
+          greenWeightKg: roundValue(accum.greenWeightKg),
+        };
+      });
       const activeRows = rows.filter((row) => row.lifecycleStatus === "active").length;
       const plannedRows = rows.filter((row) => row.lifecycleStatus === "planned").length;
       const historyRows = rows.filter((row) => row.lifecycleStatus === "history").length;

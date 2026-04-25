@@ -28,6 +28,52 @@ export type BlockModalRow = {
   primaryMetricText?: string | null;
 };
 
+/**
+ * Métricas del Fenograma seleccionables desde el header del módulo.
+ *
+ * - `stems`         → Tallos cosechados (mv_prod_fenograma_cur.stems_count)
+ * - `greenBoxes`    → Cajas verde (green_weight_kg / 10)
+ * - `whiteBoxes`    → Cajas blanco (post_weight_kg / 10)
+ * - `weightPerStem` → Peso por tallo (g/tallo) — RATIO DE SUMAS:
+ *     SUM(green_weight_kg) * 1000 / NULLIF(SUM(stems_count), 0)
+ *     NUNCA promedio de ratios.
+ */
+export type FenogramaMetric = "stems" | "greenBoxes" | "whiteBoxes" | "weightPerStem";
+
+export const FENOGRAMA_METRIC_DEFAULT: FenogramaMetric = "stems";
+
+export type FenogramaMetricMeta = {
+  value: FenogramaMetric;
+  label: string;
+  unit: string;
+  isRatio: boolean;
+  decimals: number;
+};
+
+export const FENOGRAMA_METRIC_META: Record<FenogramaMetric, FenogramaMetricMeta> = {
+  stems:         { value: "stems",         label: "Tallos",         unit: "tallos",  isRatio: false, decimals: 0 },
+  greenBoxes:    { value: "greenBoxes",    label: "Cajas verde",    unit: "cajas",   isRatio: false, decimals: 0 },
+  whiteBoxes:    { value: "whiteBoxes",    label: "Cajas blanco",   unit: "cajas",   isRatio: false, decimals: 0 },
+  weightPerStem: { value: "weightPerStem", label: "Peso por tallo", unit: "g/tallo", isRatio: true,  decimals: 2 },
+};
+
+export function isValidFenogramaMetric(value: unknown): value is FenogramaMetric {
+  return value === "stems" || value === "greenBoxes" || value === "whiteBoxes" || value === "weightPerStem";
+}
+
+/**
+ * Valores brutos de las 4 métricas para una celda (semana × fila).
+ *
+ * `greenWeightKg` se mantiene RAW para que las agregaciones cliente-side
+ * calculen `weightPerStem` como ratio de sumas en lugar de promedio de ratios.
+ */
+export type FenogramaWeekMetricValues = {
+  stems: number;
+  greenBoxes: number;
+  whiteBoxes: number;
+  greenWeightKg: number;
+};
+
 export type FenogramaPivotRow = {
   id: string;
   cycleKey: string;
@@ -40,12 +86,24 @@ export type FenogramaPivotRow = {
   harvestEndDate: string | null;
   lifecycleStatus: FenogramaLifecycle;
   totalStems: number;
+  /** Valores legacy: solo tallos. Mantener por compat con consumidores externos. */
   weekValues: Record<string, number | null>;
+  /** Valores por métrica para soportar el selector. Cargados a partir del audit final 2026-04-25. */
+  weekMetrics?: Record<string, FenogramaWeekMetricValues | null>;
+  /** Total de cajas verde en el rango visible. */
+  totalGreenBoxes?: number;
+  /** Total de cajas blanco en el rango visible. */
+  totalWhiteBoxes?: number;
+  /** Total de green_weight_kg raw (para weightPerStem ratio de sumas). */
+  totalGreenWeightKg?: number;
 };
 
 export type FenogramaWeeklyTotal = {
   week: string;
   stems: number;
+  greenBoxes?: number;
+  whiteBoxes?: number;
+  greenWeightKg?: number;
 };
 
 export type FenogramaFilterOptions = {
