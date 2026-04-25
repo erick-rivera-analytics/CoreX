@@ -107,6 +107,31 @@ export function formatCount(
   return `${formatted} ${numericValue === 1 ? singular : plural}`;
 }
 
+/**
+ * Formatea un valor como porcentaje (locale `es-EC` por defecto).
+ *
+ * Contrato del parámetro `input` (CRÍTICO — pasarlo siempre que el valor sea
+ * ratio decimal):
+ *
+ * - `input: "ratio"`  → el valor es decimal `0..1` (ej: `0.42` → `"42,00 %"`).
+ *   Usar cuando la fuente entrega ratios crudos (count/total cliente,
+ *   solver Python, mortandad acumulada normalizada en backend).
+ *
+ * - `input: "percent"` (default si se omite) → el valor ya está en escala
+ *   `0..100` (ej: `42` → `"42,00 %"`). Usar cuando el backend SQL multiplicó
+ *   por 100 antes de enviar (calidad punto-apertura, mortality_pct,
+ *   rendimientoPct, etc.).
+ *
+ * Convención por módulo (ver `docs/datos.md`):
+ * - mortality, productividad, fenograma, calidad: backend devuelve `0..100`
+ *   → llamar sin `input` o con `input: "percent"`.
+ * - comparacion: backend devuelve `0..1` (normalizado por `toPercentRatio`)
+ *   → llamar con `input: "ratio"`.
+ * - solver, talento (cálculos cliente count/total): valores `0..1`
+ *   → `input: "ratio"`.
+ *
+ * Pasar el valor con la escala incorrecta produce números 100× alto/bajo.
+ */
 export function formatPercent(value: NumericInput, options: PercentFormatOptions = {}) {
   const numericValue = normalizeNumber(value);
   if (numericValue === null) return options.empty ?? "-";

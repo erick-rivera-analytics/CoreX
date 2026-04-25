@@ -68,4 +68,36 @@ describe("shared formatters", () => {
     expect(formatCount(null, "bloque", "bloques")).toBe("-");
     expect(formatCount(1500, "fila", "filas")).toContain("filas");
   });
+
+  describe("formatPercent — contrato del parámetro `input`", () => {
+    it("input default (omitido) trata el valor como escala 0..100", () => {
+      // 42 (porcentaje 0..100) → '42,00 %' visualmente
+      expect(formatPercent(42)).toMatch(/42,00\s?%/);
+      expect(formatPercent(0)).toMatch(/0,00\s?%/);
+      expect(formatPercent(100)).toMatch(/100,00\s?%/);
+    });
+
+    it('input: "percent" trata el valor como escala 0..100', () => {
+      expect(formatPercent(42, { input: "percent" })).toMatch(/42,00\s?%/);
+      expect(formatPercent(7.5, { input: "percent" })).toMatch(/7,50\s?%/);
+    });
+
+    it('input: "ratio" trata el valor como decimal 0..1', () => {
+      expect(formatPercent(0.42, { input: "ratio" })).toMatch(/42,00\s?%/);
+      expect(formatPercent(1, { input: "ratio" })).toMatch(/100,00\s?%/);
+      expect(formatPercent(0.075, { input: "ratio" })).toMatch(/7,50\s?%/);
+    });
+
+    it("respeta minimumFractionDigits y maximumFractionDigits", () => {
+      expect(formatPercent(42.567, { minimumFractionDigits: 0, maximumFractionDigits: 0 })).toMatch(/43\s?%/);
+      expect(formatPercent(0.42567, { input: "ratio", minimumFractionDigits: 1, maximumFractionDigits: 1 })).toMatch(/42,6\s?%/);
+    });
+
+    it("retorna `empty` para valores nulos / inválidos", () => {
+      expect(formatPercent(null, { empty: "—" })).toBe("—");
+      expect(formatPercent(undefined)).toBe("-");
+      expect(formatPercent(Number.NaN)).toBe("-");
+      expect(formatPercent("")).toBe("-");
+    });
+  });
 });

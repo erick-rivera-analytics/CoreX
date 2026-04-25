@@ -1,4 +1,4 @@
-> LEGACY / reference only.
+> Referencia vigente. Schema y convenciones del DW + reglas de mapeo a UI.
 
 # Datos — Schema de Base de Datos
 
@@ -445,3 +445,37 @@ ORDER BY cp.cycle_key, cp.valid_from DESC NULLS LAST
 | Balanzas | 5–30 min según métrica |
 
 El cache es en memoria del proceso Node.js (`src/server/cache.ts → cachedAsync`). Se invalida al reiniciar.
+
+---
+
+## Convenciones de mapeo a UI
+
+### Porcentajes — escala `percent` (0–100) vs `ratio` (0–1)
+
+Distintos endpoints devuelven porcentajes en distinta escala. Para evitar bugs por factor 100, **todo callsite de `formatPercent` debe pasar `input` explícito** o conocer el default.
+
+| Origen | Escala devuelta | Cómo formatear |
+|---|---|---|
+| `mortality_pct`, `availabilityVsScheduledPct`, `availabilityVsInitialPct` (mortality / fenograma / productividad) | `0..100` | `formatPercent(value)` o `formatPercent(value, { input: "percent" })` |
+| `dominantePct`, `homogeneousPct`, `visibleMeanPct`, `lowerLimitPct` (calidad punto-apertura) | `0..100` (backend multiplica × 100 en `calidad-punto-apertura.ts`) | `formatPercent(value)` |
+| `rendimientoPct` (productividad / fenograma / talento) | `0..100` | `formatPercent(value)` |
+| Comparación (`comparacion.ts`) | `0..1` (normalizado por `toPercentRatio` heurístico) | Helper local `formatPercent(value)` que envuelve `formatPercentShared` con `input: "ratio"` |
+| Solver Python (cumplimiento, sobrepeso, etc.) | `0..1` | `formatPercent(value, { input: "ratio" })` |
+| Cálculos cliente (`count / total`) | `0..1` | `formatPercent(value, { input: "ratio" })` |
+
+**Default:** `formatPercent(v)` sin opciones asume `input: "percent"` (escala 0–100). Si la fuente es ratio decimal, **siempre pasar `input: "ratio"`**.
+
+Ver tests: `src/shared/lib/__tests__/format.test.ts` (12 casos cubren ambos contratos + edge cases).
+
+### Semanas ISO — formato canónico
+
+| Contexto | Formato | Ejemplo |
+|---|---|---|
+| Backend (`iso_week_id` en SQL) | `YYYYWW` numérico string | `"202614"` |
+| Filtros UI (selectores) | `YYYYWW` (mismo que backend) | El usuario ve `"202614"` en el selector |
+| Etiquetas en gráficos / tooltips | `Sem WW (YYYY)` o solo `WW` si el año es contextual | `Sem 14 (2026)` |
+| Componente canónico cliente | `WeekField` / `MultiSelectField` con lista de `availableWeeks` del endpoint | — |
+
+**Regla:** mientras el formato visual al usuario sea consistente dentro de un explorer, está OK. NO mezclar `YYYYWW` con `YYYY-Wxx` ni con número de semana suelto en el mismo módulo. El formato `"202614"` es el más común y aceptable.
+
+`WeekField` (`src/shared/filters/week-field.tsx`) está disponible para casos de selección puntual de una semana. Para rangos / multi-selección, los explorers actuales usan `SingleSelectField` / `MultiSelectField` con la lista de `availableWeeks` del endpoint — patrón válido y documentado aquí.
