@@ -43,6 +43,19 @@ const GROUP_ICON_BY_LABEL: Record<string, LucideIcon> = {
   Seguridad: Lock,
 };
 
+function compareLabels(left: { label: string }, right: { label: string }) {
+  return left.label.localeCompare(right.label, "es", { sensitivity: "base" });
+}
+
+function sortNavItems(items: NavItem[]): NavItem[] {
+  return [...items]
+    .map((item) => ({
+      ...item,
+      items: item.items ? sortNavItems(item.items) : item.items,
+    }))
+    .sort(compareLabels);
+}
+
 function getOrCreateBranch(items: NavItem[], label: string) {
   const existing = items.find((item) => item.label === label && item.items);
   if (existing) {
@@ -77,7 +90,7 @@ function buildGroupItems(groupTitle: "Dashboard" | "Gestion" | "Administracion")
     });
   }
 
-  return rootItems;
+  return sortNavItems(rootItems);
 }
 
 export const sidebarGroups: NavGroup[] = [

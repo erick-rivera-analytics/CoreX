@@ -20,6 +20,10 @@ export type DashboardView = {
   mobileVisible: boolean;
 };
 
+function compareViewTitles(left: Pick<DashboardView, "title">, right: Pick<DashboardView, "title">) {
+  return left.title.localeCompare(right.title, "es", { sensitivity: "base" });
+}
+
 type HomeSectionId = "dashboard" | "gestion" | "administracion";
 
 type HomeSection = {
@@ -54,16 +58,18 @@ const HOME_SECTION_META: Record<HomeSectionId, Omit<HomeSection, "views">> = {
 export const starterName = STARTER_NAME;
 export const starterSubtitle = STARTER_SUBTITLE;
 
-export const dashboardViews: DashboardView[] = ACTIVE_MODULES.map((catalogEntry) => ({
-  slug: catalogEntry.key,
-  title: catalogEntry.title,
-  eyebrow: catalogEntry.eyebrow,
-  summary: catalogEntry.summary,
-  href: catalogEntry.href,
-  icon: catalogEntry.icon,
-  navigationGroup: catalogEntry.navigationGroup,
-  mobileVisible: catalogEntry.mobileVisible !== false,
-}));
+export const dashboardViews: DashboardView[] = ACTIVE_MODULES
+  .map((catalogEntry) => ({
+    slug: catalogEntry.key,
+    title: catalogEntry.title,
+    eyebrow: catalogEntry.eyebrow,
+    summary: catalogEntry.summary,
+    href: catalogEntry.href,
+    icon: catalogEntry.icon,
+    navigationGroup: catalogEntry.navigationGroup,
+    mobileVisible: catalogEntry.mobileVisible !== false,
+  }))
+  .sort(compareViewTitles);
 
 export const mobileNavigation = dashboardViews
   .filter((view) => view.mobileVisible)
@@ -71,7 +77,8 @@ export const mobileNavigation = dashboardViews
     label: view.title,
     href: view.href,
     icon: view.icon,
-  }));
+  }))
+  .sort((left, right) => left.label.localeCompare(right.label, "es", { sensitivity: "base" }));
 
 export function filterDashboardViewsByAccess(
   views: DashboardView[],
@@ -100,7 +107,7 @@ export function buildDashboardHomeSections(
         dashboardViews.filter((view) => view.navigationGroup === section.navigationGroup),
         allowedResources,
         isSuperadmin,
-      ),
+      ).sort(compareViewTitles),
     }))
     .filter((section) => section.views.length > 0);
 }

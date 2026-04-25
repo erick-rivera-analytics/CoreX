@@ -144,6 +144,11 @@ const API_ACCESS_RULES_UNSORTED: ApiAccessRule[] = [
     requiredResources: ["/dashboard/dead-plants-reseed"],
   },
   {
+    pathnamePrefix: "/api/campo/administrar-maestros/productos-drench",
+    policy: "resource-bound",
+    requiredResources: ["/dashboard/campo/administrar-maestros/productos-drench"],
+  },
+  {
     pathnamePrefix: "/api/me/profile",
     policy: "resource-bound",
     requiredResources: ["/dashboard/mi-cuenta"],
