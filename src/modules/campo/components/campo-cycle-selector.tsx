@@ -85,7 +85,7 @@ export function CampoCycleSelectorModal({
 
   return (
     <div
-      className="fixed inset-0 z-[1100] flex items-center justify-center p-4"
+      className="fixed inset-0 z-[var(--z-modal-secondary)] flex items-center justify-center p-4"
       role="dialog"
       aria-modal="true"
       aria-labelledby="cycle-sel-title"
