@@ -43,6 +43,11 @@ const officialDocs = new Set([
   "docs/gestion-postcosecha-clasificacion-en-blanco.md",
   "docs/gestion-calidad-punto-apertura.md",
   "docs/gestion-postcosecha-balanzas-process-engine.md",
+  // Docs reclasificados a vigentes en Audit final preprod 2026-04-25:
+  "docs/apis.md",
+  "docs/datos.md",
+  "docs/modulos.md",
+  "docs/arquitectura.md",
 ]);
 
 const legacyDocPrefix = "> LEGACY / reference only.";

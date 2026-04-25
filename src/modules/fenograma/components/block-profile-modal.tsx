@@ -11,21 +11,22 @@ import { SingleSelectField } from "@/shared/filters/single-select-field";
 import { InteractiveCell } from "@/shared/tables/interactive-cell";
 
 import {
-  DetailBadges as DetailBadgesPrimitive,
-  MetricPill as MetricPillPrimitive,
+  DetailBadges,
+  MetricPill,
 } from "@/modules/fenograma/components/block-profile-primitives";
 import {
-  buildCycleHoursRequest as buildCycleHoursRequestHelper,
-  buildMortalityBadge as buildMortalityBadgeHelper,
-  computeHorasCama as computeHorasCamaHelper,
-  computeProgrammedPlantsAcrossCycles as computeProgrammedPlantsAcrossCyclesHelper,
-  deriveCycleOperationalStatus as deriveCycleOperationalStatusHelper,
-  deriveCyclePhase as deriveCyclePhaseHelper,
-  getBedSortValue as getBedSortValueHelper,
-  getValveDisplayName as getValveDisplayNameHelper,
-  getTrailingSegment as getTrailingSegmentHelper,
-  resolveAggregatedOperationalStatus as resolveAggregatedOperationalStatusHelper,
-  swrHoursFetcher as swrHoursFetcherHelper,
+  buildCycleHoursRequest,
+  buildMortalityBadge,
+  computeCamas30,
+  computeHorasCama,
+  computeProgrammedPlantsAcrossCycles,
+  deriveCycleOperationalStatus,
+  deriveCyclePhase,
+  getBedSortValue,
+  getValveDisplayName,
+  getTrailingSegment,
+  resolveAggregatedOperationalStatus,
+  swrHoursFetcher,
 } from "@/modules/fenograma/components/block-profile-utils";
 import { HarvestCurvePanel } from "@/modules/fenograma/components/harvest-curve-panel";
 import { MortalityCurvePanel } from "@/modules/mortality/components/mortality-curve-panel";
@@ -66,101 +67,8 @@ import type {
 import type { MortalityCurvePayload } from "@/lib/mortality";
 import type { SelectedMortalityCurveState } from "@/hooks/use-block-profile-modal";
 
-function getTrailingSegment(value: string) {
-  return getTrailingSegmentHelper(value);
-}
-
-function getValveDisplayName(valveName: string | null | undefined, valveId: string | null | undefined) {
-  return getValveDisplayNameHelper(valveName, valveId);
-}
-
-/**
- * Deriva el estado operativo del ciclo desde isCurrent + isValid + status.
- * Mapping:
- * - isCurrent && isValid → Activo
- * - !isCurrent && isValid → Cerrado
- * - !isValid → Planificado
- * Si el status raw es "planned" o similar, se fuerza Planificado.
- */
-function deriveCycleOperationalStatus(cycle: CycleProfileCard): string {
-  return deriveCycleOperationalStatusHelper(cycle);
-}
-
-/**
- * Traduce el estado raw a Fase en español.
- * Mapping aplicado:
- * - active / activo / harvesting → Vegetativo (ciclo vivo pre-cosecha o en cosecha)
- * - closed / cerrado → Cerrado
- * - planned / planificado → Planificado
- * - harvest / cosecha → Cosecha
- * Si no coincide, se devuelve capitalizado.
- */
-function deriveCyclePhase(cycle: CycleProfileCard): string {
-  return deriveCyclePhaseHelper(cycle);
-}
-
-/** Camas 30 m² = superficie / 30. Retorna null si no hay superficie confiable. */
-function computeCamas30(bedArea: number | null): number | null {
-  if (bedArea === null || bedArea <= 0) {
-    return null;
-  }
-
-  return Math.round((bedArea / 30) * 100) / 100;
-}
-
-function computeHorasCama(effectiveHours: number | null, bedArea: number | null): number | null {
-  return computeHorasCamaHelper(effectiveHours, bedArea);
-}
-
-function buildCycleHoursRequest(cycleKey: string | null) {
-  return buildCycleHoursRequestHelper(cycleKey);
-}
-
-async function swrHoursFetcher<T>([url, fallbackMessage]: readonly [string, string]) {
-  return swrHoursFetcherHelper<T>([url, fallbackMessage]);
-}
-
-/**
- * Plantas del programa: macro-ponderado sobre todos los ciclos visibles.
- * Suma programmedPlants de todos los ciclos.
- */
-function computeProgrammedPlantsAcrossCycles(cycles: CycleProfileCard[]): number | null {
-  return computeProgrammedPlantsAcrossCyclesHelper(cycles);
-}
-
-/**
- * Resuelve el "Estado actual" agregado más útil del bloque/modal.
- * Prioridad: Activo > Cosecha > Vegetativo > Planificado > Cerrado.
- */
-function resolveAggregatedOperationalStatus(cycles: CycleProfileCard[]): string {
-  return resolveAggregatedOperationalStatusHelper(cycles);
-}
-
-function getBedSortValue(bedId: string) {
-  return getBedSortValueHelper(bedId);
-}
-
-function MetricPill({
-  label,
-  value,
-  onClick,
-  hint,
-}: {
-  label: string;
-  value: string;
-  onClick?: () => void;
-  hint?: string;
-}) {
-  return <MetricPillPrimitive label={label} value={value} onClick={onClick} hint={hint} />;
-}
-
-function DetailBadges({
-  items,
-}: {
-  items: string[];
-}) {
-  return <DetailBadgesPrimitive items={items} />;
-}
+// Helpers, primitives y wrappers de SWR viven en `block-profile-utils.ts`
+// y `block-profile-primitives.tsx`. Importados arriba sin alias.
 
 function HoursCamaOverlay({
   cycle,
@@ -918,10 +826,6 @@ function HarvestCurveOverlay({
       </div>
     </div>
   );
-}
-
-function buildMortalityBadge(data: MortalityCurvePayload | null, selectedCurve: SelectedMortalityCurveState) {
-  return buildMortalityBadgeHelper(data, selectedCurve);
 }
 
 function MortalityCurveOverlay({

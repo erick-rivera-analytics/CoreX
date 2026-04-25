@@ -1,4 +1,4 @@
-> LEGACY / reference only.
+> Referencia vigente. Frontera `app → modules → shared+lib` y reglas canónicas.
 
 # Arquitectura — CoreX v4
 
