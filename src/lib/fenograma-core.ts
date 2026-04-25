@@ -339,10 +339,10 @@ export const defaultFenogramaFilters: FenogramaFilters = {
 
 const AREA_SQL = `
   case
-    when nullif(parent_block, '') is not null
-      and position(concat('-', nullif(parent_block, ''), '-') in coalesce(cycle_key, '')) > 0
-      then nullif(split_part(coalesce(cycle_key, ''), concat('-', nullif(parent_block, ''), '-'), 1), '')
-    else nullif(split_part(coalesce(cycle_key, ''), '-', 1), '')
+    when nullif(mv.parent_block, '') is not null
+      and position(concat('-', nullif(mv.parent_block, ''), '-') in coalesce(mv.cycle_key, '')) > 0
+      then nullif(split_part(coalesce(mv.cycle_key, ''), concat('-', nullif(mv.parent_block, ''), '-'), 1), '')
+    else nullif(split_part(coalesce(mv.cycle_key, ''), '-', 1), '')
   end
 `;
 
@@ -369,7 +369,7 @@ const FENOGRAMA_OPTIONS_QUERY = `
       select distinct area_value
       from (
         select ${AREA_ALIAS_SQL} as area_value
-        from ${FENOGRAMA_SOURCE}
+        from ${FENOGRAMA_SOURCE} mv
       ) areas
       where area_value is not null
       order by area_value
@@ -377,8 +377,8 @@ const FENOGRAMA_OPTIONS_QUERY = `
     array(
       select distinct variety_value
       from (
-        select nullif(variety, '') as variety_value
-        from ${FENOGRAMA_SOURCE}
+        select nullif(mv.variety, '') as variety_value
+        from ${FENOGRAMA_SOURCE} mv
       ) varieties
       where variety_value is not null
       order by variety_value
@@ -386,8 +386,8 @@ const FENOGRAMA_OPTIONS_QUERY = `
     array(
       select distinct sp_type_value
       from (
-        select nullif(sp_type, '') as sp_type_value
-        from ${FENOGRAMA_SOURCE}
+        select nullif(mv.sp_type, '') as sp_type_value
+        from ${FENOGRAMA_SOURCE} mv
       ) sp_types
       where sp_type_value is not null
       order by sp_type_value
@@ -919,18 +919,18 @@ function buildWhereClause(filters: FenogramaFilters) {
   const selectedSpTypes = decodeMultiSelectValue(filters.spType);
 
   if (filters.includePlanned) {
-    statusConditions.push("sp_date >= current_date");
+    statusConditions.push("mv.sp_date >= current_date");
   }
 
   if (filters.includeActive) {
     statusConditions.push(
-      "(sp_date < current_date and coalesce(harvest_end_date, harvest_start_date, sp_date) >= current_date)",
+      "(mv.sp_date < current_date and coalesce(mv.harvest_end_date, mv.harvest_start_date, mv.sp_date) >= current_date)",
     );
   }
 
   if (filters.includeHistory) {
     statusConditions.push(
-      "coalesce(harvest_end_date, harvest_start_date, sp_date) < current_date",
+      "coalesce(mv.harvest_end_date, mv.harvest_start_date, mv.sp_date) < current_date",
     );
   }
 
@@ -947,12 +947,12 @@ function buildWhereClause(filters: FenogramaFilters) {
 
   if (selectedVarieties.length) {
     values.push(selectedVarieties);
-    conditions.push(`nullif(variety, '') = any($${values.length}::text[])`);
+    conditions.push(`nullif(mv.variety, '') = any($${values.length}::text[])`);
   }
 
   if (selectedSpTypes.length) {
     values.push(selectedSpTypes);
-    conditions.push(`nullif(sp_type, '') = any($${values.length}::text[])`);
+    conditions.push(`nullif(mv.sp_type, '') = any($${values.length}::text[])`);
   }
 
   return {
