@@ -1,4 +1,4 @@
-> LEGACY / reference only.
+> Referencia vigente. Mantener sincronizado con `src/lib/access-control.ts`.
 
 # APIs — Referencia de Endpoints
 

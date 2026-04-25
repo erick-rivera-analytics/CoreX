@@ -1,4 +1,4 @@
-> LEGACY / reference only.
+> Referencia vigente. Fuente de verdad: `src/config/module-catalog.ts`.
 
 # Módulos — Catálogo de referencia
 

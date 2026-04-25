@@ -35,7 +35,7 @@ export function ModulePlaceholder({
                   {badge}
                 </Badge>
                 <Badge variant="secondary" className="rounded-full px-3 py-1">
-                  Proximo
+                  Próximo
                 </Badge>
               </div>
               <div className="space-y-2">
@@ -44,7 +44,7 @@ export function ModulePlaceholder({
                   {summary}
                 </CardDescription>
                 <p className="max-w-3xl text-xs uppercase tracking-[0.14em] text-muted-foreground/70">
-                  Ruta visible para validar navegacion, arquitectura y consistencia visual.
+                  Ruta visible para validar navegación, arquitectura y consistencia visual.
                 </p>
               </div>
             </div>
