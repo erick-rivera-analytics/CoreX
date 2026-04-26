@@ -9,7 +9,6 @@ export {
   TALENTO_WEEKS,
   TALENTO_WEEK_OPTIONS,
   BAR_COLORS,
-  TALENTO_COLORS,
   buildTalentoQueryString,
   groupTalentoRows,
   type TalentoGroup,

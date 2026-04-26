@@ -22,8 +22,6 @@ export const BAR_COLORS = [
   "var(--color-chart-danger)",
 ];
 
-export const TALENTO_COLORS = BAR_COLORS;
-
 export type TalentoGroup<T extends TalentoPersonRecord = TalentoPersonRecord> = {
   label: string;
   count: number;

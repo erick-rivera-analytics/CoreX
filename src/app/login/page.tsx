@@ -71,7 +71,7 @@ export default function LoginPage() {
             <Badge variant="outline" className="rounded-full px-3 py-1 text-xs border-slate-400/40 bg-slate-900/20 text-slate-700 dark:border-slate-600/40 dark:bg-slate-900/30 dark:text-white">
               Acceso
             </Badge>
-            <CardTitle className="text-4xl font-bold tracking-tight bg-gradient-to-r from-foreground to-foreground/75 bg-clip-text text-transparent">Entrar</CardTitle>
+            <CardTitle className="text-4xl font-bold tracking-tight text-foreground">Entrar</CardTitle>
           </div>
         </CardHeader>
         <CardContent>

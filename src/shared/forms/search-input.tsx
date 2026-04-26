@@ -14,7 +14,6 @@ export type SearchInputProps = {
   /** Debounce in ms before notifying onChange (0 = sync). */
   debounceMs?: number;
   className?: string;
-  autoFocus?: boolean;
   disabled?: boolean;
 };
 
@@ -32,15 +31,19 @@ export function SearchInput({
   ariaLabel = "Buscar",
   debounceMs = 0,
   className,
-  autoFocus,
   disabled,
 }: SearchInputProps) {
   const [internal, setInternal] = useState(value);
+  const [prevValue, setPrevValue] = useState(value);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  useEffect(() => {
+  // Sincroniza prop → buffer interno SIN useEffect (anti-pattern derived-state).
+  // Patrón oficial React 19 "store-info-from-previous-render":
+  // https://react.dev/reference/react/useState#storing-information-from-previous-renders
+  if (prevValue !== value) {
+    setPrevValue(value);
     setInternal(value);
-  }, [value]);
+  }
 
   useEffect(() => {
     return () => {
@@ -75,7 +78,6 @@ export function SearchInput({
         placeholder={placeholder}
         aria-label={ariaLabel}
         disabled={disabled}
-        autoFocus={autoFocus}
         className="h-11 w-full rounded-[16px] border border-input bg-background pl-10 pr-10 text-sm text-foreground outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring/40 disabled:opacity-60"
       />
       {internal ? (

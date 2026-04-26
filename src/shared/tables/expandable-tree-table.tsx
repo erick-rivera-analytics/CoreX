@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { ChevronDown, ChevronRight, LoaderCircle } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -187,7 +187,7 @@ export function ExpandableTreeTable<T>({
     [expanded, loadChildren, loadedChildrenMap, setExpanded],
   );
 
-  const visibleColumns = useMemo(() => columns, [columns]);
+  const visibleColumns = columns;
 
   if (nodes.length === 0) {
     return (

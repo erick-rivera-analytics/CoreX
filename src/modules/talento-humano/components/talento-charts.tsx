@@ -22,7 +22,6 @@ import type { TalentoPersonRecord } from "@/lib/talento-humano";
 
 import {
   BAR_COLORS,
-  TALENTO_COLORS,
   type TalentoGroup,
 } from "@/modules/talento-humano/components/talento-view-utils";
 
@@ -173,7 +172,7 @@ export function DonutChart<T extends TalentoPersonRecord>({
                 cursor="pointer"
               >
                 {top.map((entry, index) => (
-                  <Cell key={entry.label} fill={TALENTO_COLORS[index % TALENTO_COLORS.length]} />
+                  <Cell key={entry.label} fill={BAR_COLORS[index % BAR_COLORS.length]} />
                 ))}
               </Pie>
               <Tooltip
@@ -195,7 +194,7 @@ export function DonutChart<T extends TalentoPersonRecord>({
             {top.map((entry, index) => (
               <button key={entry.label} type="button" className="flex items-center justify-between gap-2 text-left hover:opacity-75" onClick={() => onSelect(entry)}>
                 <span className="flex min-w-0 items-center gap-1.5">
-                  <span className="size-2 shrink-0 rounded-full" style={{ backgroundColor: TALENTO_COLORS[index % TALENTO_COLORS.length] }} />
+                  <span className="size-2 shrink-0 rounded-full" style={{ backgroundColor: BAR_COLORS[index % BAR_COLORS.length] }} />
                   <span className="truncate text-xs">{entry.label}</span>
                 </span>
                 <span className="shrink-0 text-xs font-semibold tabular-nums text-muted-foreground">{formatPercent(total ? entry.count / total : 0, { input: "ratio", minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>

@@ -61,6 +61,7 @@ const officialDocs = new Set([
   "docs/audits/AUD-9-auditoria-funcional-modulos.md",
   "docs/audits/AUD-10-pre-release-go-live.md",
   "docs/audits/AUD-11-cierre-tecnico-final.md",
+  "docs/audits/AUD-12-react-doctor-knip-cleanup.md",
 ]);
 
 const legacyDocPrefix = "> LEGACY / reference only.";

@@ -46,7 +46,7 @@ export function PersonListModal<T extends TalentoPersonRecord>({
         <div className="space-y-4">
           <div className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
-            <Input autoFocus value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar por nombre o ID..." className="pl-8" />
+            <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar por nombre o ID..." className="pl-8" />
           </div>
           {filteredPeople.length ? (
             <ScrollFadeTable>

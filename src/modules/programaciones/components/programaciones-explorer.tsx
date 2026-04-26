@@ -196,6 +196,10 @@ function EventPill({ record, onClick, highlighted }: { record: ProgramacionRecor
 
 // ── Main explorer ─────────────────────────────────────────────────────────────
 
+// Default vacío estable para evitar nueva referencia en cada render del padre
+// (anti-pattern rerender-memo-with-default-value).
+const EMPTY_RECORDS: ProgramacionRecord[] = [];
+
 type ProgramacionesExplorerProps = {
   initialData?: ProgramacionRecord[];
   initialDateFrom?: string;
@@ -203,7 +207,7 @@ type ProgramacionesExplorerProps = {
 };
 
 export function ProgramacionesExplorer({
-  initialData = [],
+  initialData = EMPTY_RECORDS,
   initialDateFrom,
   initialDateTo,
 }: ProgramacionesExplorerProps) {
@@ -241,7 +245,7 @@ export function ProgramacionesExplorer({
 
   // Derived option lists (unique areas from loaded data)
   const areaOptions = useMemo(
-    () => Array.from(new Set(allRecords.map((r) => r.areaId).filter(Boolean) as string[])).sort(),
+    () => Array.from(new Set(allRecords.flatMap((r) => (r.areaId ? [r.areaId] : [])))).sort(),
     [allRecords],
   );
 
@@ -353,7 +357,7 @@ export function ProgramacionesExplorer({
                   <Icon className="size-4 shrink-0" aria-hidden />
                   {tab.label}
                   {!hasData && tab.activityCode && (
-                    <span className="rounded-full bg-border/50 px-1.5 text-[9px] font-semibold uppercase tracking-wide">
+                    <span className="rounded-full bg-border/50 px-1.5 text-[11px] font-semibold uppercase tracking-wide">
                       pronto
                     </span>
                   )}
@@ -462,7 +466,7 @@ export function ProgramacionesExplorer({
           Fondo = Área
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="inline-block rounded px-1 text-[9px] font-bold text-white" style={{ background: VARIETY_COLORS[0] }}>Va</span>
+          <span className="inline-block rounded px-1 text-[11px] font-bold text-white" style={{ background: VARIETY_COLORS[0] }}>Va</span>
           Badge = Variedad
         </span>
       </div>

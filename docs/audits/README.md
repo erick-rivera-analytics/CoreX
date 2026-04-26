@@ -28,6 +28,7 @@ Cada AUD documenta:
 | 9 | [`AUD-9-auditoria-funcional-modulos.md`](./AUD-9-auditoria-funcional-modulos.md) | Auditoría funcional por módulo — 17 active + 3 hidden mapeados, contratos verificados | ✅ cerrado | 2026-04-26 | typecheck, canon, test 79/79 | NO |
 | 10 | [`AUD-10-pre-release-go-live.md`](./AUD-10-pre-release-go-live.md) | Decisión final de producción — **GO CON RIESGOS NO BLOQUEANTES** | ✅ cerrado | 2026-04-26 | check holístico verde + 12 riesgos clasificados | **GO** |
 | 11 | [`AUD-11-cierre-tecnico-final.md`](./AUD-11-cierre-tecnico-final.md) | Cierre técnico final — limpieza de huérfanos, **CIERRE OK PARA PRODUCCIÓN** | ✅ cerrado | 2026-04-26 | check holístico verde + 0 bloqueantes | **OK** |
+| 12 | [`AUD-12-react-doctor-knip-cleanup.md`](./AUD-12-react-doctor-knip-cleanup.md) | React Doctor + Knip cleanup — 1 ERROR cerrado + 9 categorías de warnings + 7 archivos huérfanos eliminados | ✅ cerrado | 2026-04-26 | check holístico verde, 79/79 tests | NO |
 
 ---
 
