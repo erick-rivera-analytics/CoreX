@@ -89,6 +89,10 @@ Hacer esta pregunta:
 - `MetricPill` de Fenograma es una excepcion de dominio valida y vive en el split del modal
 - `person-detail-sheet.tsx` puede usar `space-y-6` dentro del overlay
 - `CompositionTable` puede mantener `py-2` en body cells porque es heatmap compacto; fuera de ese caso la regla es `py-2.5 px-3`
+- `src/lib/*` puede importar de `src/shared/lib/*` (helpers puros — `format`, `number-utils`, `area-normalization`, `date-utils`, `labels`). NO importa UI/tables/forms/overlays. Cumple el espíritu "src/lib no React": los helpers son funciones puras sin React. Documentado en AUD-2 (2026-04-25).
+- `PersonProfileDialog` (`src/shared/overlays/person-profile-dialog.tsx`) puede importar de `@/modules/fenograma/components/person-medical-panel` y `@/modules/productividad/components/person-hours-performance-section` porque es el orquestador canónico de la "ficha del personal" cross-módulo (consolida 3 tabs: Información, Rendimiento, Médica). Refactor a slot-injection requeriría rediseño invasivo. Documentado en AUD-2 (2026-04-25).
+- `BlockProfileModal` (`src/modules/fenograma/components/block-profile-modal.tsx`) puede ser importado por `campo`, `mortality`, `productividad` porque es la "ficha del bloque" canónica cross-módulo. Migrar a `src/shared` violaría "shared no contiene dominio". Aceptado como módulo "owner" + reuso cross-módulo. Documentado en AUD-2 (2026-04-25).
+- `MortalityCurvePanel` (`src/modules/mortality/components/mortality-curve-panel.tsx`) puede ser importado por `BlockProfileModal` (fenograma) porque es composición canónica de curva de mortandad embebida en la ficha del bloque. Documentado en AUD-2 (2026-04-25).
 
 ## Canon de tablas
 

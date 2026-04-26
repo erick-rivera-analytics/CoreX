@@ -1,7 +1,7 @@
 "use client";
 
 import { parseDateOnly } from "@/shared/lib/format";
-import { formatWeekLabel, generateAvailableWeeks } from "@/lib/talento-humano-utils";
+import { generateAvailableWeeks } from "@/lib/talento-humano-utils";
 import type { TalentoFilters, TalentoPersonRecord } from "@/lib/talento-humano";
 
 export const TALENTO_WEEKS = generateAvailableWeeks(2024);
