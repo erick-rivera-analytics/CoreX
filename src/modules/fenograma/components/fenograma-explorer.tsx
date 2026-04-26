@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useDeferredValue, useMemo, useState } from "react";
+import { useDeferredValue, useMemo, useState } from "react";
 import { LoaderCircle, RefreshCcw, Sprout } from "lucide-react";
 import { Skeleton } from "@/shared/ui/skeleton";
 import useSWR from "swr";
@@ -84,12 +84,11 @@ export function FenogramaExplorer({ initialData }: { initialData: FenogramaDashb
       keepPreviousData: true,
       revalidateOnFocus: false,
       dedupingInterval: 15000,
+      onError: (err) => toast.error(err?.message || "Error al cargar datos"),
     },
   );
   const data = dashboardData ?? initialData;
   const blockModal = useBlockProfileModal(selectedRow);
-
-  useEffect(() => { if (dashboardError) toast.error(dashboardError.message || "Error al cargar datos"); }, [dashboardError]);
 
   function updateFilter<Key extends keyof FenogramaFilters>(key: Key, value: FenogramaFilters[Key]) {
     setFilters((current) => ({ ...current, [key]: value }));

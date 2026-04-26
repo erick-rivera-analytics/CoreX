@@ -64,6 +64,7 @@ const officialDocs = new Set([
   "docs/audits/AUD-12-react-doctor-knip-cleanup.md",
   "docs/audits/AUD-13-react-doctor-round-2.md",
   "docs/audits/AUD-14-react-doctor-round-3.md",
+  "docs/audits/AUD-15-react-doctor-round-4.md",
 ]);
 
 const legacyDocPrefix = "> LEGACY / reference only.";

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useDeferredValue, useMemo, useState } from "react";
+import { useDeferredValue, useMemo, useState } from "react";
 import { ArrowLeftRight, ShieldAlert, Swords, Trophy } from "lucide-react";
 import useSWR from "swr";
 import { toast } from "sonner";
@@ -207,6 +207,7 @@ export function ComparisonExplorer({ initialData }: { initialData: ComparisonDas
       keepPreviousData: true,
       revalidateOnFocus: false,
       dedupingInterval: 15000,
+      onError: (err) => toast.error(err?.message || "Error al cargar datos"),
     },
   );
   const {
@@ -219,10 +220,9 @@ export function ComparisonExplorer({ initialData }: { initialData: ComparisonDas
     {
       fallbackData: pairQuery && pairQuery === initialPairQuery ? initialData.comparison ?? undefined : undefined,
       revalidateOnFocus: false,
+      onError: (err) => toast.error(err?.message || "Error al cargar datos"),
     },
   );
-  useEffect(() => { if (optionsError) toast.error(optionsError.message || "Error al cargar datos"); }, [optionsError]);
-  useEffect(() => { if (comparisonError) toast.error(comparisonError.message || "Error al cargar datos"); }, [comparisonError]);
 
   const options = optionsData ?? initialData.options;
   const comparison = pairQuery

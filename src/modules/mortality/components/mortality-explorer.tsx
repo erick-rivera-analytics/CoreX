@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useDeferredValue, useMemo, useState } from "react";
+import { useDeferredValue, useMemo, useState } from "react";
 import { Activity, LoaderCircle, RefreshCcw } from "lucide-react";
 import useSWR from "swr";
 import { toast } from "sonner";
@@ -78,11 +78,10 @@ export function MortalityExplorer({ initialData }: { initialData: MortalityDashb
       keepPreviousData: true,
       revalidateOnFocus: false,
       dedupingInterval: 15000,
+      onError: (err) => toast.error(err?.message || "Error al cargar datos"),
     },
   );
   const data = dashboardData ?? initialData;
-
-  useEffect(() => { if (dashboardError) toast.error(dashboardError.message || "Error al cargar datos"); }, [dashboardError]);
 
   const {
     data: curveData,

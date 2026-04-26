@@ -150,6 +150,7 @@ export function PoscosechaSkusExplorer({
       fallbackData: initialData,
       revalidateOnFocus: false,
       dedupingInterval: 15000,
+      onError: (err) => toast.error(err?.message || "No se pudo cargar el maestro de SKU."),
     },
   );
 
@@ -191,12 +192,6 @@ export function PoscosechaSkusExplorer({
       latestRecord,
     };
   }, [records]);
-
-  useEffect(() => {
-    if (error) {
-      toast.error(error.message || "No se pudo cargar el maestro de SKU.");
-    }
-  }, [error]);
 
   useEffect(() => {
     setFormValues(selectedRecord ? mapRecordToFormValues(selectedRecord) : EMPTY_FORM_VALUES);
