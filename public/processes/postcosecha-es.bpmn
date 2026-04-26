@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0" encoding="UTF-8"?>
 <bpmn:definitions
   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
   xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
@@ -158,6 +158,28 @@
     <bpmn:exclusiveGateway id="Gateway_Cierre_Final" />
     <bpmn:endEvent id="EndEvent_Postcosecha" />
 
+    <bpmn:textAnnotation id="Note_Bifurcacion_Pre">
+      <bpmn:text>Se utiliza esta bifurcacion cuando se quiere guardar flor</bpmn:text>
+    </bpmn:textAnnotation>
+    <bpmn:textAnnotation id="Note_Grado_B1AB">
+      <bpmn:text>AQUI SE ASIGNA GRADO AL TALLO</bpmn:text>
+    </bpmn:textAnnotation>
+    <bpmn:textAnnotation id="Note_Grado_B1C">
+      <bpmn:text>EN B1C SE ASIGNA EL GRADO</bpmn:text>
+    </bpmn:textAnnotation>
+    <bpmn:textAnnotation id="Note_B3_NoAplica">
+      <bpmn:text>TODO LO QUE SEA B3 YA NO APLICA GRADO NI TALLO</bpmn:text>
+    </bpmn:textAnnotation>
+    <bpmn:textAnnotation id="Note_B2A_NoAplica">
+      <bpmn:text>TODO LO QUE SEA B2A YA NO APLICA GRADO NI TALLO</bpmn:text>
+    </bpmn:textAnnotation>
+
+    <bpmn:association id="Assoc_Bifurcacion_Pre" sourceRef="Note_Bifurcacion_Pre" targetRef="Event_Max10_Pre_GV" />
+    <bpmn:association id="Assoc_Grado_B1AB_Pre" sourceRef="Note_Grado_B1AB" targetRef="Task_B1AB_Pre_Directo" />
+    <bpmn:association id="Assoc_Grado_B1C" sourceRef="Note_Grado_B1C" targetRef="Task_B1C_Apertura_GV" />
+    <bpmn:association id="Assoc_B3_NoAplica" sourceRef="Note_B3_NoAplica" targetRef="Task_General_Pre_Directo" />
+    <bpmn:association id="Assoc_B2A_NoAplica" sourceRef="Note_B2A_NoAplica" targetRef="Task_General_Apertura_Directo" />
+
     <bpmn:sequenceFlow id="Flow_Start_Raiz" sourceRef="StartEvent_Postcosecha" targetRef="Gateway_Raiz" />
     <bpmn:sequenceFlow id="Flow_Raiz_Pre" sourceRef="Gateway_Raiz" targetRef="Task_B1_Preclasificacion" />
     <bpmn:sequenceFlow id="Flow_Raiz_Apertura" sourceRef="Gateway_Raiz" targetRef="Task_B1_Apertura" />
@@ -233,201 +255,412 @@
     <bpmn:sequenceFlow id="Flow_Final_End" sourceRef="Gateway_Cierre_Final" targetRef="EndEvent_Postcosecha" />
   </bpmn:process>
 
-  <!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-       LAYOUT â€” Pool h=1200 Â· 4 lanes h=300 cada una
-       L1 center-y=190  L2 center-y=490  L3 center-y=790  L4 center-y=1090
-       â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
   <bpmndi:BPMNDiagram id="BPMNDiagram_PostcosechaBalanzas">
     <bpmndi:BPMNPlane id="BPMNPlane_PostcosechaBalanzas" bpmnElement="Collab_Postcosecha">
 
-      <!-- Pool & Lanes -->
-      <bpmndi:BPMNShape id="Shape_Participant_Postcosecha" bpmnElement="Participant_Postcosecha" isHorizontal="true"><dc:Bounds x="40" y="40" width="2100" height="1200" /></bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Shape_Lane_PreGV" bpmnElement="Lane_PreGV" isHorizontal="true"><dc:Bounds x="170" y="40" width="1970" height="300" /></bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Shape_Lane_PreDirecto" bpmnElement="Lane_PreDirecto" isHorizontal="true"><dc:Bounds x="170" y="340" width="1970" height="300" /></bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Shape_Lane_AperturaGV" bpmnElement="Lane_AperturaGV" isHorizontal="true"><dc:Bounds x="170" y="640" width="1970" height="300" /></bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Shape_Lane_AperturaDirecto" bpmnElement="Lane_AperturaDirecto" isHorizontal="true"><dc:Bounds x="170" y="940" width="1970" height="300" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Participant_Postcosecha" bpmnElement="Participant_Postcosecha" isHorizontal="true"><dc:Bounds x="40" y="40" width="2200" height="1560" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_PreGV" bpmnElement="Lane_PreGV" isHorizontal="true"><dc:Bounds x="170" y="40" width="2030" height="380" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_PreDirecto" bpmnElement="Lane_PreDirecto" isHorizontal="true"><dc:Bounds x="170" y="420" width="2030" height="380" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_AperturaGV" bpmnElement="Lane_AperturaGV" isHorizontal="true"><dc:Bounds x="170" y="800" width="2030" height="380" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_AperturaDirecto" bpmnElement="Lane_AperturaDirecto" isHorizontal="true"><dc:Bounds x="170" y="1180" width="2030" height="380" /></bpmndi:BPMNShape>
 
-      <!-- â”€â”€ LANE 1: PRECLASIFICACION / GV  (center-y=190) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
-      <bpmndi:BPMNShape id="Shape_StartEvent_Postcosecha" bpmnElement="StartEvent_Postcosecha"><dc:Bounds x="179" y="172" width="36" height="36" /></bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Shape_Gateway_Raiz" bpmnElement="Gateway_Raiz" isMarkerVisible="true"><dc:Bounds x="240" y="165" width="50" height="50" /></bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Shape_Task_B1_Preclasificacion" bpmnElement="Task_B1_Preclasificacion"><dc:Bounds x="320" y="160" width="110" height="60" /></bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Shape_Gateway_Pre_Rutas" bpmnElement="Gateway_Pre_Rutas" isMarkerVisible="true"><dc:Bounds x="488" y="165" width="50" height="50" /></bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Shape_Event_Max10_Pre_GV" bpmnElement="Event_Max10_Pre_GV"><dc:Bounds x="560" y="172" width="36" height="36" /></bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Shape_Task_PeladoTallo_Pre_GV" bpmnElement="Task_PeladoTallo_Pre_GV"><dc:Bounds x="599" y="162" width="130" height="56" /></bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Shape_Task_B1AB_Pre_GV" bpmnElement="Task_B1AB_Pre_GV"><dc:Bounds x="755" y="160" width="110" height="60" /></bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Shape_Event_Hidratacion_Pre_GV" bpmnElement="Event_Hidratacion_Pre_GV"><dc:Bounds x="922" y="172" width="36" height="36" /></bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Shape_Task_B2_Pre_GV" bpmnElement="Task_B2_Pre_GV"><dc:Bounds x="965" y="160" width="110" height="60" /></bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Shape_Gateway_Pre_GV_Destinos" bpmnElement="Gateway_Pre_GV_Destinos" isMarkerVisible="true"><dc:Bounds x="1165" y="165" width="50" height="50" /></bpmndi:BPMNShape>
-      <!-- Fan-out rows: Arcoiris y=115 Â· Tinturado y=190 Â· Blanco y=265 -->
-      <bpmndi:BPMNShape id="Shape_Task_Clasificado_Pre_GV_Arcoiris" bpmnElement="Task_Clasificado_Pre_GV_Arcoiris"><dc:Bounds x="1245" y="87" width="130" height="56" /></bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Shape_Task_Clasificado_Pre_GV_Tinturado" bpmnElement="Task_Clasificado_Pre_GV_Tinturado"><dc:Bounds x="1245" y="162" width="130" height="56" /></bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Shape_Task_Clasificado_Pre_GV_Blanco" bpmnElement="Task_Clasificado_Pre_GV_Blanco"><dc:Bounds x="1245" y="237" width="130" height="56" /></bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Shape_Task_B3_Pre_GV_Arcoiris" bpmnElement="Task_B3_Pre_GV_Arcoiris"><dc:Bounds x="1415" y="85" width="110" height="60" /></bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Shape_Task_B3_Pre_GV_Tinturado" bpmnElement="Task_B3_Pre_GV_Tinturado"><dc:Bounds x="1415" y="160" width="110" height="60" /></bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Shape_Task_B3_Pre_GV_Blanco" bpmnElement="Task_B3_Pre_GV_Blanco"><dc:Bounds x="1415" y="235" width="110" height="60" /></bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Shape_Task_General_Pre_GV" bpmnElement="Task_General_Pre_GV"><dc:Bounds x="1565" y="160" width="110" height="60" /></bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Shape_Gateway_Cierre_Superior" bpmnElement="Gateway_Cierre_Superior" isMarkerVisible="true"><dc:Bounds x="1753" y="165" width="50" height="50" /></bpmndi:BPMNShape>
+      <!-- Lane 1: PRECLASIFICACION / GV (rama inactiva en datos pero visible en flujo) -->
+      <bpmndi:BPMNShape id="Shape_StartEvent_Postcosecha" bpmnElement="StartEvent_Postcosecha"><dc:Bounds x="92" y="222" width="36" height="36" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Gateway_Raiz" bpmnElement="Gateway_Raiz" isMarkerVisible="true"><dc:Bounds x="175" y="215" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_B1_Preclasificacion" bpmnElement="Task_B1_Preclasificacion"><dc:Bounds x="265" y="210" width="110" height="60" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Gateway_Pre_Rutas" bpmnElement="Gateway_Pre_Rutas" isMarkerVisible="true"><dc:Bounds x="435" y="215" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Event_Max10_Pre_GV" bpmnElement="Event_Max10_Pre_GV"><dc:Bounds x="562" y="222" width="36" height="36" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_PeladoTallo_Pre_GV" bpmnElement="Task_PeladoTallo_Pre_GV"><dc:Bounds x="645" y="210" width="110" height="60" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_B1AB_Pre_GV" bpmnElement="Task_B1AB_Pre_GV"><dc:Bounds x="815" y="210" width="110" height="60" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Event_Hidratacion_Pre_GV" bpmnElement="Event_Hidratacion_Pre_GV"><dc:Bounds x="1002" y="222" width="36" height="36" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_B2_Pre_GV" bpmnElement="Task_B2_Pre_GV"><dc:Bounds x="1085" y="210" width="110" height="60" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Gateway_Pre_GV_Destinos" bpmnElement="Gateway_Pre_GV_Destinos" isMarkerVisible="true"><dc:Bounds x="1255" y="215" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_Clasificado_Pre_GV_Arcoiris" bpmnElement="Task_Clasificado_Pre_GV_Arcoiris"><dc:Bounds x="1365" y="100" width="110" height="60" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_Clasificado_Pre_GV_Blanco" bpmnElement="Task_Clasificado_Pre_GV_Blanco"><dc:Bounds x="1365" y="210" width="110" height="60" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_Clasificado_Pre_GV_Tinturado" bpmnElement="Task_Clasificado_Pre_GV_Tinturado"><dc:Bounds x="1365" y="320" width="110" height="60" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_B3_Pre_GV_Arcoiris" bpmnElement="Task_B3_Pre_GV_Arcoiris"><dc:Bounds x="1555" y="100" width="110" height="60" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_B3_Pre_GV_Blanco" bpmnElement="Task_B3_Pre_GV_Blanco"><dc:Bounds x="1555" y="210" width="110" height="60" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_B3_Pre_GV_Tinturado" bpmnElement="Task_B3_Pre_GV_Tinturado"><dc:Bounds x="1555" y="320" width="110" height="60" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Gateway_Cierre_Superior" bpmnElement="Gateway_Cierre_Superior" isMarkerVisible="true"><dc:Bounds x="1735" y="215" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_General_Pre_GV" bpmnElement="Task_General_Pre_GV"><dc:Bounds x="1825" y="210" width="110" height="60" /></bpmndi:BPMNShape>
 
-      <!-- â”€â”€ LANE 2: PRECLASIFICACION / DIRECTO  (center-y=490) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
-      <bpmndi:BPMNShape id="Shape_Task_PeladoTallo_Pre_Directo" bpmnElement="Task_PeladoTallo_Pre_Directo"><dc:Bounds x="545" y="462" width="130" height="56" /></bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Shape_Task_B1AB_Pre_Directo" bpmnElement="Task_B1AB_Pre_Directo"><dc:Bounds x="725" y="460" width="110" height="60" /></bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Shape_Event_Hidratacion_Pre_Directo" bpmnElement="Event_Hidratacion_Pre_Directo"><dc:Bounds x="882" y="472" width="36" height="36" /></bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Shape_Task_B2_Pre_Directo" bpmnElement="Task_B2_Pre_Directo"><dc:Bounds x="935" y="460" width="110" height="60" /></bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Shape_Gateway_Pre_Directo_Destinos" bpmnElement="Gateway_Pre_Directo_Destinos" isMarkerVisible="true"><dc:Bounds x="1135" y="465" width="50" height="50" /></bpmndi:BPMNShape>
-      <!-- Fan-out rows: Arcoiris y=415 Â· Tinturado y=490 Â· Blanco y=565 -->
-      <bpmndi:BPMNShape id="Shape_Task_Clasificado_Pre_Directo_Arcoiris" bpmnElement="Task_Clasificado_Pre_Directo_Arcoiris"><dc:Bounds x="1245" y="387" width="130" height="56" /></bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Shape_Task_Clasificado_Pre_Directo_Tinturado" bpmnElement="Task_Clasificado_Pre_Directo_Tinturado"><dc:Bounds x="1245" y="462" width="130" height="56" /></bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Shape_Task_Clasificado_Pre_Directo_Blanco" bpmnElement="Task_Clasificado_Pre_Directo_Blanco"><dc:Bounds x="1245" y="537" width="130" height="56" /></bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Shape_Task_B3_Pre_Directo_Arcoiris" bpmnElement="Task_B3_Pre_Directo_Arcoiris"><dc:Bounds x="1415" y="385" width="110" height="60" /></bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Shape_Task_B3_Pre_Directo_Tinturado" bpmnElement="Task_B3_Pre_Directo_Tinturado"><dc:Bounds x="1415" y="460" width="110" height="60" /></bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Shape_Task_B3_Pre_Directo_Blanco" bpmnElement="Task_B3_Pre_Directo_Blanco"><dc:Bounds x="1415" y="535" width="110" height="60" /></bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Shape_Task_General_Pre_Directo" bpmnElement="Task_General_Pre_Directo"><dc:Bounds x="1565" y="460" width="110" height="60" /></bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Shape_Gateway_Cierre_Final" bpmnElement="Gateway_Cierre_Final" isMarkerVisible="true"><dc:Bounds x="1875" y="465" width="50" height="50" /></bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Shape_EndEvent_Postcosecha" bpmnElement="EndEvent_Postcosecha"><dc:Bounds x="1960" y="472" width="36" height="36" /></bpmndi:BPMNShape>
+      <!-- Lane 2: PRECLASIFICACION / DIRECTO (rama activa con overlays de datos) -->
+      <bpmndi:BPMNShape id="Shape_Task_PeladoTallo_Pre_Directo" bpmnElement="Task_PeladoTallo_Pre_Directo"><dc:Bounds x="645" y="590" width="110" height="60" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_B1AB_Pre_Directo" bpmnElement="Task_B1AB_Pre_Directo"><dc:Bounds x="815" y="590" width="110" height="60" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Event_Hidratacion_Pre_Directo" bpmnElement="Event_Hidratacion_Pre_Directo"><dc:Bounds x="1002" y="602" width="36" height="36" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_B2_Pre_Directo" bpmnElement="Task_B2_Pre_Directo"><dc:Bounds x="1085" y="590" width="110" height="60" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Gateway_Pre_Directo_Destinos" bpmnElement="Gateway_Pre_Directo_Destinos" isMarkerVisible="true"><dc:Bounds x="1255" y="595" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_Clasificado_Pre_Directo_Arcoiris" bpmnElement="Task_Clasificado_Pre_Directo_Arcoiris"><dc:Bounds x="1365" y="480" width="110" height="60" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_Clasificado_Pre_Directo_Blanco" bpmnElement="Task_Clasificado_Pre_Directo_Blanco"><dc:Bounds x="1365" y="590" width="110" height="60" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_Clasificado_Pre_Directo_Tinturado" bpmnElement="Task_Clasificado_Pre_Directo_Tinturado"><dc:Bounds x="1365" y="700" width="110" height="60" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_B3_Pre_Directo_Arcoiris" bpmnElement="Task_B3_Pre_Directo_Arcoiris"><dc:Bounds x="1555" y="480" width="110" height="60" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_B3_Pre_Directo_Blanco" bpmnElement="Task_B3_Pre_Directo_Blanco"><dc:Bounds x="1555" y="590" width="110" height="60" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_B3_Pre_Directo_Tinturado" bpmnElement="Task_B3_Pre_Directo_Tinturado"><dc:Bounds x="1555" y="700" width="110" height="60" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_General_Pre_Directo" bpmnElement="Task_General_Pre_Directo"><dc:Bounds x="1825" y="590" width="110" height="60" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Gateway_Cierre_Final" bpmnElement="Gateway_Cierre_Final" isMarkerVisible="true"><dc:Bounds x="2025" y="595" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_EndEvent_Postcosecha" bpmnElement="EndEvent_Postcosecha"><dc:Bounds x="2122" y="602" width="36" height="36" /></bpmndi:BPMNShape>
 
-      <!-- â”€â”€ LANE 3: APERTURA / GV PELADO  (center-y=790) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
-      <bpmndi:BPMNShape id="Shape_Task_B1_Apertura" bpmnElement="Task_B1_Apertura"><dc:Bounds x="320" y="760" width="110" height="60" /></bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Shape_Gateway_Apertura_Rutas" bpmnElement="Gateway_Apertura_Rutas" isMarkerVisible="true"><dc:Bounds x="488" y="765" width="50" height="50" /></bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Shape_Task_B1C_Apertura_GV" bpmnElement="Task_B1C_Apertura_GV"><dc:Bounds x="575" y="760" width="110" height="60" /></bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Shape_Event_Max10_Apertura_GV" bpmnElement="Event_Max10_Apertura_GV"><dc:Bounds x="732" y="772" width="36" height="36" /></bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Shape_Event_Hidratacion_Apertura_GV" bpmnElement="Event_Hidratacion_Apertura_GV"><dc:Bounds x="802" y="772" width="36" height="36" /></bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Shape_Task_B2_Apertura_Max10" bpmnElement="Task_B2_Apertura_Max10"><dc:Bounds x="885" y="760" width="110" height="60" /></bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Shape_Gateway_Apertura_GV_Destinos" bpmnElement="Gateway_Apertura_GV_Destinos" isMarkerVisible="true"><dc:Bounds x="1165" y="765" width="50" height="50" /></bpmndi:BPMNShape>
-      <!-- Fan-out rows: Arcoiris y=715 Â· Tinturado y=790 Â· Blanco y=865 -->
-      <bpmndi:BPMNShape id="Shape_Task_PeladoClasificado_Apertura_Max10_Arcoiris" bpmnElement="Task_PeladoClasificado_Apertura_Max10_Arcoiris"><dc:Bounds x="1245" y="687" width="130" height="56" /></bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Shape_Task_PeladoClasificado_Apertura_Max10_Tinturado" bpmnElement="Task_PeladoClasificado_Apertura_Max10_Tinturado"><dc:Bounds x="1245" y="762" width="130" height="56" /></bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Shape_Task_PeladoClasificado_Apertura_Max10_Blanco" bpmnElement="Task_PeladoClasificado_Apertura_Max10_Blanco"><dc:Bounds x="1245" y="837" width="130" height="56" /></bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Shape_Task_B2A_Apertura_Max10_Arcoiris" bpmnElement="Task_B2A_Apertura_Max10_Arcoiris"><dc:Bounds x="1415" y="685" width="110" height="60" /></bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Shape_Task_B2A_Apertura_Max10_Tinturado" bpmnElement="Task_B2A_Apertura_Max10_Tinturado"><dc:Bounds x="1415" y="760" width="110" height="60" /></bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Shape_Task_B2A_Apertura_Max10_Blanco" bpmnElement="Task_B2A_Apertura_Max10_Blanco"><dc:Bounds x="1415" y="835" width="110" height="60" /></bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Shape_Task_General_Apertura_Max10" bpmnElement="Task_General_Apertura_Max10"><dc:Bounds x="1565" y="760" width="110" height="60" /></bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Shape_Gateway_Cierre_Inferior" bpmnElement="Gateway_Cierre_Inferior" isMarkerVisible="true"><dc:Bounds x="1753" y="765" width="50" height="50" /></bpmndi:BPMNShape>
+      <!-- Lane 3: APERTURA / GV PELADO -->
+      <bpmndi:BPMNShape id="Shape_Task_B1_Apertura" bpmnElement="Task_B1_Apertura"><dc:Bounds x="265" y="970" width="110" height="60" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Gateway_Apertura_Rutas" bpmnElement="Gateway_Apertura_Rutas" isMarkerVisible="true"><dc:Bounds x="435" y="975" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_B1C_Apertura_GV" bpmnElement="Task_B1C_Apertura_GV"><dc:Bounds x="645" y="970" width="110" height="60" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Event_Max10_Apertura_GV" bpmnElement="Event_Max10_Apertura_GV"><dc:Bounds x="852" y="982" width="36" height="36" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Event_Hidratacion_Apertura_GV" bpmnElement="Event_Hidratacion_Apertura_GV"><dc:Bounds x="1002" y="982" width="36" height="36" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_B2_Apertura_Max10" bpmnElement="Task_B2_Apertura_Max10"><dc:Bounds x="1085" y="970" width="110" height="60" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Gateway_Apertura_GV_Destinos" bpmnElement="Gateway_Apertura_GV_Destinos" isMarkerVisible="true"><dc:Bounds x="1255" y="975" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_PeladoClasificado_Apertura_Max10_Arcoiris" bpmnElement="Task_PeladoClasificado_Apertura_Max10_Arcoiris"><dc:Bounds x="1350" y="860" width="140" height="60" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_PeladoClasificado_Apertura_Max10_Blanco" bpmnElement="Task_PeladoClasificado_Apertura_Max10_Blanco"><dc:Bounds x="1350" y="970" width="140" height="60" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_PeladoClasificado_Apertura_Max10_Tinturado" bpmnElement="Task_PeladoClasificado_Apertura_Max10_Tinturado"><dc:Bounds x="1350" y="1080" width="140" height="60" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_B2A_Apertura_Max10_Arcoiris" bpmnElement="Task_B2A_Apertura_Max10_Arcoiris"><dc:Bounds x="1555" y="860" width="110" height="60" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_B2A_Apertura_Max10_Blanco" bpmnElement="Task_B2A_Apertura_Max10_Blanco"><dc:Bounds x="1555" y="970" width="110" height="60" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_B2A_Apertura_Max10_Tinturado" bpmnElement="Task_B2A_Apertura_Max10_Tinturado"><dc:Bounds x="1555" y="1080" width="110" height="60" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Gateway_Cierre_Inferior" bpmnElement="Gateway_Cierre_Inferior" isMarkerVisible="true"><dc:Bounds x="1735" y="975" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_General_Apertura_Max10" bpmnElement="Task_General_Apertura_Max10"><dc:Bounds x="1825" y="970" width="110" height="60" /></bpmndi:BPMNShape>
 
-      <!-- â”€â”€ LANE 4: APERTURA / APERTURA  (center-y=1090) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
-      <bpmndi:BPMNShape id="Shape_Task_B1C_Apertura_Directo" bpmnElement="Task_B1C_Apertura_Directo"><dc:Bounds x="595" y="1060" width="110" height="60" /></bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Shape_Event_Hidratacion_Apertura_Directo" bpmnElement="Event_Hidratacion_Apertura_Directo"><dc:Bounds x="782" y="1072" width="36" height="36" /></bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Shape_Task_B2_Apertura_Directo" bpmnElement="Task_B2_Apertura_Directo"><dc:Bounds x="885" y="1060" width="110" height="60" /></bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Shape_Gateway_Apertura_Directo_Destinos" bpmnElement="Gateway_Apertura_Directo_Destinos" isMarkerVisible="true"><dc:Bounds x="1135" y="1065" width="50" height="50" /></bpmndi:BPMNShape>
-      <!-- Fan-out rows: Arcoiris y=1015 Â· Tinturado y=1090 Â· Blanco y=1165 -->
-      <bpmndi:BPMNShape id="Shape_Task_PeladoClasificado_Apertura_Directo_Arcoiris" bpmnElement="Task_PeladoClasificado_Apertura_Directo_Arcoiris"><dc:Bounds x="1245" y="987" width="130" height="56" /></bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Shape_Task_PeladoClasificado_Apertura_Directo_Tinturado" bpmnElement="Task_PeladoClasificado_Apertura_Directo_Tinturado"><dc:Bounds x="1245" y="1062" width="130" height="56" /></bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Shape_Task_PeladoClasificado_Apertura_Directo_Blanco" bpmnElement="Task_PeladoClasificado_Apertura_Directo_Blanco"><dc:Bounds x="1245" y="1137" width="130" height="56" /></bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Shape_Task_B2A_Apertura_Directo_Arcoiris" bpmnElement="Task_B2A_Apertura_Directo_Arcoiris"><dc:Bounds x="1415" y="985" width="110" height="60" /></bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Shape_Task_B2A_Apertura_Directo_Tinturado" bpmnElement="Task_B2A_Apertura_Directo_Tinturado"><dc:Bounds x="1415" y="1060" width="110" height="60" /></bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Shape_Task_B2A_Apertura_Directo_Blanco" bpmnElement="Task_B2A_Apertura_Directo_Blanco"><dc:Bounds x="1415" y="1135" width="110" height="60" /></bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Shape_Task_General_Apertura_Directo" bpmnElement="Task_General_Apertura_Directo"><dc:Bounds x="1565" y="1060" width="110" height="60" /></bpmndi:BPMNShape>
+      <!-- Lane 4: APERTURA / APERTURA -->
+      <bpmndi:BPMNShape id="Shape_Task_B1C_Apertura_Directo" bpmnElement="Task_B1C_Apertura_Directo"><dc:Bounds x="645" y="1350" width="110" height="60" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Event_Hidratacion_Apertura_Directo" bpmnElement="Event_Hidratacion_Apertura_Directo"><dc:Bounds x="1002" y="1362" width="36" height="36" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_B2_Apertura_Directo" bpmnElement="Task_B2_Apertura_Directo"><dc:Bounds x="1085" y="1350" width="110" height="60" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Gateway_Apertura_Directo_Destinos" bpmnElement="Gateway_Apertura_Directo_Destinos" isMarkerVisible="true"><dc:Bounds x="1255" y="1355" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_PeladoClasificado_Apertura_Directo_Arcoiris" bpmnElement="Task_PeladoClasificado_Apertura_Directo_Arcoiris"><dc:Bounds x="1350" y="1240" width="140" height="60" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_PeladoClasificado_Apertura_Directo_Blanco" bpmnElement="Task_PeladoClasificado_Apertura_Directo_Blanco"><dc:Bounds x="1350" y="1350" width="140" height="60" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_PeladoClasificado_Apertura_Directo_Tinturado" bpmnElement="Task_PeladoClasificado_Apertura_Directo_Tinturado"><dc:Bounds x="1350" y="1460" width="140" height="60" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_B2A_Apertura_Directo_Arcoiris" bpmnElement="Task_B2A_Apertura_Directo_Arcoiris"><dc:Bounds x="1555" y="1240" width="110" height="60" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_B2A_Apertura_Directo_Blanco" bpmnElement="Task_B2A_Apertura_Directo_Blanco"><dc:Bounds x="1555" y="1350" width="110" height="60" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_B2A_Apertura_Directo_Tinturado" bpmnElement="Task_B2A_Apertura_Directo_Tinturado"><dc:Bounds x="1555" y="1460" width="110" height="60" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_General_Apertura_Directo" bpmnElement="Task_General_Apertura_Directo"><dc:Bounds x="1825" y="1350" width="110" height="60" /></bpmndi:BPMNShape>
 
-      <!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-           EDGES â€” orthogonal routing, no diagonals
-           â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
+      <!-- Text annotations + associations -->
+      <bpmndi:BPMNShape id="Shape_Note_Bifurcacion_Pre" bpmnElement="Note_Bifurcacion_Pre"><dc:Bounds x="480" y="45" width="200" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Note_Grado_B1AB" bpmnElement="Note_Grado_B1AB"><dc:Bounds x="780" y="750" width="180" height="40" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Note_Grado_B1C" bpmnElement="Note_Grado_B1C"><dc:Bounds x="610" y="1130" width="180" height="40" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Note_B3_NoAplica" bpmnElement="Note_B3_NoAplica"><dc:Bounds x="1650" y="425" width="220" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Note_B2A_NoAplica" bpmnElement="Note_B2A_NoAplica"><dc:Bounds x="1650" y="1505" width="220" height="50" /></bpmndi:BPMNShape>
 
-      <!-- Root split: Start â†’ GW_Raiz â†’ B1_Pre (right) / B1_Apertura (down) -->
-      <bpmndi:BPMNEdge id="Edge_Flow_Start_Raiz" bpmnElement="Flow_Start_Raiz"><di:waypoint x="215" y="190" /><di:waypoint x="240" y="190" /></bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Edge_Flow_Raiz_Pre" bpmnElement="Flow_Raiz_Pre"><di:waypoint x="290" y="190" /><di:waypoint x="320" y="190" /></bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Edge_Flow_Raiz_Apertura" bpmnElement="Flow_Raiz_Apertura"><di:waypoint x="265" y="215" /><di:waypoint x="265" y="790" /><di:waypoint x="320" y="790" /></bpmndi:BPMNEdge>
+      <!-- Edges (all flows) -->
+      <bpmndi:BPMNEdge id="Edge_Flow_Start_Raiz" bpmnElement="Flow_Start_Raiz">
+        <di:waypoint x="128" y="240" />
+        <di:waypoint x="175" y="240" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Raiz_Pre" bpmnElement="Flow_Raiz_Pre">
+        <di:waypoint x="225" y="240" />
+        <di:waypoint x="265" y="240" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Raiz_Apertura" bpmnElement="Flow_Raiz_Apertura">
+        <di:waypoint x="200" y="265" />
+        <di:waypoint x="200" y="1000" />
+        <di:waypoint x="265" y="1000" />
+      </bpmndi:BPMNEdge>
 
-      <!-- L1 main flow -->
-      <bpmndi:BPMNEdge id="Edge_Flow_Pre_B1_Gateway" bpmnElement="Flow_Pre_B1_Gateway"><di:waypoint x="430" y="190" /><di:waypoint x="488" y="190" /></bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Edge_Flow_Pre_GV_Max10" bpmnElement="Flow_Pre_GV_Max10"><di:waypoint x="538" y="190" /><di:waypoint x="560" y="190" /></bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Edge_Flow_Pre_Directo_Pelado" bpmnElement="Flow_Pre_Directo_Pelado"><di:waypoint x="513" y="215" /><di:waypoint x="513" y="490" /><di:waypoint x="545" y="490" /></bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Edge_Flow_Pre_Max10_Pelado" bpmnElement="Flow_Pre_Max10_Pelado"><di:waypoint x="596" y="190" /><di:waypoint x="599" y="190" /></bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Edge_Flow_Pre_GV_Pelado_B1AB" bpmnElement="Flow_Pre_GV_Pelado_B1AB"><di:waypoint x="729" y="190" /><di:waypoint x="755" y="190" /></bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Edge_Flow_Pre_GV_B1AB_Hidratacion" bpmnElement="Flow_Pre_GV_B1AB_Hidratacion"><di:waypoint x="865" y="190" /><di:waypoint x="922" y="190" /></bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Edge_Flow_Pre_GV_Hidratacion_B2" bpmnElement="Flow_Pre_GV_Hidratacion_B2"><di:waypoint x="958" y="190" /><di:waypoint x="965" y="190" /></bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Edge_Flow_Pre_GV_B2_Destinos" bpmnElement="Flow_Pre_GV_B2_Destinos"><di:waypoint x="1075" y="190" /><di:waypoint x="1165" y="190" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Pre_B1_Gateway" bpmnElement="Flow_Pre_B1_Gateway">
+        <di:waypoint x="375" y="240" />
+        <di:waypoint x="435" y="240" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Pre_GV_Max10" bpmnElement="Flow_Pre_GV_Max10">
+        <di:waypoint x="485" y="240" />
+        <di:waypoint x="562" y="240" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Pre_Directo_Pelado" bpmnElement="Flow_Pre_Directo_Pelado">
+        <di:waypoint x="460" y="265" />
+        <di:waypoint x="460" y="620" />
+        <di:waypoint x="645" y="620" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Pre_Max10_Pelado" bpmnElement="Flow_Pre_Max10_Pelado">
+        <di:waypoint x="598" y="240" />
+        <di:waypoint x="645" y="240" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Pre_GV_Pelado_B1AB" bpmnElement="Flow_Pre_GV_Pelado_B1AB">
+        <di:waypoint x="755" y="240" />
+        <di:waypoint x="815" y="240" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Pre_GV_B1AB_Hidratacion" bpmnElement="Flow_Pre_GV_B1AB_Hidratacion">
+        <di:waypoint x="925" y="240" />
+        <di:waypoint x="1002" y="240" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Pre_GV_Hidratacion_B2" bpmnElement="Flow_Pre_GV_Hidratacion_B2">
+        <di:waypoint x="1038" y="240" />
+        <di:waypoint x="1085" y="240" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Pre_GV_B2_Destinos" bpmnElement="Flow_Pre_GV_B2_Destinos">
+        <di:waypoint x="1195" y="240" />
+        <di:waypoint x="1255" y="240" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Pre_GV_Arcoiris_Clasificado" bpmnElement="Flow_Pre_GV_Arcoiris_Clasificado">
+        <di:waypoint x="1280" y="215" />
+        <di:waypoint x="1280" y="130" />
+        <di:waypoint x="1365" y="130" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Pre_GV_Blanco_Clasificado" bpmnElement="Flow_Pre_GV_Blanco_Clasificado">
+        <di:waypoint x="1305" y="240" />
+        <di:waypoint x="1365" y="240" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Pre_GV_Tinturado_Clasificado" bpmnElement="Flow_Pre_GV_Tinturado_Clasificado">
+        <di:waypoint x="1280" y="265" />
+        <di:waypoint x="1280" y="350" />
+        <di:waypoint x="1365" y="350" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Pre_GV_Clasificado_B3_Arcoiris" bpmnElement="Flow_Pre_GV_Clasificado_B3_Arcoiris">
+        <di:waypoint x="1475" y="130" />
+        <di:waypoint x="1555" y="130" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Pre_GV_Clasificado_B3_Blanco" bpmnElement="Flow_Pre_GV_Clasificado_B3_Blanco">
+        <di:waypoint x="1475" y="240" />
+        <di:waypoint x="1555" y="240" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Pre_GV_Clasificado_B3_Tinturado" bpmnElement="Flow_Pre_GV_Clasificado_B3_Tinturado">
+        <di:waypoint x="1475" y="350" />
+        <di:waypoint x="1555" y="350" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Pre_GV_B3_General_Arcoiris" bpmnElement="Flow_Pre_GV_B3_General_Arcoiris">
+        <di:waypoint x="1665" y="130" />
+        <di:waypoint x="1825" y="130" />
+        <di:waypoint x="1825" y="240" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Pre_GV_B3_General_Blanco" bpmnElement="Flow_Pre_GV_B3_General_Blanco">
+        <di:waypoint x="1665" y="240" />
+        <di:waypoint x="1825" y="240" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Pre_GV_B3_General_Tinturado" bpmnElement="Flow_Pre_GV_B3_General_Tinturado">
+        <di:waypoint x="1665" y="350" />
+        <di:waypoint x="1825" y="350" />
+        <di:waypoint x="1825" y="240" />
+      </bpmndi:BPMNEdge>
 
-      <!-- L1 fan-out -->
-      <bpmndi:BPMNEdge id="Edge_Flow_Pre_GV_Arcoiris_Clasificado" bpmnElement="Flow_Pre_GV_Arcoiris_Clasificado"><di:waypoint x="1215" y="190" /><di:waypoint x="1230" y="190" /><di:waypoint x="1230" y="115" /><di:waypoint x="1245" y="115" /><bpmndi:BPMNLabel><dc:Bounds x="1188" y="95" width="64" height="16" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Edge_Flow_Pre_GV_Tinturado_Clasificado" bpmnElement="Flow_Pre_GV_Tinturado_Clasificado"><di:waypoint x="1215" y="190" /><di:waypoint x="1245" y="190" /><bpmndi:BPMNLabel><dc:Bounds x="1174" y="176" width="74" height="16" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Edge_Flow_Pre_GV_Blanco_Clasificado" bpmnElement="Flow_Pre_GV_Blanco_Clasificado"><di:waypoint x="1215" y="190" /><di:waypoint x="1230" y="190" /><di:waypoint x="1230" y="265" /><di:waypoint x="1245" y="265" /><bpmndi:BPMNLabel><dc:Bounds x="1188" y="257" width="54" height="16" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Pre_Directo_Pelado_B1AB" bpmnElement="Flow_Pre_Directo_Pelado_B1AB">
+        <di:waypoint x="755" y="620" />
+        <di:waypoint x="815" y="620" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Pre_Directo_B1AB_Hidratacion" bpmnElement="Flow_Pre_Directo_B1AB_Hidratacion">
+        <di:waypoint x="925" y="620" />
+        <di:waypoint x="1002" y="620" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Pre_Directo_Hidratacion_B2" bpmnElement="Flow_Pre_Directo_Hidratacion_B2">
+        <di:waypoint x="1038" y="620" />
+        <di:waypoint x="1085" y="620" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Pre_Directo_B2_Destinos" bpmnElement="Flow_Pre_Directo_B2_Destinos">
+        <di:waypoint x="1195" y="620" />
+        <di:waypoint x="1255" y="620" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Pre_Directo_Arcoiris_Clasificado" bpmnElement="Flow_Pre_Directo_Arcoiris_Clasificado">
+        <di:waypoint x="1280" y="595" />
+        <di:waypoint x="1280" y="510" />
+        <di:waypoint x="1365" y="510" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Pre_Directo_Blanco_Clasificado" bpmnElement="Flow_Pre_Directo_Blanco_Clasificado">
+        <di:waypoint x="1305" y="620" />
+        <di:waypoint x="1365" y="620" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Pre_Directo_Tinturado_Clasificado" bpmnElement="Flow_Pre_Directo_Tinturado_Clasificado">
+        <di:waypoint x="1280" y="645" />
+        <di:waypoint x="1280" y="730" />
+        <di:waypoint x="1365" y="730" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Pre_Directo_Clasificado_B3_Arcoiris" bpmnElement="Flow_Pre_Directo_Clasificado_B3_Arcoiris">
+        <di:waypoint x="1475" y="510" />
+        <di:waypoint x="1555" y="510" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Pre_Directo_Clasificado_B3_Blanco" bpmnElement="Flow_Pre_Directo_Clasificado_B3_Blanco">
+        <di:waypoint x="1475" y="620" />
+        <di:waypoint x="1555" y="620" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Pre_Directo_Clasificado_B3_Tinturado" bpmnElement="Flow_Pre_Directo_Clasificado_B3_Tinturado">
+        <di:waypoint x="1475" y="730" />
+        <di:waypoint x="1555" y="730" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Pre_Directo_B3_General_Arcoiris" bpmnElement="Flow_Pre_Directo_B3_General_Arcoiris">
+        <di:waypoint x="1665" y="510" />
+        <di:waypoint x="1825" y="510" />
+        <di:waypoint x="1825" y="620" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Pre_Directo_B3_General_Blanco" bpmnElement="Flow_Pre_Directo_B3_General_Blanco">
+        <di:waypoint x="1665" y="620" />
+        <di:waypoint x="1825" y="620" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Pre_Directo_B3_General_Tinturado" bpmnElement="Flow_Pre_Directo_B3_General_Tinturado">
+        <di:waypoint x="1665" y="730" />
+        <di:waypoint x="1825" y="730" />
+        <di:waypoint x="1825" y="620" />
+      </bpmndi:BPMNEdge>
 
-      <!-- L1 Clasificado â†’ B3 -->
-      <bpmndi:BPMNEdge id="Edge_Flow_Pre_GV_Clasificado_B3_Arcoiris" bpmnElement="Flow_Pre_GV_Clasificado_B3_Arcoiris"><di:waypoint x="1375" y="115" /><di:waypoint x="1415" y="115" /></bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Edge_Flow_Pre_GV_Clasificado_B3_Tinturado" bpmnElement="Flow_Pre_GV_Clasificado_B3_Tinturado"><di:waypoint x="1375" y="190" /><di:waypoint x="1415" y="190" /></bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Edge_Flow_Pre_GV_Clasificado_B3_Blanco" bpmnElement="Flow_Pre_GV_Clasificado_B3_Blanco"><di:waypoint x="1375" y="265" /><di:waypoint x="1415" y="265" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Apertura_B1_Gateway" bpmnElement="Flow_Apertura_B1_Gateway">
+        <di:waypoint x="375" y="1000" />
+        <di:waypoint x="435" y="1000" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Apertura_GV_B1C" bpmnElement="Flow_Apertura_GV_B1C">
+        <di:waypoint x="485" y="1000" />
+        <di:waypoint x="645" y="1000" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Apertura_Directo_B1C" bpmnElement="Flow_Apertura_Directo_B1C">
+        <di:waypoint x="460" y="1025" />
+        <di:waypoint x="460" y="1380" />
+        <di:waypoint x="645" y="1380" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Apertura_GV_B1C_Max10" bpmnElement="Flow_Apertura_GV_B1C_Max10">
+        <di:waypoint x="755" y="1000" />
+        <di:waypoint x="852" y="1000" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Apertura_GV_Max10_Hidratacion" bpmnElement="Flow_Apertura_GV_Max10_Hidratacion">
+        <di:waypoint x="888" y="1000" />
+        <di:waypoint x="1002" y="1000" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Apertura_GV_Hidratacion_B2" bpmnElement="Flow_Apertura_GV_Hidratacion_B2">
+        <di:waypoint x="1038" y="1000" />
+        <di:waypoint x="1085" y="1000" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Apertura_GV_B2_Destinos" bpmnElement="Flow_Apertura_GV_B2_Destinos">
+        <di:waypoint x="1195" y="1000" />
+        <di:waypoint x="1255" y="1000" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Apertura_GV_Arcoiris_Clasificado" bpmnElement="Flow_Apertura_GV_Arcoiris_Clasificado">
+        <di:waypoint x="1280" y="975" />
+        <di:waypoint x="1280" y="890" />
+        <di:waypoint x="1350" y="890" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Apertura_GV_Blanco_Clasificado" bpmnElement="Flow_Apertura_GV_Blanco_Clasificado">
+        <di:waypoint x="1305" y="1000" />
+        <di:waypoint x="1350" y="1000" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Apertura_GV_Tinturado_Clasificado" bpmnElement="Flow_Apertura_GV_Tinturado_Clasificado">
+        <di:waypoint x="1280" y="1025" />
+        <di:waypoint x="1280" y="1110" />
+        <di:waypoint x="1350" y="1110" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Apertura_GV_Clasificado_B2A_Arcoiris" bpmnElement="Flow_Apertura_GV_Clasificado_B2A_Arcoiris">
+        <di:waypoint x="1490" y="890" />
+        <di:waypoint x="1555" y="890" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Apertura_GV_Clasificado_B2A_Blanco" bpmnElement="Flow_Apertura_GV_Clasificado_B2A_Blanco">
+        <di:waypoint x="1490" y="1000" />
+        <di:waypoint x="1555" y="1000" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Apertura_GV_Clasificado_B2A_Tinturado" bpmnElement="Flow_Apertura_GV_Clasificado_B2A_Tinturado">
+        <di:waypoint x="1490" y="1110" />
+        <di:waypoint x="1555" y="1110" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Apertura_GV_B2A_General_Arcoiris" bpmnElement="Flow_Apertura_GV_B2A_General_Arcoiris">
+        <di:waypoint x="1665" y="890" />
+        <di:waypoint x="1825" y="890" />
+        <di:waypoint x="1825" y="1000" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Apertura_GV_B2A_General_Blanco" bpmnElement="Flow_Apertura_GV_B2A_General_Blanco">
+        <di:waypoint x="1665" y="1000" />
+        <di:waypoint x="1825" y="1000" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Apertura_GV_B2A_General_Tinturado" bpmnElement="Flow_Apertura_GV_B2A_General_Tinturado">
+        <di:waypoint x="1665" y="1110" />
+        <di:waypoint x="1825" y="1110" />
+        <di:waypoint x="1825" y="1000" />
+      </bpmndi:BPMNEdge>
 
-      <!-- L1 B3 â†’ General (convergence) -->
-      <bpmndi:BPMNEdge id="Edge_Flow_Pre_GV_B3_General_Arcoiris" bpmnElement="Flow_Pre_GV_B3_General_Arcoiris"><di:waypoint x="1525" y="115" /><di:waypoint x="1545" y="115" /><di:waypoint x="1545" y="190" /><di:waypoint x="1565" y="190" /></bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Edge_Flow_Pre_GV_B3_General_Tinturado" bpmnElement="Flow_Pre_GV_B3_General_Tinturado"><di:waypoint x="1525" y="190" /><di:waypoint x="1565" y="190" /></bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Edge_Flow_Pre_GV_B3_General_Blanco" bpmnElement="Flow_Pre_GV_B3_General_Blanco"><di:waypoint x="1525" y="265" /><di:waypoint x="1545" y="265" /><di:waypoint x="1545" y="190" /><di:waypoint x="1565" y="190" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Apertura_Directo_B1C_Hidratacion" bpmnElement="Flow_Apertura_Directo_B1C_Hidratacion">
+        <di:waypoint x="755" y="1380" />
+        <di:waypoint x="1002" y="1380" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Apertura_Directo_Hidratacion_B2" bpmnElement="Flow_Apertura_Directo_Hidratacion_B2">
+        <di:waypoint x="1038" y="1380" />
+        <di:waypoint x="1085" y="1380" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Apertura_Directo_B2_Destinos" bpmnElement="Flow_Apertura_Directo_B2_Destinos">
+        <di:waypoint x="1195" y="1380" />
+        <di:waypoint x="1255" y="1380" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Apertura_Directo_Arcoiris_Clasificado" bpmnElement="Flow_Apertura_Directo_Arcoiris_Clasificado">
+        <di:waypoint x="1280" y="1355" />
+        <di:waypoint x="1280" y="1270" />
+        <di:waypoint x="1350" y="1270" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Apertura_Directo_Blanco_Clasificado" bpmnElement="Flow_Apertura_Directo_Blanco_Clasificado">
+        <di:waypoint x="1305" y="1380" />
+        <di:waypoint x="1350" y="1380" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Apertura_Directo_Tinturado_Clasificado" bpmnElement="Flow_Apertura_Directo_Tinturado_Clasificado">
+        <di:waypoint x="1280" y="1405" />
+        <di:waypoint x="1280" y="1490" />
+        <di:waypoint x="1350" y="1490" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Apertura_Directo_Clasificado_B2A_Arcoiris" bpmnElement="Flow_Apertura_Directo_Clasificado_B2A_Arcoiris">
+        <di:waypoint x="1490" y="1270" />
+        <di:waypoint x="1555" y="1270" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Apertura_Directo_Clasificado_B2A_Blanco" bpmnElement="Flow_Apertura_Directo_Clasificado_B2A_Blanco">
+        <di:waypoint x="1490" y="1380" />
+        <di:waypoint x="1555" y="1380" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Apertura_Directo_Clasificado_B2A_Tinturado" bpmnElement="Flow_Apertura_Directo_Clasificado_B2A_Tinturado">
+        <di:waypoint x="1490" y="1490" />
+        <di:waypoint x="1555" y="1490" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Apertura_Directo_B2A_General_Arcoiris" bpmnElement="Flow_Apertura_Directo_B2A_General_Arcoiris">
+        <di:waypoint x="1665" y="1270" />
+        <di:waypoint x="1825" y="1270" />
+        <di:waypoint x="1825" y="1380" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Apertura_Directo_B2A_General_Blanco" bpmnElement="Flow_Apertura_Directo_B2A_General_Blanco">
+        <di:waypoint x="1665" y="1380" />
+        <di:waypoint x="1825" y="1380" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Apertura_Directo_B2A_General_Tinturado" bpmnElement="Flow_Apertura_Directo_B2A_General_Tinturado">
+        <di:waypoint x="1665" y="1490" />
+        <di:waypoint x="1825" y="1490" />
+        <di:waypoint x="1825" y="1380" />
+      </bpmndi:BPMNEdge>
 
-      <!-- L2 main flow -->
-      <bpmndi:BPMNEdge id="Edge_Flow_Pre_Directo_Pelado_B1AB" bpmnElement="Flow_Pre_Directo_Pelado_B1AB"><di:waypoint x="675" y="490" /><di:waypoint x="725" y="490" /></bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Edge_Flow_Pre_Directo_B1AB_Hidratacion" bpmnElement="Flow_Pre_Directo_B1AB_Hidratacion"><di:waypoint x="835" y="490" /><di:waypoint x="882" y="490" /></bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Edge_Flow_Pre_Directo_Hidratacion_B2" bpmnElement="Flow_Pre_Directo_Hidratacion_B2"><di:waypoint x="918" y="490" /><di:waypoint x="935" y="490" /></bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Edge_Flow_Pre_Directo_B2_Destinos" bpmnElement="Flow_Pre_Directo_B2_Destinos"><di:waypoint x="1045" y="490" /><di:waypoint x="1135" y="490" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Pre_GV_Cierre" bpmnElement="Flow_Pre_GV_Cierre">
+        <di:waypoint x="1935" y="240" />
+        <di:waypoint x="1735" y="240" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Pre_Directo_Cierre" bpmnElement="Flow_Pre_Directo_Cierre">
+        <di:waypoint x="1880" y="590" />
+        <di:waypoint x="1880" y="240" />
+        <di:waypoint x="1735" y="240" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Apertura_GV_Cierre" bpmnElement="Flow_Apertura_GV_Cierre">
+        <di:waypoint x="1935" y="1000" />
+        <di:waypoint x="1735" y="1000" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Apertura_Directo_Cierre" bpmnElement="Flow_Apertura_Directo_Cierre">
+        <di:waypoint x="1880" y="1350" />
+        <di:waypoint x="1880" y="1000" />
+        <di:waypoint x="1735" y="1000" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Cierre_Superior_Final" bpmnElement="Flow_Cierre_Superior_Final">
+        <di:waypoint x="1785" y="240" />
+        <di:waypoint x="2050" y="240" />
+        <di:waypoint x="2050" y="595" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Cierre_Inferior_Final" bpmnElement="Flow_Cierre_Inferior_Final">
+        <di:waypoint x="1785" y="1000" />
+        <di:waypoint x="2050" y="1000" />
+        <di:waypoint x="2050" y="645" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Final_End" bpmnElement="Flow_Final_End">
+        <di:waypoint x="2075" y="620" />
+        <di:waypoint x="2122" y="620" />
+      </bpmndi:BPMNEdge>
 
-      <!-- L2 fan-out -->
-      <bpmndi:BPMNEdge id="Edge_Flow_Pre_Directo_Arcoiris_Clasificado" bpmnElement="Flow_Pre_Directo_Arcoiris_Clasificado"><di:waypoint x="1185" y="490" /><di:waypoint x="1210" y="490" /><di:waypoint x="1210" y="415" /><di:waypoint x="1245" y="415" /><bpmndi:BPMNLabel><dc:Bounds x="1168" y="398" width="64" height="16" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Edge_Flow_Pre_Directo_Tinturado_Clasificado" bpmnElement="Flow_Pre_Directo_Tinturado_Clasificado"><di:waypoint x="1185" y="490" /><di:waypoint x="1245" y="490" /><bpmndi:BPMNLabel><dc:Bounds x="1148" y="477" width="74" height="16" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Edge_Flow_Pre_Directo_Blanco_Clasificado" bpmnElement="Flow_Pre_Directo_Blanco_Clasificado"><di:waypoint x="1185" y="490" /><di:waypoint x="1210" y="490" /><di:waypoint x="1210" y="565" /><di:waypoint x="1245" y="565" /><bpmndi:BPMNLabel><dc:Bounds x="1168" y="555" width="54" height="16" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
-
-      <!-- L2 Clasificado â†’ B3 -->
-      <bpmndi:BPMNEdge id="Edge_Flow_Pre_Directo_Clasificado_B3_Arcoiris" bpmnElement="Flow_Pre_Directo_Clasificado_B3_Arcoiris"><di:waypoint x="1375" y="415" /><di:waypoint x="1415" y="415" /></bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Edge_Flow_Pre_Directo_Clasificado_B3_Tinturado" bpmnElement="Flow_Pre_Directo_Clasificado_B3_Tinturado"><di:waypoint x="1375" y="490" /><di:waypoint x="1415" y="490" /></bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Edge_Flow_Pre_Directo_Clasificado_B3_Blanco" bpmnElement="Flow_Pre_Directo_Clasificado_B3_Blanco"><di:waypoint x="1375" y="565" /><di:waypoint x="1415" y="565" /></bpmndi:BPMNEdge>
-
-      <!-- L2 B3 â†’ General (convergence) -->
-      <bpmndi:BPMNEdge id="Edge_Flow_Pre_Directo_B3_General_Arcoiris" bpmnElement="Flow_Pre_Directo_B3_General_Arcoiris"><di:waypoint x="1525" y="415" /><di:waypoint x="1545" y="415" /><di:waypoint x="1545" y="490" /><di:waypoint x="1565" y="490" /></bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Edge_Flow_Pre_Directo_B3_General_Tinturado" bpmnElement="Flow_Pre_Directo_B3_General_Tinturado"><di:waypoint x="1525" y="490" /><di:waypoint x="1565" y="490" /></bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Edge_Flow_Pre_Directo_B3_General_Blanco" bpmnElement="Flow_Pre_Directo_B3_General_Blanco"><di:waypoint x="1525" y="565" /><di:waypoint x="1545" y="565" /><di:waypoint x="1545" y="490" /><di:waypoint x="1565" y="490" /></bpmndi:BPMNEdge>
-
-      <!-- L3 main flow -->
-      <bpmndi:BPMNEdge id="Edge_Flow_Apertura_B1_Gateway" bpmnElement="Flow_Apertura_B1_Gateway"><di:waypoint x="430" y="790" /><di:waypoint x="488" y="790" /></bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Edge_Flow_Apertura_GV_B1C" bpmnElement="Flow_Apertura_GV_B1C"><di:waypoint x="538" y="790" /><di:waypoint x="575" y="790" /></bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Edge_Flow_Apertura_Directo_B1C" bpmnElement="Flow_Apertura_Directo_B1C"><di:waypoint x="513" y="815" /><di:waypoint x="513" y="1090" /><di:waypoint x="595" y="1090" /></bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Edge_Flow_Apertura_GV_B1C_Max10" bpmnElement="Flow_Apertura_GV_B1C_Max10"><di:waypoint x="685" y="790" /><di:waypoint x="732" y="790" /></bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Edge_Flow_Apertura_GV_Max10_Hidratacion" bpmnElement="Flow_Apertura_GV_Max10_Hidratacion"><di:waypoint x="768" y="790" /><di:waypoint x="802" y="790" /></bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Edge_Flow_Apertura_GV_Hidratacion_B2" bpmnElement="Flow_Apertura_GV_Hidratacion_B2"><di:waypoint x="838" y="790" /><di:waypoint x="885" y="790" /></bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Edge_Flow_Apertura_GV_B2_Destinos" bpmnElement="Flow_Apertura_GV_B2_Destinos"><di:waypoint x="995" y="790" /><di:waypoint x="1165" y="790" /></bpmndi:BPMNEdge>
-
-      <!-- L3 fan-out -->
-      <bpmndi:BPMNEdge id="Edge_Flow_Apertura_GV_Arcoiris_Clasificado" bpmnElement="Flow_Apertura_GV_Arcoiris_Clasificado"><di:waypoint x="1215" y="790" /><di:waypoint x="1230" y="790" /><di:waypoint x="1230" y="715" /><di:waypoint x="1245" y="715" /><bpmndi:BPMNLabel><dc:Bounds x="1188" y="695" width="64" height="16" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Edge_Flow_Apertura_GV_Tinturado_Clasificado" bpmnElement="Flow_Apertura_GV_Tinturado_Clasificado"><di:waypoint x="1215" y="790" /><di:waypoint x="1245" y="790" /><bpmndi:BPMNLabel><dc:Bounds x="1174" y="777" width="74" height="16" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Edge_Flow_Apertura_GV_Blanco_Clasificado" bpmnElement="Flow_Apertura_GV_Blanco_Clasificado"><di:waypoint x="1215" y="790" /><di:waypoint x="1230" y="790" /><di:waypoint x="1230" y="865" /><di:waypoint x="1245" y="865" /><bpmndi:BPMNLabel><dc:Bounds x="1188" y="856" width="54" height="16" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
-
-      <!-- L3 PeladoClasif â†’ B2A -->
-      <bpmndi:BPMNEdge id="Edge_Flow_Apertura_GV_Clasificado_B2A_Arcoiris" bpmnElement="Flow_Apertura_GV_Clasificado_B2A_Arcoiris"><di:waypoint x="1375" y="715" /><di:waypoint x="1415" y="715" /></bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Edge_Flow_Apertura_GV_Clasificado_B2A_Tinturado" bpmnElement="Flow_Apertura_GV_Clasificado_B2A_Tinturado"><di:waypoint x="1375" y="790" /><di:waypoint x="1415" y="790" /></bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Edge_Flow_Apertura_GV_Clasificado_B2A_Blanco" bpmnElement="Flow_Apertura_GV_Clasificado_B2A_Blanco"><di:waypoint x="1375" y="865" /><di:waypoint x="1415" y="865" /></bpmndi:BPMNEdge>
-
-      <!-- L3 B2A â†’ General (convergence) -->
-      <bpmndi:BPMNEdge id="Edge_Flow_Apertura_GV_B2A_General_Arcoiris" bpmnElement="Flow_Apertura_GV_B2A_General_Arcoiris"><di:waypoint x="1525" y="715" /><di:waypoint x="1545" y="715" /><di:waypoint x="1545" y="790" /><di:waypoint x="1565" y="790" /></bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Edge_Flow_Apertura_GV_B2A_General_Tinturado" bpmnElement="Flow_Apertura_GV_B2A_General_Tinturado"><di:waypoint x="1525" y="790" /><di:waypoint x="1565" y="790" /></bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Edge_Flow_Apertura_GV_B2A_General_Blanco" bpmnElement="Flow_Apertura_GV_B2A_General_Blanco"><di:waypoint x="1525" y="865" /><di:waypoint x="1545" y="865" /><di:waypoint x="1545" y="790" /><di:waypoint x="1565" y="790" /></bpmndi:BPMNEdge>
-
-      <!-- L4 main flow -->
-      <bpmndi:BPMNEdge id="Edge_Flow_Apertura_Directo_B1C_Hidratacion" bpmnElement="Flow_Apertura_Directo_B1C_Hidratacion"><di:waypoint x="705" y="1090" /><di:waypoint x="782" y="1090" /></bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Edge_Flow_Apertura_Directo_Hidratacion_B2" bpmnElement="Flow_Apertura_Directo_Hidratacion_B2"><di:waypoint x="818" y="1090" /><di:waypoint x="885" y="1090" /></bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Edge_Flow_Apertura_Directo_B2_Destinos" bpmnElement="Flow_Apertura_Directo_B2_Destinos"><di:waypoint x="995" y="1090" /><di:waypoint x="1135" y="1090" /></bpmndi:BPMNEdge>
-
-      <!-- L4 fan-out -->
-      <bpmndi:BPMNEdge id="Edge_Flow_Apertura_Directo_Arcoiris_Clasificado" bpmnElement="Flow_Apertura_Directo_Arcoiris_Clasificado"><di:waypoint x="1185" y="1090" /><di:waypoint x="1210" y="1090" /><di:waypoint x="1210" y="1015" /><di:waypoint x="1245" y="1015" /><bpmndi:BPMNLabel><dc:Bounds x="1168" y="995" width="64" height="16" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Edge_Flow_Apertura_Directo_Tinturado_Clasificado" bpmnElement="Flow_Apertura_Directo_Tinturado_Clasificado"><di:waypoint x="1185" y="1090" /><di:waypoint x="1245" y="1090" /><bpmndi:BPMNLabel><dc:Bounds x="1148" y="1077" width="74" height="16" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Edge_Flow_Apertura_Directo_Blanco_Clasificado" bpmnElement="Flow_Apertura_Directo_Blanco_Clasificado"><di:waypoint x="1185" y="1090" /><di:waypoint x="1210" y="1090" /><di:waypoint x="1210" y="1165" /><di:waypoint x="1245" y="1165" /><bpmndi:BPMNLabel><dc:Bounds x="1168" y="1155" width="54" height="16" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
-
-      <!-- L4 PeladoClasif â†’ B2A -->
-      <bpmndi:BPMNEdge id="Edge_Flow_Apertura_Directo_Clasificado_B2A_Arcoiris" bpmnElement="Flow_Apertura_Directo_Clasificado_B2A_Arcoiris"><di:waypoint x="1375" y="1015" /><di:waypoint x="1415" y="1015" /></bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Edge_Flow_Apertura_Directo_Clasificado_B2A_Tinturado" bpmnElement="Flow_Apertura_Directo_Clasificado_B2A_Tinturado"><di:waypoint x="1375" y="1090" /><di:waypoint x="1415" y="1090" /></bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Edge_Flow_Apertura_Directo_Clasificado_B2A_Blanco" bpmnElement="Flow_Apertura_Directo_Clasificado_B2A_Blanco"><di:waypoint x="1375" y="1165" /><di:waypoint x="1415" y="1165" /></bpmndi:BPMNEdge>
-
-      <!-- L4 B2A â†’ General (convergence) -->
-      <bpmndi:BPMNEdge id="Edge_Flow_Apertura_Directo_B2A_General_Arcoiris" bpmnElement="Flow_Apertura_Directo_B2A_General_Arcoiris"><di:waypoint x="1525" y="1015" /><di:waypoint x="1545" y="1015" /><di:waypoint x="1545" y="1090" /><di:waypoint x="1565" y="1090" /></bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Edge_Flow_Apertura_Directo_B2A_General_Tinturado" bpmnElement="Flow_Apertura_Directo_B2A_General_Tinturado"><di:waypoint x="1525" y="1090" /><di:waypoint x="1565" y="1090" /></bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Edge_Flow_Apertura_Directo_B2A_General_Blanco" bpmnElement="Flow_Apertura_Directo_B2A_General_Blanco"><di:waypoint x="1525" y="1165" /><di:waypoint x="1545" y="1165" /><di:waypoint x="1545" y="1090" /><di:waypoint x="1565" y="1090" /></bpmndi:BPMNEdge>
-
-      <!-- Convergence: General â†’ Cierre_Superior (L1+L2) / Cierre_Inferior (L3+L4) -->
-      <bpmndi:BPMNEdge id="Edge_Flow_Pre_GV_Cierre" bpmnElement="Flow_Pre_GV_Cierre"><di:waypoint x="1675" y="190" /><di:waypoint x="1753" y="190" /></bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Edge_Flow_Pre_Directo_Cierre" bpmnElement="Flow_Pre_Directo_Cierre"><di:waypoint x="1675" y="490" /><di:waypoint x="1715" y="490" /><di:waypoint x="1715" y="190" /><di:waypoint x="1753" y="190" /></bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Edge_Flow_Apertura_GV_Cierre" bpmnElement="Flow_Apertura_GV_Cierre"><di:waypoint x="1675" y="790" /><di:waypoint x="1753" y="790" /></bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Edge_Flow_Apertura_Directo_Cierre" bpmnElement="Flow_Apertura_Directo_Cierre"><di:waypoint x="1675" y="1090" /><di:waypoint x="1715" y="1090" /><di:waypoint x="1715" y="790" /><di:waypoint x="1753" y="790" /></bpmndi:BPMNEdge>
-
-      <!-- Final merge â†’ EndEvent -->
-      <bpmndi:BPMNEdge id="Edge_Flow_Cierre_Superior_Final" bpmnElement="Flow_Cierre_Superior_Final"><di:waypoint x="1803" y="190" /><di:waypoint x="1852" y="190" /><di:waypoint x="1852" y="490" /><di:waypoint x="1875" y="490" /></bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Edge_Flow_Cierre_Inferior_Final" bpmnElement="Flow_Cierre_Inferior_Final"><di:waypoint x="1803" y="790" /><di:waypoint x="1852" y="790" /><di:waypoint x="1852" y="490" /><di:waypoint x="1875" y="490" /></bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Edge_Flow_Final_End" bpmnElement="Flow_Final_End"><di:waypoint x="1925" y="490" /><di:waypoint x="1960" y="490" /></bpmndi:BPMNEdge>
+      <!-- Associations (notes) -->
+      <bpmndi:BPMNEdge id="Edge_Assoc_Bifurcacion_Pre" bpmnElement="Assoc_Bifurcacion_Pre">
+        <di:waypoint x="580" y="95" />
+        <di:waypoint x="580" y="222" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Assoc_Grado_B1AB_Pre" bpmnElement="Assoc_Grado_B1AB_Pre">
+        <di:waypoint x="870" y="750" />
+        <di:waypoint x="870" y="650" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Assoc_Grado_B1C" bpmnElement="Assoc_Grado_B1C">
+        <di:waypoint x="700" y="1130" />
+        <di:waypoint x="700" y="1030" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Assoc_B3_NoAplica" bpmnElement="Assoc_B3_NoAplica">
+        <di:waypoint x="1760" y="475" />
+        <di:waypoint x="1880" y="590" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Assoc_B2A_NoAplica" bpmnElement="Assoc_B2A_NoAplica">
+        <di:waypoint x="1760" y="1510" />
+        <di:waypoint x="1880" y="1410" />
+      </bpmndi:BPMNEdge>
 
     </bpmndi:BPMNPlane>
   </bpmndi:BPMNDiagram>
 </bpmn:definitions>
-
