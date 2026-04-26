@@ -308,12 +308,12 @@ const xml = `<?xml version="1.0" encoding="UTF-8"?>
     <bpmn:association id="Assoc_B2A_NoAplica" sourceRef="Note_B2A_NoAplica" targetRef="Task_B2A_Apertura_Directo_Blanco" />
 
     <bpmn:sequenceFlow id="Flow_Start_Raiz" sourceRef="StartEvent_Postcosecha" targetRef="Gateway_Raiz" />
-    <bpmn:sequenceFlow id="Flow_Raiz_Pre" sourceRef="Gateway_Raiz" targetRef="Task_B1_Preclasificacion" />
-    <bpmn:sequenceFlow id="Flow_Raiz_Apertura" sourceRef="Gateway_Raiz" targetRef="Task_B1_Apertura" />
+    <bpmn:sequenceFlow id="Flow_Raiz_Pre" name="PRECLASIFICACION (SIN PELAR PATAS) (CON HOJA)" sourceRef="Gateway_Raiz" targetRef="Task_B1_Preclasificacion" />
+    <bpmn:sequenceFlow id="Flow_Raiz_Apertura" name="APERTURA (PELADO PATAS) (SIN HOJA)" sourceRef="Gateway_Raiz" targetRef="Task_B1_Apertura" />
 
     <bpmn:sequenceFlow id="Flow_Pre_B1_Gateway" sourceRef="Task_B1_Preclasificacion" targetRef="Gateway_Pre_Rutas" />
-    <bpmn:sequenceFlow id="Flow_Pre_GV_Max10" sourceRef="Gateway_Pre_Rutas" targetRef="Event_Max10_Pre_GV" />
-    <bpmn:sequenceFlow id="Flow_Pre_Directo_Pelado" sourceRef="Gateway_Pre_Rutas" targetRef="Task_PeladoTallo_Pre_Directo" />
+    <bpmn:sequenceFlow id="Flow_Pre_GV_Max10" name="GV SIN PELAR (PATAS)" sourceRef="Gateway_Pre_Rutas" targetRef="Event_Max10_Pre_GV" />
+    <bpmn:sequenceFlow id="Flow_Pre_Directo_Pelado" name="DIRECTO (SIN PELAR PATAS)" sourceRef="Gateway_Pre_Rutas" targetRef="Task_PeladoTallo_Pre_Directo" />
     <bpmn:sequenceFlow id="Flow_Pre_Max10_Pelado" sourceRef="Event_Max10_Pre_GV" targetRef="Task_PeladoTallo_Pre_GV" />
     <bpmn:sequenceFlow id="Flow_Pre_GV_Pelado_B1AB" sourceRef="Task_PeladoTallo_Pre_GV" targetRef="Task_B1AB_Pre_GV" />
     <bpmn:sequenceFlow id="Flow_Pre_GV_B1AB_Hidratacion" sourceRef="Task_B1AB_Pre_GV" targetRef="Event_Hidratacion_Pre_GV" />
@@ -344,8 +344,8 @@ const xml = `<?xml version="1.0" encoding="UTF-8"?>
     <bpmn:sequenceFlow id="Flow_Pre_Directo_B3_General_Blanco" sourceRef="Task_B3_Pre_Directo_Blanco" targetRef="Task_General_Pre_Directo" />
 
     <bpmn:sequenceFlow id="Flow_Apertura_B1_Gateway" sourceRef="Task_B1_Apertura" targetRef="Gateway_Apertura_Rutas" />
-    <bpmn:sequenceFlow id="Flow_Apertura_GV_B1C" sourceRef="Gateway_Apertura_Rutas" targetRef="Task_B1C_Apertura_GV" />
-    <bpmn:sequenceFlow id="Flow_Apertura_Directo_B1C" sourceRef="Gateway_Apertura_Rutas" targetRef="Task_B1C_Apertura_Directo" />
+    <bpmn:sequenceFlow id="Flow_Apertura_GV_B1C" name="GV PELADO (PELADO LAS PATAS)" sourceRef="Gateway_Apertura_Rutas" targetRef="Task_B1C_Apertura_GV" />
+    <bpmn:sequenceFlow id="Flow_Apertura_Directo_B1C" name="APERTURAS (PELADO LAS PATAS)" sourceRef="Gateway_Apertura_Rutas" targetRef="Task_B1C_Apertura_Directo" />
     <bpmn:sequenceFlow id="Flow_Apertura_GV_B1C_Max10" sourceRef="Task_B1C_Apertura_GV" targetRef="Event_Max10_Apertura_GV" />
     <bpmn:sequenceFlow id="Flow_Apertura_GV_Max10_Hidratacion" sourceRef="Event_Max10_Apertura_GV" targetRef="Event_Hidratacion_Apertura_GV" />
     <bpmn:sequenceFlow id="Flow_Apertura_GV_Hidratacion_B2" sourceRef="Event_Hidratacion_Apertura_GV" targetRef="Task_B2_Apertura_Max10" />

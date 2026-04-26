@@ -200,6 +200,20 @@ export function BalanzasProcessViewer({
             canvas.addMarker(element.id, "balanzas-lane-inactive-node");
           }
 
+          // Color canónico: GENERAL en naranja (aggregate), tasks de balanza en azul (metric)
+          if (element.id.startsWith("Task_General_")) {
+            canvas.addMarker(element.id, "balanzas-node-aggregate");
+          } else if (
+            element.id.startsWith("Task_B1") ||
+            element.id.startsWith("Task_B2") ||
+            element.id.startsWith("Task_B3") ||
+            element.id.startsWith("Task_PeladoTallo") ||
+            element.id.startsWith("Task_PeladoClasificado") ||
+            element.id.startsWith("Task_Clasificado")
+          ) {
+            canvas.addMarker(element.id, "balanzas-node-metric");
+          }
+
           for (const node of nodesRef.current) {
             for (const binding of node.processBindings) {
               if (!matchesSingleBinding(binding, element)) {
