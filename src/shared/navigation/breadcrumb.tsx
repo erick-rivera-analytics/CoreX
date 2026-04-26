@@ -26,7 +26,7 @@ export function Breadcrumb({
       {items.map((item, index) => {
         const isLast = index === items.length - 1;
         return (
-          <span key={`${item.label}-${index}`} className="inline-flex items-center gap-1">
+          <span key={item.href ?? item.label} className="inline-flex items-center gap-1">
             {item.href && !isLast ? (
               <Link href={item.href} className="transition-colors hover:text-foreground">
                 {item.label}

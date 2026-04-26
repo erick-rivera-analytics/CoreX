@@ -46,11 +46,16 @@ export function AppSidebar({ collapsed, onCollapsedChange }: AppSidebarProps) {
       <nav className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden pr-1 pt-3">
         {resolvedGroups === null ? (
           <div className={cn("space-y-4 py-2", collapsed ? "px-0" : "px-1") }>
-            {[5, 3, 4, 2].map((count, i) => (
-              <div key={i} className="space-y-1.5">
+            {[
+              { id: "skel-1", count: 5 },
+              { id: "skel-2", count: 3 },
+              { id: "skel-3", count: 4 },
+              { id: "skel-4", count: 2 },
+            ].map((row) => (
+              <div key={row.id} className="space-y-1.5">
                 {!collapsed ? <div className="mb-2 h-2.5 w-16 animate-pulse rounded bg-muted/70" /> : null}
-                {Array.from({ length: count }).map((_, j) => (
-                  <div key={j} className={cn("animate-pulse rounded-xl bg-muted/50", collapsed ? "mx-auto h-9 w-9" : "h-9 w-full")} />
+                {Array.from({ length: row.count }).map((_, j) => (
+                  <div key={`${row.id}-row-${j}`} className={cn("animate-pulse rounded-xl bg-muted/50", collapsed ? "mx-auto h-9 w-9" : "h-9 w-full")} />
                 ))}
               </div>
             ))}

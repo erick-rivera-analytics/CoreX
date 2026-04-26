@@ -30,6 +30,7 @@ Cada AUD documenta:
 | 11 | [`AUD-11-cierre-tecnico-final.md`](./AUD-11-cierre-tecnico-final.md) | Cierre técnico final — limpieza de huérfanos, **CIERRE OK PARA PRODUCCIÓN** | ✅ cerrado | 2026-04-26 | check holístico verde + 0 bloqueantes | **OK** |
 | 12 | [`AUD-12-react-doctor-knip-cleanup.md`](./AUD-12-react-doctor-knip-cleanup.md) | React Doctor + Knip cleanup — 1 ERROR cerrado + 9 categorías de warnings + 7 archivos huérfanos eliminados | ✅ cerrado | 2026-04-26 | check holístico verde, 79/79 tests | NO |
 | 13 | [`AUD-13-react-doctor-round-2.md`](./AUD-13-react-doctor-round-2.md) | React Doctor Round 2 — 3 tiny-text + 2 array keys + 2 shims eliminados + 2 falsos positivos documentados | ✅ cerrado | 2026-04-26 | check holístico verde, 79/79 tests | NO |
+| 14 | [`AUD-14-react-doctor-round-3.md`](./AUD-14-react-doctor-round-3.md) | React Doctor Round 3 — 5 tiny-text → 12px (mín WCAG) + 9 array index keys con valor estable | ✅ cerrado | 2026-04-26 | check holístico verde, 79/79 tests | NO |
 
 ---
 

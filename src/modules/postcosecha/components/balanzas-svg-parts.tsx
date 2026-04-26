@@ -57,7 +57,7 @@ export function NoteBox({ cx, cy, w, h, lines }: { cx: number; cy: number; w: nu
       <rect x={cx - w / 2} y={cy - h / 2} width={w} height={h} rx={4} fill={C.noteFill} stroke={C.noteStroke} strokeWidth={1} strokeDasharray="3 2" />
       <text x={cx} y={cy - (lines.length - 1) * 5} textAnchor="middle" fontFamily="var(--font-app), Inter, sans-serif" fontSize={9.5} fill={C.noteText}>
         {lines.map((line, i) => (
-          <tspan key={i} x={cx} dy={i === 0 ? 0 : 11}>{line}</tspan>
+          <tspan key={line} x={cx} dy={i === 0 ? 0 : 11}>{line}</tspan>
         ))}
       </text>
     </g>
@@ -72,8 +72,8 @@ export function StaticShapes() {
       <Gateway cx={X.gwRaiz} cy={Y.raiz} />
       <Gateway cx={X.gwRutas} cy={(Y.preGV + Y.preDirecto) / 2} />
       <Gateway cx={X.gwRutas} cy={(Y.aperturaGV + Y.aperturaDir) / 2} />
-      {[Y.preGV, Y.preDirecto, Y.aperturaGV, Y.aperturaDir].map((rowY, i) => (
-        <g key={`gw-row-${i}`}>
+      {[Y.preGV, Y.preDirecto, Y.aperturaGV, Y.aperturaDir].map((rowY) => (
+        <g key={`gw-row-${rowY}`}>
           <Gateway cx={X.gwDest} cy={rowY} />
           <Gateway cx={X.gwCierre} cy={rowY} />
         </g>
@@ -108,15 +108,15 @@ export function DestLabels() {
   const tnt = SUB.tnt - 10;
   return (
     <g fontFamily="var(--font-app), Inter, sans-serif" fontSize={9.5} fontWeight={700} fill={C.destText} textAnchor="middle">
-      {[Y.preGV, Y.preDirecto].map((rowY, i) => (
-        <g key={`destlbl-pre-${i}`}>
+      {[Y.preGV, Y.preDirecto].map((rowY) => (
+        <g key={`destlbl-pre-${rowY}`}>
           <text x={X.clasif - 95} y={rowY + arc}>ARCOÍRIS</text>
           <text x={X.clasif - 95} y={rowY + blc}>BLANCO</text>
           <text x={X.clasif - 95} y={rowY + tnt}>TINTURADO</text>
         </g>
       ))}
-      {[Y.aperturaGV, Y.aperturaDir].map((rowY, i) => (
-        <g key={`destlbl-ap-${i}`}>
+      {[Y.aperturaGV, Y.aperturaDir].map((rowY) => (
+        <g key={`destlbl-ap-${rowY}`}>
           <text x={X.clasifA - 115} y={rowY + arc}>ARCOÍRIS</text>
           <text x={X.clasifA - 115} y={rowY + blc}>BLANCO</text>
           <text x={X.clasifA - 115} y={rowY + tnt}>TINTURADO</text>
@@ -153,8 +153,8 @@ function rowEdges(rowY: number, opts: { isApertura: boolean }) {
       <path d={polyPath([[X.gwDest, rowY - B.gw.h / 2], [X.gwDest, rowY + SUB.arc], [clasifX - clasifW / 2, rowY + SUB.arc]])} />
       <path d={polyPath([[X.gwDest + B.gw.w / 2, rowY + SUB.blc], [clasifX - clasifW / 2, rowY + SUB.blc]])} />
       <path d={polyPath([[X.gwDest, rowY + B.gw.h / 2], [X.gwDest, rowY + SUB.tnt], [clasifX - clasifW / 2, rowY + SUB.tnt]])} />
-      {[SUB.arc, SUB.blc, SUB.tnt].map((dy, i) => (
-        <path key={`cl-end-${i}`} d={polyPath([[clasifX + clasifW / 2, rowY + dy], [X.b3b2a - 40, rowY + dy]])} />
+      {[SUB.arc, SUB.blc, SUB.tnt].map((dy) => (
+        <path key={`cl-end-${dy}`} d={polyPath([[clasifX + clasifW / 2, rowY + dy], [X.b3b2a - 40, rowY + dy]])} />
       ))}
       <path d={polyPath([[X.b3b2a + 40, rowY + SUB.arc], [X.gwCierre, rowY + SUB.arc], [X.gwCierre, rowY - B.gw.h / 2]])} />
       <path d={polyPath([[X.b3b2a + 40, rowY + SUB.blc], [X.gwCierre - B.gw.w / 2, rowY]])} />

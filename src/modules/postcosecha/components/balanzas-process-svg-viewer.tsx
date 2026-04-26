@@ -205,7 +205,7 @@ export function BalanzasProcessSvgViewer({ nodes, selectedNodeKey, onNodeSelect 
                               : "text-emerald-700 font-bold"
                           : "text-slate-700";
                         return (
-                          <tr key={i}>
+                          <tr key={m.label}>
                             <td className="pr-2 text-[9.5px] whitespace-nowrap text-slate-500">{m.label}</td>
                             <td className={cn("text-[9.5px] tabular-nums whitespace-nowrap text-right", valueClass)}>{m.formatted}</td>
                           </tr>

@@ -160,13 +160,13 @@ function EventPill({ record, onClick, highlighted }: { record: ProgramacionRecor
     >
       {/* Fumigación Dron badge */}
       {isDron && (
-        <span style={{ color: FUMIGATION_DRONE_BADGE_COLOR, fontSize: "11px", fontWeight: 700, flexShrink: 0, textTransform: "uppercase", letterSpacing: "0.04em" }}>
+        <span style={{ color: FUMIGATION_DRONE_BADGE_COLOR, fontSize: "12px", fontWeight: 700, flexShrink: 0, textTransform: "uppercase", letterSpacing: "0.04em" }}>
           D
         </span>
       )}
       {/* ilumLabel badge (Inicio / Fin) */}
       {record.ilumLabel && (
-        <span style={{ color: spAccent, fontSize: "11px", fontWeight: 700, flexShrink: 0, textTransform: "uppercase", letterSpacing: "0.04em" }}>
+        <span style={{ color: spAccent, fontSize: "12px", fontWeight: 700, flexShrink: 0, textTransform: "uppercase", letterSpacing: "0.04em" }}>
           {record.ilumLabel}
         </span>
       )}
@@ -180,7 +180,7 @@ function EventPill({ record, onClick, highlighted }: { record: ProgramacionRecor
           background:    varietyColor,
           borderRadius:  "4px",
           padding:       "0 4px",
-          fontSize:      "11px",
+          fontSize:      "12px",
           fontWeight:    700,
           color:         "#fff",
           letterSpacing: "0.02em",
@@ -633,7 +633,7 @@ export function ProgramacionesExplorer({
                             <p className="text-base font-semibold">{rec.blockId}</p>
                             {rec.variety && (
                               <span
-                                style={{ background: varietyColor, color: "#fff", borderRadius: "4px", padding: "1px 6px", fontSize: "10px", fontWeight: 700 }}
+                                style={{ background: varietyColor, color: "#fff", borderRadius: "4px", padding: "1px 6px", fontSize: "12px", fontWeight: 700 }}
                               >
                                 {getVarietyAbbr(rec.variety)}
                               </span>
@@ -754,7 +754,7 @@ export function ProgramacionesExplorer({
                         <div className="flex items-start justify-between gap-2">
                           <p className="text-sm font-semibold">{ev.blockId}</p>
                           <span
-                            style={{ background: varietyColor, color: "#fff", borderRadius: "4px", padding: "1px 5px", fontSize: "10px", fontWeight: 700 }}
+                            style={{ background: varietyColor, color: "#fff", borderRadius: "4px", padding: "1px 5px", fontSize: "12px", fontWeight: 700 }}
                           >
                             {getVarietyAbbr(ev.variety)}
                           </span>

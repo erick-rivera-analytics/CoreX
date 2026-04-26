@@ -81,7 +81,7 @@ export function ActionMenu({
             const Icon = item.icon;
             const danger = item.tone === "danger";
             return (
-              <div key={`${item.label}-${index}`}>
+              <div key={item.label}>
                 {item.divider && index !== 0 ? (
                   <div role="separator" className="my-1 border-t border-border/60" />
                 ) : null}
