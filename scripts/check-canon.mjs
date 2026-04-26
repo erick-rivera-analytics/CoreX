@@ -59,6 +59,7 @@ const officialDocs = new Set([
   "docs/audits/AUD-7-despliegue-runtime-docker.md",
   "docs/audits/AUD-8-documentacion-dod-gobernanza.md",
   "docs/audits/AUD-9-auditoria-funcional-modulos.md",
+  "docs/audits/AUD-10-pre-release-go-live.md",
 ]);
 
 const legacyDocPrefix = "> LEGACY / reference only.";

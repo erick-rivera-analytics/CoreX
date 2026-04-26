@@ -26,6 +26,7 @@ Cada AUD documenta:
 | 7 | [`AUD-7-despliegue-runtime-docker.md`](./AUD-7-despliegue-runtime-docker.md) | Despliegue/Docker/runtime — TZ=UTC en compose+envs, IP interna removida de template | ✅ cerrado | 2026-04-26 | typecheck, canon | NO |
 | 8 | [`AUD-8-documentacion-dod-gobernanza.md`](./AUD-8-documentacion-dod-gobernanza.md) | Documentación/DoD/gobernanza — índice docs alineado con repo real, riesgos consolidados | ✅ cerrado | 2026-04-26 | typecheck, canon | NO |
 | 9 | [`AUD-9-auditoria-funcional-modulos.md`](./AUD-9-auditoria-funcional-modulos.md) | Auditoría funcional por módulo — 17 active + 3 hidden mapeados, contratos verificados | ✅ cerrado | 2026-04-26 | typecheck, canon, test 79/79 | NO |
+| 10 | [`AUD-10-pre-release-go-live.md`](./AUD-10-pre-release-go-live.md) | Decisión final de producción — **GO CON RIESGOS NO BLOQUEANTES** | ✅ cerrado | 2026-04-26 | check holístico verde + 12 riesgos clasificados | **GO** |
 
 ---
 
