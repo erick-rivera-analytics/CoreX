@@ -5,6 +5,11 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "src"),
+      // Shim para Next.js `server-only` — package real es vacío en producción
+      // (Next.js lo bloquea en client bundle); en vitest necesitamos noop
+      // explícito porque el resolver no lo encuentra. Permite que tests de
+      // src/lib/users.ts (auth-session, dead-plants-reseed) se carguen.
+      "server-only": path.resolve(__dirname, "vitest-shims/server-only.ts"),
     },
   },
   test: {

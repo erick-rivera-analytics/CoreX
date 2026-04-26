@@ -158,8 +158,10 @@ describe("postcosecha clasificacion server", () => {
   it("incluye templates de slots en el boot data", async () => {
     const bootData = await getClasificacionEnBlancoBootData();
 
-    expect(bootData.orderSlots).toHaveLength(5);
-    expect(bootData.lotSlots).toHaveLength(5);
+    // Templates default: 1 slot mínimo en order/lot. La UI puede expandir
+    // hasta 5 slots dinámicamente; el bootstrap solo provee el primer slot.
+    expect(bootData.orderSlots).toHaveLength(1);
+    expect(bootData.lotSlots).toHaveLength(1);
     expect(bootData.ordersTemplate).toHaveLength(1);
   });
 

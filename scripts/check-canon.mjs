@@ -51,6 +51,7 @@ const officialDocs = new Set([
   // Audits oficiales (vigentes; cada AUD-N entrega su entregable .md):
   "docs/audits/AUD-1-ux-ui-canon.md",
   "docs/audits/AUD-2-arquitectura-modular.md",
+  "docs/audits/AUD-3-security-api-rbac.md",
 ]);
 
 const legacyDocPrefix = "> LEGACY / reference only.";
