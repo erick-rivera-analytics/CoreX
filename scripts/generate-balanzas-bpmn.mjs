@@ -1,19 +1,33 @@
 #!/usr/bin/env node
 /**
- * Genera `public/processes/postcosecha-es.bpmn` con layout limpio según la
- * imagen ideal del usuario (cierre Balanzas 2026-04-25):
+ * Genera `public/processes/postcosecha-es.bpmn` con layout horizontal limpio.
  *
- * - 4 lanes apiladas: PRECLASIFICACION/GV, PRECLASIFICACION/DIRECTO,
- *   APERTURA/GV PELADO, APERTURA/APERTURA.
- * - Cada flujo de izquierda a derecha:
- *   B1 → ruta-gw → [MAX 10] → PELADO TALLO/B1C → B1AB (preclasif) → HIDRATACION
- *   → B2 → gw destinos → 3 sub-rows (ARCOIRIS / BLANCO / TINTURADO) →
- *   CLASIFICADO o PELADO TALLOS Y CLASIFICADO → B3 o B2A → cierre lane → GENERAL
- *   → cierre global → END.
- * - Sub-rows verticales para destinos: top (Arcoíris), mid (Blanco), bot (Tinturado).
- * - Notas explicativas via textAnnotation + association.
+ * Diseño v3 (2026-04-25 — rebuild completo según referencia visual del usuario):
  *
- * Mantiene TODOS los IDs existentes (no rompe el mapping en `postcosecha-balanzas-core.ts`).
+ *   Pool 2400×2240, 4 lanes apiladas (cada una 540px alta) — espacio amplio
+ *   para 3 sub-rows de destino sin solape:
+ *     • Lane 0: PRECLASIFICACION / GV
+ *     • Lane 1: PRECLASIFICACION / DIRECTO
+ *     • Lane 2: APERTURA / GV PELADO
+ *     • Lane 3: APERTURA / APERTURA
+ *
+ *   Dentro de cada lane (540h):
+ *     • Sub-row Arcoíris: top + 130
+ *     • Main flow / Blanco: top + 270   (centerline)
+ *     • Sub-row Tinturado: top + 410
+ *
+ *   El flujo principal (línea horizontal) atraviesa el centro de cada lane.
+ *   En `gwDest` se abre en abanico vertical hacia las 3 sub-rows; los nodos
+ *   de las 3 sub-rows van hacia la derecha y convergen de regreso al centro
+ *   en GENERAL (lane-cierre).
+ *
+ *   END global: las 4 GENERAL convergen al `Gateway_Cierre_Final` ubicado
+ *   entre lane 1 y lane 2 (vertical centerline del pool), luego al EndEvent.
+ *
+ *   Notas: 5 textAnnotation con posiciones cercanas a sus targets
+ *   (sin solapar con tasks ni con flujos).
+ *
+ *   Mantiene los 40 IDs de Task usados por `BALANZAS_NODES`.
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -24,60 +38,61 @@ const OUT = path.join(ROOT, "public/processes/postcosecha-es.bpmn");
 // ─── Layout constants ──────────────────────────────────────────────────────
 const POOL_X = 40;
 const POOL_Y = 40;
-const POOL_W = 2200;
-const POOL_H = 1560;
-const LANE_X = 170;
-const LANE_W = 2030;
-const LANE_H = 380;
+const POOL_W = 2400;
+const POOL_H = 2240;
+
+const LANE_X = 180;
+const LANE_W = 2220;
+const LANE_H = 540;
 
 const LANES = [
-  { id: "Lane_PreGV",         name: "PRECLASIFICACION / GV",       top: 40 },
-  { id: "Lane_PreDirecto",    name: "PRECLASIFICACION / DIRECTO",  top: 420 },
-  { id: "Lane_AperturaGV",    name: "APERTURA / GV PELADO",        top: 800 },
-  { id: "Lane_AperturaDirecto", name: "APERTURA / APERTURA",       top: 1180 },
+  { id: "Lane_PreGV",           name: "PRECLASIFICACION / GV",       top: 40 },
+  { id: "Lane_PreDirecto",      name: "PRECLASIFICACION / DIRECTO",  top: 580 },
+  { id: "Lane_AperturaGV",      name: "APERTURA / GV PELADO",        top: 1120 },
+  { id: "Lane_AperturaDirecto", name: "APERTURA / APERTURA",         top: 1660 },
 ];
 
-const TASK_W = 110;
-const TASK_W_LONG = 140; // for "PELADO TALLOS Y CLASIFICADO"
-const TASK_H = 60;
+// Sub-row offsets relative to lane top
+const SUB_OFFSET = {
+  arcoiris:  130,
+  blanco:    270, // = main centerline
+  main:      270,
+  tinturado: 410,
+};
+
+const TASK_W = 120;
+const TASK_W_LONG = 170; // "PELADO TALLOS Y CLASIFICADO"
+const TASK_H = 70;
 const EVT_W = 36;
 const EVT_H = 36;
 const GW_W = 50;
 const GW_H = 50;
 
-// X coordinates (centers)
+// X coordinates (centers) — wide spacing for clarity
 const X = {
-  start:      110,
-  raiz:       200,
-  b1:         320,
-  rutas:      460,
-  max10:      580,
-  pelado:     700, // PELADO TALLO (preclasif) | B1C (apertura) — same column
-  b1ab:       870,
-  hidrata:    1020,
-  b2:         1140,
-  gwDest:     1280,
-  clasif:     1420, // CLASIFICADO o PELADO TALLOS Y CLASIFICADO
-  b3b2a:      1610,
-  gwCierre:   1760, // cierre por lane (preGV+preDirecto al superior, aperturaGV+aperturaDirecto al inferior)
-  general:    1880,
-  gwGlobal:   2050, // cierre global final
-  end:        2140,
-};
-
-// Sub-row Y offsets within a lane (top-relative)
-const SUB_OFFSET = {
-  arcoiris: 90,
-  blanco:   200,
-  tinturado: 310,
-  main:     200, // flujo principal va por mid (= Blanco)
+  start:    230,
+  raiz:     320,
+  b1:       430,
+  rutas:    560,
+  max10:    690,
+  pelado:   820, // PELADO TALLO (preclasif) | B1C (apertura GV/Directo)
+  b1ab:     960, // B1AB (preclasif) | Event Max10 (apertura GV)
+  hidrata:  1090,
+  b2:       1210,
+  gwDest:   1340,
+  clasif:   1500, // CLASIFICADO o PELADO TALLOS Y CLASIFICADO
+  b3b2a:    1700,
+  gwCierre: 1840, // cierre por par (lane sup. y lane inf.)
+  general:  1980,
+  gwGlobal: 2160, // cierre global
+  end:      2280,
 };
 
 function laneY(laneIdx, sub = "main") {
   return LANES[laneIdx].top + SUB_OFFSET[sub];
 }
 
-function task(id, name, cx, cy, wide = false) {
+function task(id, _name, cx, cy, wide = false) {
   const w = wide ? TASK_W_LONG : TASK_W;
   const x = cx - w / 2;
   const y = cy - TASK_H / 2;
@@ -108,7 +123,7 @@ function annotation(id, cx, cy, w, h) {
   return `      <bpmndi:BPMNShape id="Shape_${id}" bpmnElement="${id}"><dc:Bounds x="${x}" y="${y}" width="${w}" height="${h}" /></bpmndi:BPMNShape>`;
 }
 
-// ─── Generate process elements ─────────────────────────────────────────────
+// ─── XML ──────────────────────────────────────────────────────────────────
 
 const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <bpmn:definitions
@@ -286,11 +301,11 @@ const xml = `<?xml version="1.0" encoding="UTF-8"?>
       <bpmn:text>TODO LO QUE SEA B2A YA NO APLICA GRADO NI TALLO</bpmn:text>
     </bpmn:textAnnotation>
 
-    <bpmn:association id="Assoc_Bifurcacion_Pre" sourceRef="Note_Bifurcacion_Pre" targetRef="Event_Max10_Pre_GV" />
+    <bpmn:association id="Assoc_Bifurcacion_Pre" sourceRef="Note_Bifurcacion_Pre" targetRef="Gateway_Pre_Rutas" />
     <bpmn:association id="Assoc_Grado_B1AB_Pre" sourceRef="Note_Grado_B1AB" targetRef="Task_B1AB_Pre_Directo" />
     <bpmn:association id="Assoc_Grado_B1C" sourceRef="Note_Grado_B1C" targetRef="Task_B1C_Apertura_GV" />
-    <bpmn:association id="Assoc_B3_NoAplica" sourceRef="Note_B3_NoAplica" targetRef="Task_General_Pre_Directo" />
-    <bpmn:association id="Assoc_B2A_NoAplica" sourceRef="Note_B2A_NoAplica" targetRef="Task_General_Apertura_Directo" />
+    <bpmn:association id="Assoc_B3_NoAplica" sourceRef="Note_B3_NoAplica" targetRef="Task_B3_Pre_Directo_Blanco" />
+    <bpmn:association id="Assoc_B2A_NoAplica" sourceRef="Note_B2A_NoAplica" targetRef="Task_B2A_Apertura_Directo_Blanco" />
 
     <bpmn:sequenceFlow id="Flow_Start_Raiz" sourceRef="StartEvent_Postcosecha" targetRef="Gateway_Raiz" />
     <bpmn:sequenceFlow id="Flow_Raiz_Pre" sourceRef="Gateway_Raiz" targetRef="Task_B1_Preclasificacion" />
@@ -373,7 +388,7 @@ const xml = `<?xml version="1.0" encoding="UTF-8"?>
       <bpmndi:BPMNShape id="Shape_Participant_Postcosecha" bpmnElement="Participant_Postcosecha" isHorizontal="true"><dc:Bounds x="${POOL_X}" y="${POOL_Y}" width="${POOL_W}" height="${POOL_H}" /></bpmndi:BPMNShape>
 ${LANES.map((l) => `      <bpmndi:BPMNShape id="Shape_${l.id}" bpmnElement="${l.id}" isHorizontal="true"><dc:Bounds x="${LANE_X}" y="${l.top}" width="${LANE_W}" height="${LANE_H}" /></bpmndi:BPMNShape>`).join("\n")}
 
-      <!-- Lane 1: PRECLASIFICACION / GV (rama inactiva en datos pero visible en flujo) -->
+      <!-- Lane 0: PRECLASIFICACION / GV (rama inactiva en datos pero visible en flujo) -->
 ${evt("StartEvent_Postcosecha", X.start, laneY(0))}
 ${gw("Gateway_Raiz", X.raiz, laneY(0))}
 ${task("Task_B1_Preclasificacion", "B1", X.b1, laneY(0))}
@@ -390,10 +405,10 @@ ${task("Task_Clasificado_Pre_GV_Tinturado", "CLASIFICADO", X.clasif, laneY(0, "t
 ${task("Task_B3_Pre_GV_Arcoiris",  "B3", X.b3b2a, laneY(0, "arcoiris"))}
 ${task("Task_B3_Pre_GV_Blanco",    "B3", X.b3b2a, laneY(0, "blanco"))}
 ${task("Task_B3_Pre_GV_Tinturado", "B3", X.b3b2a, laneY(0, "tinturado"))}
-${gw("Gateway_Cierre_Superior", X.gwCierre, laneY(0))}
 ${task("Task_General_Pre_GV", "GENERAL", X.general, laneY(0))}
+${gw("Gateway_Cierre_Superior", X.gwCierre, LANES[0].top + LANE_H)}
 
-      <!-- Lane 2: PRECLASIFICACION / DIRECTO (rama activa con overlays de datos) -->
+      <!-- Lane 1: PRECLASIFICACION / DIRECTO -->
 ${task("Task_PeladoTallo_Pre_Directo", "PELADO TALLO", X.pelado, laneY(1))}
 ${task("Task_B1AB_Pre_Directo", "B1AB", X.b1ab, laneY(1))}
 ${evt("Event_Hidratacion_Pre_Directo", X.hidrata, laneY(1))}
@@ -406,10 +421,10 @@ ${task("Task_B3_Pre_Directo_Arcoiris",  "B3", X.b3b2a, laneY(1, "arcoiris"))}
 ${task("Task_B3_Pre_Directo_Blanco",    "B3", X.b3b2a, laneY(1, "blanco"))}
 ${task("Task_B3_Pre_Directo_Tinturado", "B3", X.b3b2a, laneY(1, "tinturado"))}
 ${task("Task_General_Pre_Directo", "GENERAL", X.general, laneY(1))}
-${gw("Gateway_Cierre_Final", X.gwGlobal, laneY(1))}
-${evt("EndEvent_Postcosecha", X.end, laneY(1))}
+${gw("Gateway_Cierre_Final", X.gwGlobal, LANES[1].top + LANE_H)}
+${evt("EndEvent_Postcosecha", X.end, LANES[1].top + LANE_H)}
 
-      <!-- Lane 3: APERTURA / GV PELADO -->
+      <!-- Lane 2: APERTURA / GV PELADO -->
 ${task("Task_B1_Apertura", "B1", X.b1, laneY(2))}
 ${gw("Gateway_Apertura_Rutas", X.rutas, laneY(2))}
 ${task("Task_B1C_Apertura_GV", "B1C", X.pelado, laneY(2))}
@@ -423,10 +438,10 @@ ${task("Task_PeladoClasificado_Apertura_Max10_Tinturado", "PELADO TALLOS Y CLASI
 ${task("Task_B2A_Apertura_Max10_Arcoiris",  "B2A", X.b3b2a, laneY(2, "arcoiris"))}
 ${task("Task_B2A_Apertura_Max10_Blanco",    "B2A", X.b3b2a, laneY(2, "blanco"))}
 ${task("Task_B2A_Apertura_Max10_Tinturado", "B2A", X.b3b2a, laneY(2, "tinturado"))}
-${gw("Gateway_Cierre_Inferior", X.gwCierre, laneY(2))}
 ${task("Task_General_Apertura_Max10", "GENERAL", X.general, laneY(2))}
+${gw("Gateway_Cierre_Inferior", X.gwCierre, LANES[2].top + LANE_H)}
 
-      <!-- Lane 4: APERTURA / APERTURA -->
+      <!-- Lane 3: APERTURA / APERTURA -->
 ${task("Task_B1C_Apertura_Directo", "B1C", X.pelado, laneY(3))}
 ${evt("Event_Hidratacion_Apertura_Directo", X.hidrata, laneY(3))}
 ${task("Task_B2_Apertura_Directo", "B2", X.b2, laneY(3))}
@@ -439,108 +454,111 @@ ${task("Task_B2A_Apertura_Directo_Blanco",    "B2A", X.b3b2a, laneY(3, "blanco")
 ${task("Task_B2A_Apertura_Directo_Tinturado", "B2A", X.b3b2a, laneY(3, "tinturado"))}
 ${task("Task_General_Apertura_Directo", "GENERAL", X.general, laneY(3))}
 
-      <!-- Text annotations + associations -->
-${annotation("Note_Bifurcacion_Pre", X.max10, LANES[0].top + 30, 200, 50)}
-${annotation("Note_Grado_B1AB", X.b1ab, LANES[1].top + LANE_H - 30, 180, 40)}
-${annotation("Note_Grado_B1C", X.pelado, LANES[2].top + LANE_H - 30, 180, 40)}
-${annotation("Note_B3_NoAplica", X.gwCierre, LANES[1].top + 30, 220, 50)}
-${annotation("Note_B2A_NoAplica", X.gwCierre, LANES[3].top + LANE_H - 30, 220, 50)}
+      <!-- Notes (text annotations) — posicionadas cerca del target sin solapar -->
+${annotation("Note_Bifurcacion_Pre", X.rutas, LANES[0].top + 50, 220, 56)}
+${annotation("Note_Grado_B1AB",      X.b1ab,  LANES[1].top + LANE_H - 50, 200, 50)}
+${annotation("Note_Grado_B1C",       X.pelado, LANES[2].top + LANE_H - 50, 200, 50)}
+${annotation("Note_B3_NoAplica",     X.b3b2a, LANES[1].top + LANE_H - 50, 240, 50)}
+${annotation("Note_B2A_NoAplica",    X.b3b2a, LANES[3].top + LANE_H - 50, 240, 50)}
 
-      <!-- Edges (all flows) -->
-${flow("Flow_Start_Raiz", [[X.start + EVT_W/2, laneY(0)], [X.raiz - GW_W/2, laneY(0)]])}
-${flow("Flow_Raiz_Pre", [[X.raiz + GW_W/2, laneY(0)], [X.b1 - TASK_W/2, laneY(0)]])}
-${flow("Flow_Raiz_Apertura", [[X.raiz, laneY(0) + GW_H/2], [X.raiz, laneY(2)], [X.b1 - TASK_W/2, laneY(2)]])}
-
-${flow("Flow_Pre_B1_Gateway", [[X.b1 + TASK_W/2, laneY(0)], [X.rutas - GW_W/2, laneY(0)]])}
-${flow("Flow_Pre_GV_Max10", [[X.rutas + GW_W/2, laneY(0)], [X.max10 - EVT_W/2, laneY(0)]])}
-${flow("Flow_Pre_Directo_Pelado", [[X.rutas, laneY(0) + GW_H/2], [X.rutas, laneY(1)], [X.pelado - TASK_W/2, laneY(1)]])}
-${flow("Flow_Pre_Max10_Pelado", [[X.max10 + EVT_W/2, laneY(0)], [X.pelado - TASK_W/2, laneY(0)]])}
-${flow("Flow_Pre_GV_Pelado_B1AB", [[X.pelado + TASK_W/2, laneY(0)], [X.b1ab - TASK_W/2, laneY(0)]])}
-${flow("Flow_Pre_GV_B1AB_Hidratacion", [[X.b1ab + TASK_W/2, laneY(0)], [X.hidrata - EVT_W/2, laneY(0)]])}
-${flow("Flow_Pre_GV_Hidratacion_B2", [[X.hidrata + EVT_W/2, laneY(0)], [X.b2 - TASK_W/2, laneY(0)]])}
-${flow("Flow_Pre_GV_B2_Destinos", [[X.b2 + TASK_W/2, laneY(0)], [X.gwDest - GW_W/2, laneY(0)]])}
-${flow("Flow_Pre_GV_Arcoiris_Clasificado", [[X.gwDest, laneY(0) - GW_H/2], [X.gwDest, laneY(0, "arcoiris")], [X.clasif - TASK_W/2, laneY(0, "arcoiris")]])}
-${flow("Flow_Pre_GV_Blanco_Clasificado", [[X.gwDest + GW_W/2, laneY(0, "blanco")], [X.clasif - TASK_W/2, laneY(0, "blanco")]])}
-${flow("Flow_Pre_GV_Tinturado_Clasificado", [[X.gwDest, laneY(0) + GW_H/2], [X.gwDest, laneY(0, "tinturado")], [X.clasif - TASK_W/2, laneY(0, "tinturado")]])}
-${flow("Flow_Pre_GV_Clasificado_B3_Arcoiris", [[X.clasif + TASK_W/2, laneY(0, "arcoiris")], [X.b3b2a - TASK_W/2, laneY(0, "arcoiris")]])}
-${flow("Flow_Pre_GV_Clasificado_B3_Blanco", [[X.clasif + TASK_W/2, laneY(0, "blanco")], [X.b3b2a - TASK_W/2, laneY(0, "blanco")]])}
+      <!-- Edges: Lane 0 (Pre GV) -->
+${flow("Flow_Start_Raiz",                [[X.start + EVT_W/2, laneY(0)],            [X.raiz - GW_W/2, laneY(0)]])}
+${flow("Flow_Raiz_Pre",                  [[X.raiz + GW_W/2, laneY(0)],              [X.b1 - TASK_W/2, laneY(0)]])}
+${flow("Flow_Raiz_Apertura",             [[X.raiz, laneY(0) + GW_H/2],              [X.raiz, laneY(2)],         [X.b1 - TASK_W/2, laneY(2)]])}
+${flow("Flow_Pre_B1_Gateway",            [[X.b1 + TASK_W/2, laneY(0)],              [X.rutas - GW_W/2, laneY(0)]])}
+${flow("Flow_Pre_GV_Max10",              [[X.rutas + GW_W/2, laneY(0)],             [X.max10 - EVT_W/2, laneY(0)]])}
+${flow("Flow_Pre_Directo_Pelado",        [[X.rutas, laneY(0) + GW_H/2],             [X.rutas, laneY(1)],        [X.pelado - TASK_W/2, laneY(1)]])}
+${flow("Flow_Pre_Max10_Pelado",          [[X.max10 + EVT_W/2, laneY(0)],            [X.pelado - TASK_W/2, laneY(0)]])}
+${flow("Flow_Pre_GV_Pelado_B1AB",        [[X.pelado + TASK_W/2, laneY(0)],          [X.b1ab - TASK_W/2, laneY(0)]])}
+${flow("Flow_Pre_GV_B1AB_Hidratacion",   [[X.b1ab + TASK_W/2, laneY(0)],            [X.hidrata - EVT_W/2, laneY(0)]])}
+${flow("Flow_Pre_GV_Hidratacion_B2",     [[X.hidrata + EVT_W/2, laneY(0)],          [X.b2 - TASK_W/2, laneY(0)]])}
+${flow("Flow_Pre_GV_B2_Destinos",        [[X.b2 + TASK_W/2, laneY(0)],              [X.gwDest - GW_W/2, laneY(0)]])}
+${flow("Flow_Pre_GV_Arcoiris_Clasificado",  [[X.gwDest, laneY(0) - GW_H/2],         [X.gwDest, laneY(0, "arcoiris")],  [X.clasif - TASK_W/2, laneY(0, "arcoiris")]])}
+${flow("Flow_Pre_GV_Blanco_Clasificado",    [[X.gwDest + GW_W/2, laneY(0, "blanco")], [X.clasif - TASK_W/2, laneY(0, "blanco")]])}
+${flow("Flow_Pre_GV_Tinturado_Clasificado", [[X.gwDest, laneY(0) + GW_H/2],         [X.gwDest, laneY(0, "tinturado")], [X.clasif - TASK_W/2, laneY(0, "tinturado")]])}
+${flow("Flow_Pre_GV_Clasificado_B3_Arcoiris",  [[X.clasif + TASK_W/2, laneY(0, "arcoiris")],  [X.b3b2a - TASK_W/2, laneY(0, "arcoiris")]])}
+${flow("Flow_Pre_GV_Clasificado_B3_Blanco",    [[X.clasif + TASK_W/2, laneY(0, "blanco")],    [X.b3b2a - TASK_W/2, laneY(0, "blanco")]])}
 ${flow("Flow_Pre_GV_Clasificado_B3_Tinturado", [[X.clasif + TASK_W/2, laneY(0, "tinturado")], [X.b3b2a - TASK_W/2, laneY(0, "tinturado")]])}
-${flow("Flow_Pre_GV_B3_General_Arcoiris", [[X.b3b2a + TASK_W/2, laneY(0, "arcoiris")], [X.general - TASK_W/2, laneY(0, "arcoiris")], [X.general - TASK_W/2, laneY(0)]])}
-${flow("Flow_Pre_GV_B3_General_Blanco", [[X.b3b2a + TASK_W/2, laneY(0, "blanco")], [X.general - TASK_W/2, laneY(0, "blanco")]])}
-${flow("Flow_Pre_GV_B3_General_Tinturado", [[X.b3b2a + TASK_W/2, laneY(0, "tinturado")], [X.general - TASK_W/2, laneY(0, "tinturado")], [X.general - TASK_W/2, laneY(0)]])}
+${flow("Flow_Pre_GV_B3_General_Arcoiris",  [[X.b3b2a + TASK_W/2, laneY(0, "arcoiris")],  [X.general, laneY(0, "arcoiris")],  [X.general, laneY(0) - TASK_H/2]])}
+${flow("Flow_Pre_GV_B3_General_Blanco",    [[X.b3b2a + TASK_W/2, laneY(0, "blanco")],    [X.general - TASK_W/2, laneY(0, "blanco")]])}
+${flow("Flow_Pre_GV_B3_General_Tinturado", [[X.b3b2a + TASK_W/2, laneY(0, "tinturado")], [X.general, laneY(0, "tinturado")], [X.general, laneY(0) + TASK_H/2]])}
 
-${flow("Flow_Pre_Directo_Pelado_B1AB", [[X.pelado + TASK_W/2, laneY(1)], [X.b1ab - TASK_W/2, laneY(1)]])}
-${flow("Flow_Pre_Directo_B1AB_Hidratacion", [[X.b1ab + TASK_W/2, laneY(1)], [X.hidrata - EVT_W/2, laneY(1)]])}
-${flow("Flow_Pre_Directo_Hidratacion_B2", [[X.hidrata + EVT_W/2, laneY(1)], [X.b2 - TASK_W/2, laneY(1)]])}
-${flow("Flow_Pre_Directo_B2_Destinos", [[X.b2 + TASK_W/2, laneY(1)], [X.gwDest - GW_W/2, laneY(1)]])}
-${flow("Flow_Pre_Directo_Arcoiris_Clasificado", [[X.gwDest, laneY(1) - GW_H/2], [X.gwDest, laneY(1, "arcoiris")], [X.clasif - TASK_W/2, laneY(1, "arcoiris")]])}
-${flow("Flow_Pre_Directo_Blanco_Clasificado", [[X.gwDest + GW_W/2, laneY(1, "blanco")], [X.clasif - TASK_W/2, laneY(1, "blanco")]])}
-${flow("Flow_Pre_Directo_Tinturado_Clasificado", [[X.gwDest, laneY(1) + GW_H/2], [X.gwDest, laneY(1, "tinturado")], [X.clasif - TASK_W/2, laneY(1, "tinturado")]])}
-${flow("Flow_Pre_Directo_Clasificado_B3_Arcoiris", [[X.clasif + TASK_W/2, laneY(1, "arcoiris")], [X.b3b2a - TASK_W/2, laneY(1, "arcoiris")]])}
-${flow("Flow_Pre_Directo_Clasificado_B3_Blanco", [[X.clasif + TASK_W/2, laneY(1, "blanco")], [X.b3b2a - TASK_W/2, laneY(1, "blanco")]])}
+      <!-- Edges: Lane 1 (Pre Directo) -->
+${flow("Flow_Pre_Directo_Pelado_B1AB",      [[X.pelado + TASK_W/2, laneY(1)],   [X.b1ab - TASK_W/2, laneY(1)]])}
+${flow("Flow_Pre_Directo_B1AB_Hidratacion", [[X.b1ab + TASK_W/2, laneY(1)],     [X.hidrata - EVT_W/2, laneY(1)]])}
+${flow("Flow_Pre_Directo_Hidratacion_B2",   [[X.hidrata + EVT_W/2, laneY(1)],   [X.b2 - TASK_W/2, laneY(1)]])}
+${flow("Flow_Pre_Directo_B2_Destinos",      [[X.b2 + TASK_W/2, laneY(1)],       [X.gwDest - GW_W/2, laneY(1)]])}
+${flow("Flow_Pre_Directo_Arcoiris_Clasificado",  [[X.gwDest, laneY(1) - GW_H/2],         [X.gwDest, laneY(1, "arcoiris")],  [X.clasif - TASK_W/2, laneY(1, "arcoiris")]])}
+${flow("Flow_Pre_Directo_Blanco_Clasificado",    [[X.gwDest + GW_W/2, laneY(1, "blanco")], [X.clasif - TASK_W/2, laneY(1, "blanco")]])}
+${flow("Flow_Pre_Directo_Tinturado_Clasificado", [[X.gwDest, laneY(1) + GW_H/2],         [X.gwDest, laneY(1, "tinturado")], [X.clasif - TASK_W/2, laneY(1, "tinturado")]])}
+${flow("Flow_Pre_Directo_Clasificado_B3_Arcoiris",  [[X.clasif + TASK_W/2, laneY(1, "arcoiris")],  [X.b3b2a - TASK_W/2, laneY(1, "arcoiris")]])}
+${flow("Flow_Pre_Directo_Clasificado_B3_Blanco",    [[X.clasif + TASK_W/2, laneY(1, "blanco")],    [X.b3b2a - TASK_W/2, laneY(1, "blanco")]])}
 ${flow("Flow_Pre_Directo_Clasificado_B3_Tinturado", [[X.clasif + TASK_W/2, laneY(1, "tinturado")], [X.b3b2a - TASK_W/2, laneY(1, "tinturado")]])}
-${flow("Flow_Pre_Directo_B3_General_Arcoiris", [[X.b3b2a + TASK_W/2, laneY(1, "arcoiris")], [X.general - TASK_W/2, laneY(1, "arcoiris")], [X.general - TASK_W/2, laneY(1)]])}
-${flow("Flow_Pre_Directo_B3_General_Blanco", [[X.b3b2a + TASK_W/2, laneY(1, "blanco")], [X.general - TASK_W/2, laneY(1, "blanco")]])}
-${flow("Flow_Pre_Directo_B3_General_Tinturado", [[X.b3b2a + TASK_W/2, laneY(1, "tinturado")], [X.general - TASK_W/2, laneY(1, "tinturado")], [X.general - TASK_W/2, laneY(1)]])}
+${flow("Flow_Pre_Directo_B3_General_Arcoiris",  [[X.b3b2a + TASK_W/2, laneY(1, "arcoiris")],  [X.general, laneY(1, "arcoiris")],  [X.general, laneY(1) - TASK_H/2]])}
+${flow("Flow_Pre_Directo_B3_General_Blanco",    [[X.b3b2a + TASK_W/2, laneY(1, "blanco")],    [X.general - TASK_W/2, laneY(1, "blanco")]])}
+${flow("Flow_Pre_Directo_B3_General_Tinturado", [[X.b3b2a + TASK_W/2, laneY(1, "tinturado")], [X.general, laneY(1, "tinturado")], [X.general, laneY(1) + TASK_H/2]])}
 
-${flow("Flow_Apertura_B1_Gateway", [[X.b1 + TASK_W/2, laneY(2)], [X.rutas - GW_W/2, laneY(2)]])}
-${flow("Flow_Apertura_GV_B1C", [[X.rutas + GW_W/2, laneY(2)], [X.pelado - TASK_W/2, laneY(2)]])}
-${flow("Flow_Apertura_Directo_B1C", [[X.rutas, laneY(2) + GW_H/2], [X.rutas, laneY(3)], [X.pelado - TASK_W/2, laneY(3)]])}
-${flow("Flow_Apertura_GV_B1C_Max10", [[X.pelado + TASK_W/2, laneY(2)], [X.b1ab - EVT_W/2, laneY(2)]])}
-${flow("Flow_Apertura_GV_Max10_Hidratacion", [[X.b1ab + EVT_W/2, laneY(2)], [X.hidrata - EVT_W/2, laneY(2)]])}
-${flow("Flow_Apertura_GV_Hidratacion_B2", [[X.hidrata + EVT_W/2, laneY(2)], [X.b2 - TASK_W/2, laneY(2)]])}
-${flow("Flow_Apertura_GV_B2_Destinos", [[X.b2 + TASK_W/2, laneY(2)], [X.gwDest - GW_W/2, laneY(2)]])}
-${flow("Flow_Apertura_GV_Arcoiris_Clasificado", [[X.gwDest, laneY(2) - GW_H/2], [X.gwDest, laneY(2, "arcoiris")], [X.clasif - TASK_W_LONG/2, laneY(2, "arcoiris")]])}
-${flow("Flow_Apertura_GV_Blanco_Clasificado", [[X.gwDest + GW_W/2, laneY(2, "blanco")], [X.clasif - TASK_W_LONG/2, laneY(2, "blanco")]])}
-${flow("Flow_Apertura_GV_Tinturado_Clasificado", [[X.gwDest, laneY(2) + GW_H/2], [X.gwDest, laneY(2, "tinturado")], [X.clasif - TASK_W_LONG/2, laneY(2, "tinturado")]])}
-${flow("Flow_Apertura_GV_Clasificado_B2A_Arcoiris", [[X.clasif + TASK_W_LONG/2, laneY(2, "arcoiris")], [X.b3b2a - TASK_W/2, laneY(2, "arcoiris")]])}
-${flow("Flow_Apertura_GV_Clasificado_B2A_Blanco", [[X.clasif + TASK_W_LONG/2, laneY(2, "blanco")], [X.b3b2a - TASK_W/2, laneY(2, "blanco")]])}
+      <!-- Edges: Lane 2 (Apertura GV) -->
+${flow("Flow_Apertura_B1_Gateway",           [[X.b1 + TASK_W/2, laneY(2)],         [X.rutas - GW_W/2, laneY(2)]])}
+${flow("Flow_Apertura_GV_B1C",               [[X.rutas + GW_W/2, laneY(2)],        [X.pelado - TASK_W/2, laneY(2)]])}
+${flow("Flow_Apertura_Directo_B1C",          [[X.rutas, laneY(2) + GW_H/2],        [X.rutas, laneY(3)],            [X.pelado - TASK_W/2, laneY(3)]])}
+${flow("Flow_Apertura_GV_B1C_Max10",         [[X.pelado + TASK_W/2, laneY(2)],     [X.b1ab - EVT_W/2, laneY(2)]])}
+${flow("Flow_Apertura_GV_Max10_Hidratacion", [[X.b1ab + EVT_W/2, laneY(2)],        [X.hidrata - EVT_W/2, laneY(2)]])}
+${flow("Flow_Apertura_GV_Hidratacion_B2",    [[X.hidrata + EVT_W/2, laneY(2)],     [X.b2 - TASK_W/2, laneY(2)]])}
+${flow("Flow_Apertura_GV_B2_Destinos",       [[X.b2 + TASK_W/2, laneY(2)],         [X.gwDest - GW_W/2, laneY(2)]])}
+${flow("Flow_Apertura_GV_Arcoiris_Clasificado",  [[X.gwDest, laneY(2) - GW_H/2],         [X.gwDest, laneY(2, "arcoiris")],  [X.clasif - TASK_W_LONG/2, laneY(2, "arcoiris")]])}
+${flow("Flow_Apertura_GV_Blanco_Clasificado",    [[X.gwDest + GW_W/2, laneY(2, "blanco")], [X.clasif - TASK_W_LONG/2, laneY(2, "blanco")]])}
+${flow("Flow_Apertura_GV_Tinturado_Clasificado", [[X.gwDest, laneY(2) + GW_H/2],         [X.gwDest, laneY(2, "tinturado")], [X.clasif - TASK_W_LONG/2, laneY(2, "tinturado")]])}
+${flow("Flow_Apertura_GV_Clasificado_B2A_Arcoiris",  [[X.clasif + TASK_W_LONG/2, laneY(2, "arcoiris")],  [X.b3b2a - TASK_W/2, laneY(2, "arcoiris")]])}
+${flow("Flow_Apertura_GV_Clasificado_B2A_Blanco",    [[X.clasif + TASK_W_LONG/2, laneY(2, "blanco")],    [X.b3b2a - TASK_W/2, laneY(2, "blanco")]])}
 ${flow("Flow_Apertura_GV_Clasificado_B2A_Tinturado", [[X.clasif + TASK_W_LONG/2, laneY(2, "tinturado")], [X.b3b2a - TASK_W/2, laneY(2, "tinturado")]])}
-${flow("Flow_Apertura_GV_B2A_General_Arcoiris", [[X.b3b2a + TASK_W/2, laneY(2, "arcoiris")], [X.general - TASK_W/2, laneY(2, "arcoiris")], [X.general - TASK_W/2, laneY(2)]])}
-${flow("Flow_Apertura_GV_B2A_General_Blanco", [[X.b3b2a + TASK_W/2, laneY(2, "blanco")], [X.general - TASK_W/2, laneY(2, "blanco")]])}
-${flow("Flow_Apertura_GV_B2A_General_Tinturado", [[X.b3b2a + TASK_W/2, laneY(2, "tinturado")], [X.general - TASK_W/2, laneY(2, "tinturado")], [X.general - TASK_W/2, laneY(2)]])}
+${flow("Flow_Apertura_GV_B2A_General_Arcoiris",  [[X.b3b2a + TASK_W/2, laneY(2, "arcoiris")],  [X.general, laneY(2, "arcoiris")],  [X.general, laneY(2) - TASK_H/2]])}
+${flow("Flow_Apertura_GV_B2A_General_Blanco",    [[X.b3b2a + TASK_W/2, laneY(2, "blanco")],    [X.general - TASK_W/2, laneY(2, "blanco")]])}
+${flow("Flow_Apertura_GV_B2A_General_Tinturado", [[X.b3b2a + TASK_W/2, laneY(2, "tinturado")], [X.general, laneY(2, "tinturado")], [X.general, laneY(2) + TASK_H/2]])}
 
+      <!-- Edges: Lane 3 (Apertura Directo) -->
 ${flow("Flow_Apertura_Directo_B1C_Hidratacion", [[X.pelado + TASK_W/2, laneY(3)], [X.hidrata - EVT_W/2, laneY(3)]])}
-${flow("Flow_Apertura_Directo_Hidratacion_B2", [[X.hidrata + EVT_W/2, laneY(3)], [X.b2 - TASK_W/2, laneY(3)]])}
-${flow("Flow_Apertura_Directo_B2_Destinos", [[X.b2 + TASK_W/2, laneY(3)], [X.gwDest - GW_W/2, laneY(3)]])}
-${flow("Flow_Apertura_Directo_Arcoiris_Clasificado", [[X.gwDest, laneY(3) - GW_H/2], [X.gwDest, laneY(3, "arcoiris")], [X.clasif - TASK_W_LONG/2, laneY(3, "arcoiris")]])}
-${flow("Flow_Apertura_Directo_Blanco_Clasificado", [[X.gwDest + GW_W/2, laneY(3, "blanco")], [X.clasif - TASK_W_LONG/2, laneY(3, "blanco")]])}
-${flow("Flow_Apertura_Directo_Tinturado_Clasificado", [[X.gwDest, laneY(3) + GW_H/2], [X.gwDest, laneY(3, "tinturado")], [X.clasif - TASK_W_LONG/2, laneY(3, "tinturado")]])}
-${flow("Flow_Apertura_Directo_Clasificado_B2A_Arcoiris", [[X.clasif + TASK_W_LONG/2, laneY(3, "arcoiris")], [X.b3b2a - TASK_W/2, laneY(3, "arcoiris")]])}
-${flow("Flow_Apertura_Directo_Clasificado_B2A_Blanco", [[X.clasif + TASK_W_LONG/2, laneY(3, "blanco")], [X.b3b2a - TASK_W/2, laneY(3, "blanco")]])}
+${flow("Flow_Apertura_Directo_Hidratacion_B2",  [[X.hidrata + EVT_W/2, laneY(3)], [X.b2 - TASK_W/2, laneY(3)]])}
+${flow("Flow_Apertura_Directo_B2_Destinos",     [[X.b2 + TASK_W/2, laneY(3)],     [X.gwDest - GW_W/2, laneY(3)]])}
+${flow("Flow_Apertura_Directo_Arcoiris_Clasificado",  [[X.gwDest, laneY(3) - GW_H/2],         [X.gwDest, laneY(3, "arcoiris")],  [X.clasif - TASK_W_LONG/2, laneY(3, "arcoiris")]])}
+${flow("Flow_Apertura_Directo_Blanco_Clasificado",    [[X.gwDest + GW_W/2, laneY(3, "blanco")], [X.clasif - TASK_W_LONG/2, laneY(3, "blanco")]])}
+${flow("Flow_Apertura_Directo_Tinturado_Clasificado", [[X.gwDest, laneY(3) + GW_H/2],         [X.gwDest, laneY(3, "tinturado")], [X.clasif - TASK_W_LONG/2, laneY(3, "tinturado")]])}
+${flow("Flow_Apertura_Directo_Clasificado_B2A_Arcoiris",  [[X.clasif + TASK_W_LONG/2, laneY(3, "arcoiris")],  [X.b3b2a - TASK_W/2, laneY(3, "arcoiris")]])}
+${flow("Flow_Apertura_Directo_Clasificado_B2A_Blanco",    [[X.clasif + TASK_W_LONG/2, laneY(3, "blanco")],    [X.b3b2a - TASK_W/2, laneY(3, "blanco")]])}
 ${flow("Flow_Apertura_Directo_Clasificado_B2A_Tinturado", [[X.clasif + TASK_W_LONG/2, laneY(3, "tinturado")], [X.b3b2a - TASK_W/2, laneY(3, "tinturado")]])}
-${flow("Flow_Apertura_Directo_B2A_General_Arcoiris", [[X.b3b2a + TASK_W/2, laneY(3, "arcoiris")], [X.general - TASK_W/2, laneY(3, "arcoiris")], [X.general - TASK_W/2, laneY(3)]])}
-${flow("Flow_Apertura_Directo_B2A_General_Blanco", [[X.b3b2a + TASK_W/2, laneY(3, "blanco")], [X.general - TASK_W/2, laneY(3, "blanco")]])}
-${flow("Flow_Apertura_Directo_B2A_General_Tinturado", [[X.b3b2a + TASK_W/2, laneY(3, "tinturado")], [X.general - TASK_W/2, laneY(3, "tinturado")], [X.general - TASK_W/2, laneY(3)]])}
+${flow("Flow_Apertura_Directo_B2A_General_Arcoiris",  [[X.b3b2a + TASK_W/2, laneY(3, "arcoiris")],  [X.general, laneY(3, "arcoiris")],  [X.general, laneY(3) - TASK_H/2]])}
+${flow("Flow_Apertura_Directo_B2A_General_Blanco",    [[X.b3b2a + TASK_W/2, laneY(3, "blanco")],    [X.general - TASK_W/2, laneY(3, "blanco")]])}
+${flow("Flow_Apertura_Directo_B2A_General_Tinturado", [[X.b3b2a + TASK_W/2, laneY(3, "tinturado")], [X.general, laneY(3, "tinturado")], [X.general, laneY(3) + TASK_H/2]])}
 
-${flow("Flow_Pre_GV_Cierre", [[X.general + TASK_W/2, laneY(0)], [X.gwCierre - GW_W/2, laneY(0)]])}
-${flow("Flow_Pre_Directo_Cierre", [[X.general, laneY(1) - TASK_H/2], [X.general, laneY(0)], [X.gwCierre - GW_W/2, laneY(0)]])}
-${flow("Flow_Apertura_GV_Cierre", [[X.general + TASK_W/2, laneY(2)], [X.gwCierre - GW_W/2, laneY(2)]])}
-${flow("Flow_Apertura_Directo_Cierre", [[X.general, laneY(3) - TASK_H/2], [X.general, laneY(2)], [X.gwCierre - GW_W/2, laneY(2)]])}
-${flow("Flow_Cierre_Superior_Final", [[X.gwCierre + GW_W/2, laneY(0)], [X.gwGlobal, laneY(0)], [X.gwGlobal, laneY(1) - GW_H/2]])}
-${flow("Flow_Cierre_Inferior_Final", [[X.gwCierre + GW_W/2, laneY(2)], [X.gwGlobal, laneY(2)], [X.gwGlobal, laneY(1) + GW_H/2]])}
-${flow("Flow_Final_End", [[X.gwGlobal + GW_W/2, laneY(1)], [X.end - EVT_W/2, laneY(1)]])}
+      <!-- Convergencia: GENERAL → cierre lane → cierre global → END -->
+${flow("Flow_Pre_GV_Cierre",         [[X.general, laneY(0) + TASK_H/2], [X.general, LANES[0].top + LANE_H], [X.gwCierre - GW_W/2, LANES[0].top + LANE_H]])}
+${flow("Flow_Pre_Directo_Cierre",    [[X.general, laneY(1) - TASK_H/2], [X.general, LANES[0].top + LANE_H], [X.gwCierre - GW_W/2, LANES[0].top + LANE_H]])}
+${flow("Flow_Apertura_GV_Cierre",    [[X.general, laneY(2) + TASK_H/2], [X.general, LANES[2].top + LANE_H], [X.gwCierre - GW_W/2, LANES[2].top + LANE_H]])}
+${flow("Flow_Apertura_Directo_Cierre", [[X.general, laneY(3) - TASK_H/2], [X.general, LANES[2].top + LANE_H], [X.gwCierre - GW_W/2, LANES[2].top + LANE_H]])}
+${flow("Flow_Cierre_Superior_Final", [[X.gwCierre + GW_W/2, LANES[0].top + LANE_H], [X.gwGlobal, LANES[0].top + LANE_H], [X.gwGlobal, LANES[1].top + LANE_H - GW_H/2]])}
+${flow("Flow_Cierre_Inferior_Final", [[X.gwCierre + GW_W/2, LANES[2].top + LANE_H], [X.gwGlobal, LANES[2].top + LANE_H], [X.gwGlobal, LANES[1].top + LANE_H + GW_H/2]])}
+${flow("Flow_Final_End",             [[X.gwGlobal + GW_W/2, LANES[1].top + LANE_H], [X.end - EVT_W/2, LANES[1].top + LANE_H]])}
 
-      <!-- Associations (notes) -->
+      <!-- Associations (notes → tasks) -->
       <bpmndi:BPMNEdge id="Edge_Assoc_Bifurcacion_Pre" bpmnElement="Assoc_Bifurcacion_Pre">
-        <di:waypoint x="${X.max10}" y="${LANES[0].top + 55}" />
-        <di:waypoint x="${X.max10}" y="${laneY(0) - EVT_H/2}" />
+        <di:waypoint x="${X.rutas}" y="${LANES[0].top + 78}" />
+        <di:waypoint x="${X.rutas}" y="${laneY(0) - GW_H/2}" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Edge_Assoc_Grado_B1AB_Pre" bpmnElement="Assoc_Grado_B1AB_Pre">
-        <di:waypoint x="${X.b1ab}" y="${LANES[1].top + LANE_H - 50}" />
+        <di:waypoint x="${X.b1ab}" y="${LANES[1].top + LANE_H - 75}" />
         <di:waypoint x="${X.b1ab}" y="${laneY(1) + TASK_H/2}" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Edge_Assoc_Grado_B1C" bpmnElement="Assoc_Grado_B1C">
-        <di:waypoint x="${X.pelado}" y="${LANES[2].top + LANE_H - 50}" />
+        <di:waypoint x="${X.pelado}" y="${LANES[2].top + LANE_H - 75}" />
         <di:waypoint x="${X.pelado}" y="${laneY(2) + TASK_H/2}" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Edge_Assoc_B3_NoAplica" bpmnElement="Assoc_B3_NoAplica">
-        <di:waypoint x="${X.gwCierre}" y="${LANES[1].top + 55}" />
-        <di:waypoint x="${X.general}" y="${laneY(1) - TASK_H/2}" />
+        <di:waypoint x="${X.b3b2a}" y="${LANES[1].top + LANE_H - 75}" />
+        <di:waypoint x="${X.b3b2a}" y="${laneY(1, "tinturado") - TASK_H/2}" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Edge_Assoc_B2A_NoAplica" bpmnElement="Assoc_B2A_NoAplica">
-        <di:waypoint x="${X.gwCierre}" y="${LANES[3].top + LANE_H - 50}" />
-        <di:waypoint x="${X.general}" y="${laneY(3) + TASK_H/2}" />
+        <di:waypoint x="${X.b3b2a}" y="${LANES[3].top + LANE_H - 75}" />
+        <di:waypoint x="${X.b3b2a}" y="${laneY(3, "tinturado") + TASK_H/2}" />
       </bpmndi:BPMNEdge>
 
     </bpmndi:BPMNPlane>
