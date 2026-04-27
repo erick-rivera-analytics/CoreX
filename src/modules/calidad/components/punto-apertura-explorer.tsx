@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useDeferredValue, useMemo, useState } from "react";
 import { Activity, LoaderCircle, RefreshCcw } from "lucide-react";
@@ -17,11 +17,12 @@ import { Badge } from "@/shared/ui/badge";
 import { Card, CardContent } from "@/shared/ui/card";
 import { EmptyState } from "@/shared/data-display/empty-state";
 import { MetricTile } from "@/shared/data-display/metric-tile";
+import { DateField } from "@/shared/filters/date-field";
 import { MultiSelectField } from "@/shared/filters/multi-select-field";
 import { ScrollFadeTable } from "@/shared/tables/scroll-fade-table";
 import { ChartSection, DetailSection, FilterPanel, KpiGrid } from "@/shared/layout/filter-panel";
 import { SectionPageShell } from "@/shared/layout/section-page-shell";
-import { formatInteger, formatIsoWeekLabel, formatPercent, formatYearMonth } from "@/shared/lib/format";
+import { formatInteger, formatIsoWeekLabel, formatMonthNumeric, formatPercent } from "@/shared/lib/format";
 import type {
   PuntoAperturaDashboardData,
   PuntoAperturaFilters,
@@ -32,11 +33,11 @@ const fetcher = (url: string) =>
   fetchJson<PuntoAperturaDashboardData>(url, "No se pudo cargar punto de apertura.");
 
 const APERTURE_COMPOSITION = [
-  { key: "boton", label: "Botón" },
+  { key: "boton", label: "BotÃ³n" },
   { key: "unoTres", label: "1 a 3" },
   { key: "cuatroNueve", label: "4 a 9" },
   { key: "diezVeinte", label: "10 a 20" },
-  { key: "masVeinte", label: "Más de 20" },
+  { key: "masVeinte", label: "MÃ¡s de 20" },
 ] as const;
 
 function buildQueryString(filters: PuntoAperturaFilters) {
@@ -46,6 +47,7 @@ function buildQueryString(filters: PuntoAperturaFilters) {
   params.set("spType", filters.spType);
   params.set("month", filters.month);
   params.set("year", filters.year);
+  params.set("date", filters.date);
   params.set("dominantClass", filters.dominantClass);
   params.set("bloque", filters.bloque);
   return params.toString();
@@ -100,11 +102,12 @@ export function PuntoAperturaExplorer({ initialData }: { initialData: PuntoApert
         icon={<Activity className="size-6" aria-hidden="true" />}
       >
         <FilterPanel>
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-9">
             <MultiSelectField id="pa-week" label="Semana" value={filters.isoWeek} options={data.options.isoWeeks} onChange={(value) => updateFilter("isoWeek", value)} displayValue={formatIsoWeekLabel} />
-            <MultiSelectField id="pa-year" label="Año" value={filters.year} options={data.options.years} onChange={(value) => updateFilter("year", value)} />
-            <MultiSelectField id="pa-month" label="Mes" value={filters.month} options={data.options.months} onChange={(value) => updateFilter("month", value)} displayValue={formatYearMonth} />
-            <MultiSelectField id="pa-area" label="Área" value={filters.area} options={data.options.areas} onChange={(value) => updateFilter("area", value)} />
+            <MultiSelectField id="pa-year" label="AÃ±o" value={filters.year} options={data.options.years} onChange={(value) => updateFilter("year", value)} />
+            <MultiSelectField id="pa-month" label="Mes" value={filters.month} options={data.options.months} onChange={(value) => updateFilter("month", value)} displayValue={formatMonthNumeric} />
+            <DateField id="pa-date" label="Dia" value={filters.date} onChange={(value) => updateFilter("date", value)} />
+            <MultiSelectField id="pa-area" label="Ãrea" value={filters.area} options={data.options.areas} onChange={(value) => updateFilter("area", value)} />
             <MultiSelectField id="pa-sp-type" label="Tipo SP" value={filters.spType} options={data.options.spTypes} onChange={(value) => updateFilter("spType", value)} />
             <MultiSelectField id="pa-dominant" label="Dominante" value={filters.dominantClass} options={data.options.dominantClasses} onChange={(value) => updateFilter("dominantClass", value)} />
             <MultiSelectField id="pa-bloque" label="Bloque" value={filters.bloque} options={data.options.bloques} onChange={(value) => updateFilter("bloque", value)} />
@@ -119,21 +122,21 @@ export function PuntoAperturaExplorer({ initialData }: { initialData: PuntoApert
           <KpiGrid columns={4}>
             <MetricTile label="Registros visibles" value={formatInteger(data.summary.totalRecords)} hint={`${formatInteger(data.summary.totalCycles)} ciclos`} />
             <MetricTile label="Dominante general" value={data.summary.dominantClass} hint={`Media visible: ${formatPercent(data.summary.visibleMeanPct)}`} />
-            <button type="button" className="text-left" aria-label="Ver distribución de homogéneos" onClick={() => setSelectedStatusComposition("homogeneous")}>
-              <MetricTile label="Homogéneos" value={formatPercent(data.summary.homogeneousPct)} hint={`${formatInteger(data.summary.homogeneousRecords)} registros | Ver distribución`} />
+            <button type="button" className="text-left" aria-label="Ver distribuciÃ³n de homogÃ©neos" onClick={() => setSelectedStatusComposition("homogeneous")}>
+              <MetricTile label="HomogÃ©neos" value={formatPercent(data.summary.homogeneousPct)} hint={`${formatInteger(data.summary.homogeneousRecords)} registros | Ver distribuciÃ³n`} />
             </button>
-            <button type="button" className="text-left" aria-label="Ver distribución de no homogéneos" onClick={() => setSelectedStatusComposition("nonHomogeneous")}>
+            <button type="button" className="text-left" aria-label="Ver distribuciÃ³n de no homogÃ©neos" onClick={() => setSelectedStatusComposition("nonHomogeneous")}>
               <MetricTile
-                label="No homogéneos"
+                label="No homogÃ©neos"
                 value={formatPercent(100 - data.summary.homogeneousPct)}
-                hint={`${formatInteger(data.summary.nonHomogeneousRecords)} registros | Ver distribución`}
+                hint={`${formatInteger(data.summary.nonHomogeneousRecords)} registros | Ver distribuciÃ³n`}
                 accent={data.summary.nonHomogeneousRecords ? "warning" : "success"}
               />
             </button>
           </KpiGrid>
 
           <p className="rounded-[18px] border border-border/70 bg-background/70 px-4 py-3 text-xs text-muted-foreground">
-            Criterio de homogeneidad: un registro cumple cuando la participación de su punto dominante es mayor o igual a {formatPercent(data.summary.lowerLimitPct)}.
+            Criterio de homogeneidad: un registro cumple cuando la participaciÃ³n de su punto dominante es mayor o igual a {formatPercent(data.summary.lowerLimitPct)}.
           </p>
 
           <div className="space-y-2">
@@ -173,7 +176,7 @@ export function PuntoAperturaExplorer({ initialData }: { initialData: PuntoApert
             </Badge>
             {data.records.length > data.chartRecords.length ? (
               <span>
-                El gráfico muestra los últimos {formatInteger(data.summary.chartRecordLimit)} registros del filtro para mantener fluidez; los KPIs se calculan con todos.
+                El grÃ¡fico muestra los Ãºltimos {formatInteger(data.summary.chartRecordLimit)} registros del filtro para mantener fluidez; los KPIs se calculan con todos.
               </span>
             ) : null}
             {isValidating ? (
@@ -200,12 +203,12 @@ export function PuntoAperturaExplorer({ initialData }: { initialData: PuntoApert
               <div>
                 <h2 className="text-lg font-semibold tracking-tight">Carta de control por registro</h2>
                 <p className="text-sm text-muted-foreground">
-                  Haz click en un punto para ver la mezcla: botón, 1 a 3, 4 a 9, 10 a 20 y más de 20.
+                  Haz click en un punto para ver la mezcla: botÃ³n, 1 a 3, 4 a 9, 10 a 20 y mÃ¡s de 20.
                 </p>
               </div>
               <div className="flex flex-wrap gap-2 text-xs">
-                <Badge className="bg-emerald-500 text-white hover:bg-emerald-500">Homogéneo</Badge>
-                <Badge className="bg-amber-500 text-white hover:bg-amber-500">No homogéneo</Badge>
+                <Badge className="bg-emerald-500 text-white hover:bg-emerald-500">HomogÃ©neo</Badge>
+                <Badge className="bg-amber-500 text-white hover:bg-amber-500">No homogÃ©neo</Badge>
               </div>
             </div>
             <PuntoAperturaControlChart
@@ -222,8 +225,8 @@ export function PuntoAperturaExplorer({ initialData }: { initialData: PuntoApert
         <Card className="starter-panel border-border/70 bg-card/86">
           <CardContent className="space-y-4 pt-6">
             <div>
-              <h2 className="text-lg font-semibold tracking-tight">Registros no homogéneos recientes</h2>
-              <p className="text-sm text-muted-foreground">Lista operativa para revisar los puntos bajo el límite inferior.</p>
+              <h2 className="text-lg font-semibold tracking-tight">Registros no homogÃ©neos recientes</h2>
+              <p className="text-sm text-muted-foreground">Lista operativa para revisar los puntos bajo el lÃ­mite inferior.</p>
             </div>
             <CriticalRecordsTable records={criticalRecords} onRecordClick={setSelectedRecord} />
           </CardContent>
@@ -238,18 +241,18 @@ export function PuntoAperturaExplorer({ initialData }: { initialData: PuntoApert
 
       {selectedStatusComposition === "homogeneous" ? (
         <StatusCompositionDialog
-          title="Distribución de homogéneos"
+          title="DistribuciÃ³n de homogÃ©neos"
           composition={statusCompositions.homogeneous}
-          emptyLabel="No hay registros homogéneos para el filtro actual."
+          emptyLabel="No hay registros homogÃ©neos para el filtro actual."
           onClose={() => setSelectedStatusComposition(null)}
         />
       ) : null}
 
       {selectedStatusComposition === "nonHomogeneous" ? (
         <StatusCompositionDialog
-          title="Distribución de no homogéneos"
+          title="DistribuciÃ³n de no homogÃ©neos"
           composition={statusCompositions.nonHomogeneous}
-          emptyLabel="No hay registros no homogéneos para el filtro actual."
+          emptyLabel="No hay registros no homogÃ©neos para el filtro actual."
           onClose={() => setSelectedStatusComposition(null)}
         />
       ) : null}
@@ -265,7 +268,7 @@ function CriticalRecordsTable({
   onRecordClick: (record: PuntoAperturaRecord) => void;
 }) {
   if (!records.length) {
-    return <EmptyState label="No hay registros no homogéneos para los filtros seleccionados." />;
+    return <EmptyState label="No hay registros no homogÃ©neos para los filtros seleccionados." />;
   }
 
   return (
@@ -275,7 +278,7 @@ function CriticalRecordsTable({
             <tr className="bg-muted/50 text-left text-xs text-muted-foreground">
               <th className="px-3 py-2 font-semibold">Fecha</th>
               <th className="px-3 py-2 font-semibold">Bloque</th>
-              <th className="px-3 py-2 font-semibold">Área</th>
+              <th className="px-3 py-2 font-semibold">Ãrea</th>
               <th className="px-3 py-2 font-semibold">Tipo SP</th>
               <th className="px-3 py-2 font-semibold">Dominante</th>
               <th className="px-3 py-2 text-right font-semibold">% dominante</th>
@@ -333,3 +336,4 @@ function buildVisibleComposition(records: PuntoAperturaRecord[]) {
     })),
   };
 }
+

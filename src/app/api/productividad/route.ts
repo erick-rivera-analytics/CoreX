@@ -18,11 +18,6 @@ export async function GET(request: NextRequest) {
       variety: request.nextUrl.searchParams.get("variety") ?? undefined,
       area: request.nextUrl.searchParams.get("area") ?? undefined,
       status: request.nextUrl.searchParams.get("status") ?? undefined,
-      costArea: (request.nextUrl.searchParams.get("costArea") ?? undefined) as
-        | "CAMPO"
-        | "COSECHA"
-        | "all"
-        | undefined,
     });
 
     const data = await getProductividadDashboardData(filters);

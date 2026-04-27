@@ -4,12 +4,16 @@ import { query } from "@/lib/db";
 import { decodeMultiSelectValue, encodeMultiSelectValue } from "@/lib/multi-select";
 import { cachedAsync } from "@/lib/server-cache";
 import { normalizeAreaDisplayName } from "@/shared/lib/area-normalization";
+import { parseDateOnly } from "@/shared/lib/format";
 import { roundValue, toNumber } from "@/shared/lib/number-utils";
 
 type MortalityDashboardQueryRow = {
   cycle_key: string;
   valid_from: string | null;
   valid_to: string | null;
+  sp_date: string | null;
+  harvest_start_date: string | null;
+  harvest_end_date: string | null;
   area: string | null;
   parent_block: string | null;
   block_id: string | null;
@@ -34,11 +38,8 @@ type MortalityCurveQueryRow = {
 };
 
 export type MortalityFilters = {
-  area: string;
-  spType: string;
-  variety: string;
-  parentBlock: string;
   block: string;
+  status: string;
 };
 
 export type MortalityDashboardRow = {
@@ -59,14 +60,12 @@ export type MortalityDashboardRow = {
   availabilityVsScheduledPct: number | null;
   availabilityVsInitialPct: number | null;
   mortalityPct: number | null;
+  cycleStatus: "Planificado" | "Abierto" | "Cerrado";
 };
 
 export type MortalityFilterOptions = {
-  areas: string[];
-  spTypes: string[];
-  varieties: string[];
-  parentBlocks: string[];
   blocks: string[];
+  statuses: string[];
 };
 
 export type MortalityDashboardData = {
@@ -117,11 +116,8 @@ export type MortalityCurvePayload = {
 };
 
 export const defaultMortalityFilters: MortalityFilters = {
-  area: "all",
-  spType: "all",
-  variety: "all",
-  parentBlock: "all",
   block: "all",
+  status: "all",
 };
 
 const CYCLE_MORTALITY_SOURCE = "gld.mv_camp_kardex_cycle_plants_cur";
@@ -193,6 +189,27 @@ function matchesFilter(filterValue: string, candidateValue: string) {
   return selectedValues.includes(candidateValue);
 }
 
+const MORTALITY_STATUS_ORDER = ["Planificado", "Abierto", "Cerrado"] as const;
+
+function deriveCycleStatus(row: Pick<MortalityDashboardQueryRow, "sp_date" | "harvest_start_date" | "harvest_end_date">) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const spDate = parseDateOnly(row.sp_date);
+  const startDate = parseDateOnly(row.harvest_start_date);
+  const endDate = parseDateOnly(row.harvest_end_date);
+  const cycleEndDate = endDate ?? startDate ?? spDate;
+
+  if (spDate && spDate >= today) {
+    return "Planificado" as const;
+  }
+
+  if (cycleEndDate && cycleEndDate < today) {
+    return "Cerrado" as const;
+  }
+
+  return "Abierto" as const;
+}
+
 function buildMortalityRow(row: MortalityDashboardQueryRow): MortalityDashboardRow {
   return {
     id: row.cycle_key,
@@ -212,6 +229,7 @@ function buildMortalityRow(row: MortalityDashboardQueryRow): MortalityDashboardR
     availabilityVsScheduledPct: toPercent(row.pct_availability_vs_scheduled_plants),
     availabilityVsInitialPct: toPercent(row.pct_availability_vs_initial_plants),
     mortalityPct: toPercent(row.pct_mortality),
+    cycleStatus: deriveCycleStatus(row),
   };
 }
 
@@ -222,6 +240,9 @@ async function loadMortalityBaseRows() {
         mp.cycle_key,
         to_char(mp.valid_from, 'YYYY-MM-DD') as valid_from,
         to_char(mp.valid_to, 'YYYY-MM-DD') as valid_to,
+        to_char(cp.sp_date::date, 'YYYY-MM-DD') as sp_date,
+        to_char(cp.harvest_start_date::date, 'YYYY-MM-DD') as harvest_start_date,
+        to_char(cp.harvest_end_date::date, 'YYYY-MM-DD') as harvest_end_date,
         coalesce(nullif(mp.area_id, ''), nullif(split_part(mp.cycle_key, '-', 1), '')) as area,
         coalesce(
           nullif(cp.parent_block, ''),
@@ -247,7 +268,10 @@ async function loadMortalityBaseRows() {
       left join lateral (
         select
           cp.parent_block,
-          cp.block_id
+          cp.block_id,
+          cp.sp_date,
+          cp.harvest_start_date,
+          cp.harvest_end_date
         from slv.camp_dim_cycle_profile_scd2 cp
         where cp.cycle_key = mp.cycle_key
         order by
@@ -273,21 +297,15 @@ function buildMortalityOptions(rows: MortalityDashboardRow[]): MortalityFilterOp
   const uniqueValues = (values: string[]) => Array.from(new Set(values.filter(Boolean))).sort((left, right) => collator.compare(left, right));
 
   return {
-    areas: uniqueValues(rows.map((row) => row.area)),
-    spTypes: uniqueValues(rows.map((row) => row.spType)),
-    varieties: uniqueValues(rows.map((row) => row.variety)),
-    parentBlocks: uniqueValues(rows.map((row) => row.parentBlock)),
     blocks: uniqueValues(rows.map((row) => row.block)),
+    statuses: MORTALITY_STATUS_ORDER.filter((status) => rows.some((row) => row.cycleStatus === status)),
   };
 }
 
 function filterMortalityRows(rows: MortalityDashboardRow[], filters: MortalityFilters) {
   return rows
-    .filter((row) => matchesFilter(filters.area, row.area))
-    .filter((row) => matchesFilter(filters.spType, row.spType))
-    .filter((row) => matchesFilter(filters.variety, row.variety))
-    .filter((row) => matchesFilter(filters.parentBlock, row.parentBlock))
     .filter((row) => matchesFilter(filters.block, row.block))
+    .filter((row) => matchesFilter(filters.status, row.cycleStatus))
     .sort((left, right) => {
       const mortalityComparison = (right.mortalityPct ?? -1) - (left.mortalityPct ?? -1);
 
@@ -313,11 +331,8 @@ function filterMortalityRows(rows: MortalityDashboardRow[], filters: MortalityFi
 
 export function normalizeMortalityFilters(input: Partial<Record<keyof MortalityFilters, string | undefined>>) {
   return {
-    area: normalizeSelectValue(input.area),
-    spType: normalizeSelectValue(input.spType),
-    variety: normalizeSelectValue(input.variety),
-    parentBlock: normalizeSelectValue(input.parentBlock),
     block: normalizeSelectValue(input.block),
+    status: normalizeSelectValue(input.status),
   } satisfies MortalityFilters;
 }
 
@@ -481,11 +496,8 @@ export async function getAggregatedMortalityCurve(
 
   return cachedAsync(
     `mortality:aggregate:${[
-      filters.area,
-      filters.spType,
-      filters.variety,
-      filters.parentBlock,
       filters.block,
+      filters.status,
     ].join("|")}`,
     MORTALITY_CURVE_TTL_MS,
     async () => {

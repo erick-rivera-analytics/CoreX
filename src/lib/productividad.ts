@@ -48,8 +48,6 @@ type ProductividadQueryRow = {
 };
 
 // ── Public types ─────────────────────────────────────────────────────────────
-export type ProductividadEtapa = "all" | "CAMPO" | "COSECHA";
-
 export type ProductividadFilters = {
   year: string;
   month: string;
@@ -57,7 +55,6 @@ export type ProductividadFilters = {
   variety: string;
   area: string;
   status: string;
-  costArea: ProductividadEtapa;
 };
 
 export type ProductividadRow = {
@@ -134,7 +131,6 @@ export const defaultProductividadFilters: ProductividadFilters = {
   variety: "all",
   area: "all",
   status: "all",
-  costArea: "all",
 };
 
 // ── Normalizer ───────────────────────────────────────────────────────────────
@@ -148,9 +144,6 @@ export function normalizeProductividadFilters(
     variety: parseSelectValue(input.variety),
     area: parseSelectValue(input.area),
     status: parseSelectValue(input.status),
-    costArea: (input.costArea === "CAMPO" || input.costArea === "COSECHA")
-      ? input.costArea
-      : "all",
   };
 }
 
@@ -247,15 +240,9 @@ function matchesFilter(filterValue: string, candidateValue: string): boolean {
 export async function getProductividadDashboardData(
   filters: ProductividadFilters,
 ): Promise<ProductividadDashboardData> {
-  const cacheKey = `productividad:dashboard:${filters.year}:${filters.month}:${filters.spType}:${filters.variety}:${filters.area}:${filters.status}:${filters.costArea}`;
+  const cacheKey = `productividad:dashboard:${filters.year}:${filters.month}:${filters.spType}:${filters.variety}:${filters.area}:${filters.status}`;
 
   return cachedAsync(cacheKey, PRODUCTIVIDAD_TTL_MS, async () => {
-    const selectedCostArea = filters.costArea === "all"
-      ? null
-      : filters.costArea === "CAMPO"
-        ? "CAMPO"
-        : "COSECHA";
-
     const result = await query<ProductividadQueryRow>(
       `
       with cycle_profile as (
@@ -319,7 +306,6 @@ export async function getProductividadDashboardData(
           sum(coalesce(h.effective_hours, 0))  as effective_hours,
           sum(coalesce(h.units_produced, 0))   as units_produced
         from ${PROD_HOURS_SOURCE} h
-        where ($1::text is null or h.cost_area = $1)
         group by h.cycle_key, h.cost_area, h.sub_cost_center, h.activity_type, h.activity_name
       )
       select
@@ -364,7 +350,7 @@ export async function getProductividadDashboardData(
         ha.activity_type asc,
         ha.activity_name asc
       `,
-      [selectedCostArea],
+      [],
     );
 
     // ── Transform rows ───────────────────────────────────────────────────────

@@ -17,6 +17,7 @@ export async function GET(request: NextRequest) {
       spType: request.nextUrl.searchParams.get("spType") ?? undefined,
       month: request.nextUrl.searchParams.get("month") ?? undefined,
       year: request.nextUrl.searchParams.get("year") ?? undefined,
+      date: request.nextUrl.searchParams.get("date") ?? undefined,
       dominantClass: request.nextUrl.searchParams.get("dominantClass") ?? undefined,
       bloque: request.nextUrl.searchParams.get("bloque") ?? undefined,
     });

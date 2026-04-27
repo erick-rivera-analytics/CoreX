@@ -34,11 +34,8 @@ const mortalityCurveFetcher = (url: string) =>
 
 function buildQueryString(filters: MortalityFilters) {
   const params = new URLSearchParams();
-  params.set("area", filters.area);
-  params.set("spType", filters.spType);
-  params.set("variety", filters.variety);
-  params.set("parentBlock", filters.parentBlock);
   params.set("block", filters.block);
+  params.set("status", filters.status);
   return params.toString();
 }
 
@@ -65,6 +62,7 @@ export function MortalityExplorer({ initialData }: { initialData: MortalityDashb
   const initialFilterKey = useMemo(() => buildQueryString(initialData.filters), [initialData.filters]);
   const filterKey = useMemo(() => buildQueryString(deferredFilters), [deferredFilters]);
   const blockModal = useBlockProfileModal(selectedBlockRow);
+
   const {
     data: dashboardData,
     error: dashboardError,
@@ -96,7 +94,7 @@ export function MortalityExplorer({ initialData }: { initialData: MortalityDashb
     },
   );
 
-  function updateFilter<Key extends keyof MortalityFilters>(key: Key, value: MortalityFilters[Key]) {
+  function updateFilter<K extends keyof MortalityFilters>(key: K, value: MortalityFilters[K]) {
     setFilters((current) => ({ ...current, [key]: value }));
   }
 
@@ -107,23 +105,20 @@ export function MortalityExplorer({ initialData }: { initialData: MortalityDashb
   return (
     <div className="space-y-4">
       <SectionPageShell
-        eyebrow="Indicadores / Producción / Campo"
+        eyebrow="Indicadores / Produccion / Campo"
         title="Mortandades"
         subtitle="Curva agregada ponderada por filtros y tabla de ciclos con apertura al historial completo del bloque."
         icon={<Activity className="size-6" aria-hidden="true" />}
-        actions={
+        actions={(
           <span className="text-sm tabular-nums text-muted-foreground">
             {data.summary.totalCycles} ciclos
           </span>
-        }
+        )}
       >
         <FilterPanel>
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
-            <MultiSelectField id="mortality-area" label="Área" value={filters.area} options={data.options.areas} onChange={(value) => updateFilter("area", value)} />
-            <MultiSelectField id="mortality-sp-type" label="Tipo SP" value={filters.spType} options={data.options.spTypes} onChange={(value) => updateFilter("spType", value)} />
-            <MultiSelectField id="mortality-variety" label="Variedad" value={filters.variety} options={data.options.varieties} onChange={(value) => updateFilter("variety", value)} />
-            <MultiSelectField id="mortality-parent-block" label="Bloque padre" value={filters.parentBlock} options={data.options.parentBlocks} onChange={(value) => updateFilter("parentBlock", value)} />
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             <MultiSelectField id="mortality-block" label="Bloque" value={filters.block} options={data.options.blocks} onChange={(value) => updateFilter("block", value)} />
+            <MultiSelectField id="mortality-status" label="Estado" value={filters.status} options={data.options.statuses} onChange={(value) => updateFilter("status", value)} />
             <div className="flex items-end">
               <Button variant="outline" className="w-full rounded-xl" onClick={resetFilters}>
                 <RefreshCcw className="size-4" aria-hidden="true" />

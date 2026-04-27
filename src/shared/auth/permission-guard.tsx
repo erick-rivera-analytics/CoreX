@@ -9,7 +9,7 @@ import { usePermission, type PermissionAction } from "@/shared/hooks/use-permiss
  * por permisos del usuario sobre un recurso.
  *
  * @example
- * <PermissionGuard resource="/dashboard/dead-plants-reseed" action="write">
+ * <PermissionGuard resource="/dashboard/productividad" action="write">
  *   <CapturePanel />
  * </PermissionGuard>
  *

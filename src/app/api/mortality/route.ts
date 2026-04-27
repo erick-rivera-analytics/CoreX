@@ -12,11 +12,8 @@ export async function GET(request: NextRequest) {
 
   try {
     const filters = normalizeMortalityFilters({
-      area: request.nextUrl.searchParams.get("area") ?? undefined,
-      spType: request.nextUrl.searchParams.get("spType") ?? undefined,
-      variety: request.nextUrl.searchParams.get("variety") ?? undefined,
-      parentBlock: request.nextUrl.searchParams.get("parentBlock") ?? undefined,
       block: request.nextUrl.searchParams.get("block") ?? undefined,
+      status: request.nextUrl.searchParams.get("status") ?? undefined,
     });
     const data = await getMortalityDashboardData(filters);
 

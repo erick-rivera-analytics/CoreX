@@ -24,9 +24,7 @@ describe("access control", () => {
     expect(getApiAccessRule("/api/calidad/punto-apertura")?.requiredResources).toEqual([
       "/dashboard/calidad/punto-apertura",
     ]);
-    expect(getApiAccessRule("/api/dead-plants-reseed/capture")?.requiredResources).toEqual([
-      "/dashboard/dead-plants-reseed",
-    ]);
+    expect(getApiAccessRule("/api/dead-plants-reseed/capture")).toBeNull();
     expect(getApiAccessRule("/api/me/profile")?.requiredResources).toEqual([
       "/dashboard/mi-cuenta",
     ]);

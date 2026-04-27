@@ -11,6 +11,7 @@ export type PuntoAperturaFilters = {
   spType: string;
   month: string;
   year: string;
+  date: string;
   dominantClass: string;
   bloque: string;
 };
@@ -94,11 +95,12 @@ type OptionsRow = {
 type RecordRow = {
   record_index: string | number;
   fecha: string | null;
+  fecha_date: string | null;
   bloque: string | null;
   ciclo: string | null;
   area: string | null;
   sp_type: string | null;
-  record_month: string | null;
+  record_month_num: string | null;
   record_year: string | null;
   iso_week_id: string | null;
   boton: string | number | null;
@@ -121,6 +123,7 @@ export const defaultPuntoAperturaFilters: PuntoAperturaFilters = {
   spType: "all",
   month: "all",
   year: "all",
+  date: "",
   dominantClass: "all",
   bloque: "all",
 };
@@ -132,6 +135,7 @@ export function normalizePuntoAperturaFilters(input: Partial<PuntoAperturaFilter
     spType: normalizeSelect(input.spType),
     month: normalizeSelect(input.month),
     year: normalizeSelect(input.year),
+    date: normalizeDateFilter(input.date),
     dominantClass: normalizeSelect(input.dominantClass),
     bloque: normalizeSelect(input.bloque),
   };
@@ -142,10 +146,21 @@ function normalizeSelect(value: string | null | undefined) {
   return normalized ? normalized : "all";
 }
 
+function normalizeDateFilter(value: string | null | undefined) {
+  const normalized = value?.trim();
+  return normalized ? normalized.slice(0, 10) : "";
+}
+
 function sqlArrayFilter(alias: string, column: string, values: string[], params: unknown[]) {
   if (!values.length) return "";
   params.push(values);
   return ` and ${alias}.${column} = any($${params.length}::text[])`;
+}
+
+function sqlExactDateFilter(alias: string, column: string, value: string, params: unknown[]) {
+  if (!value) return "";
+  params.push(value);
+  return ` and ${alias}.${column} = $${params.length}::date`;
 }
 
 function buildBaseSql(whereSql = "") {
@@ -173,12 +188,13 @@ function buildBaseSql(whereSql = "") {
     ),
     base as (
       select
+        t.fecha::date as fecha_date,
         to_char(t.fecha::date, 'YYYY-MM-DD') as fecha,
         nullif(t.bloque, '') as bloque,
         t.ciclo::text as ciclo,
         coalesce(cp.area, 'Sin area') as area,
         coalesce(cp.sp_type, 'Sin tipo') as sp_type,
-        to_char(t.fecha::date, 'YYYY-MM') as record_month,
+        extract(month from t.fecha::date)::int::text as record_month_num,
         extract(year from t.fecha::date)::text as record_year,
         coalesce(c.iso_week_id, concat(c.iso_year::text, '-', lpad(c.iso_week::text, 2, '0'))) as iso_week_id,
         coalesce(t.ptoapertura_boton, 0)::numeric as boton,
@@ -250,7 +266,7 @@ async function getOptions(): Promise<PuntoAperturaOptions> {
         coalesce(c.iso_week_id, concat(c.iso_year::text, '-', lpad(c.iso_week::text, 2, '0'))) as iso_week_id,
         coalesce(cp.area, 'Sin area') as area,
         coalesce(cp.sp_type, 'Sin tipo') as sp_type,
-        to_char(t.fecha::date, 'YYYY-MM') as record_month,
+        extract(month from t.fecha::date)::int::text as record_month_num,
         extract(year from t.fecha::date)::text as record_year,
         case greatest(
           coalesce(t.ptoapertura_boton, 0),
@@ -281,7 +297,7 @@ async function getOptions(): Promise<PuntoAperturaOptions> {
       array(select distinct iso_week_id from filtered where iso_week_id is not null order by iso_week_id desc) as iso_weeks,
       array(select distinct area from filtered where area is not null order by area) as areas,
       array(select distinct sp_type from filtered where sp_type is not null order by sp_type) as sp_types,
-      array(select distinct record_month from filtered where record_month is not null order by record_month desc) as months,
+      array(select distinct record_month_num from filtered where record_month_num is not null order by record_month_num::int asc) as months,
       array(select distinct record_year from filtered where record_year is not null order by record_year desc) as years,
       array(select distinct dominant_class from filtered where dominant_class is not null order by dominant_class) as dominant_classes,
       array(select distinct nullif(t2.bloque, '') from ${SOURCE_TABLE} t2 where nullif(t2.bloque, '') is not null order by 1) as bloques
@@ -326,8 +342,9 @@ export async function getPuntoAperturaDashboardData(
     sqlArrayFilter("u", "iso_week_id", decodeMultiSelectValue(filters.isoWeek), params),
     sqlArrayFilter("u", "area", decodeMultiSelectValue(filters.area), params),
     sqlArrayFilter("u", "sp_type", decodeMultiSelectValue(filters.spType), params),
-    sqlArrayFilter("u", "record_month", decodeMultiSelectValue(filters.month), params),
+    sqlArrayFilter("u", "record_month_num", decodeMultiSelectValue(filters.month), params),
     sqlArrayFilter("u", "record_year", decodeMultiSelectValue(filters.year), params),
+    sqlExactDateFilter("u", "fecha_date", filters.date, params),
     sqlArrayFilter("u", "dominante_clase", decodeMultiSelectValue(filters.dominantClass), params),
     sqlArrayFilter("u", "bloque", decodeMultiSelectValue(filters.bloque), params),
   ].filter(Boolean);
@@ -403,7 +420,7 @@ function mapRecordRow(row: RecordRow): PuntoAperturaRecord {
     ciclo: row.ciclo ?? "Sin ciclo",
     area: row.area ?? "Sin area",
     spType: row.sp_type ?? "Sin tipo",
-    month: row.record_month ?? "Sin mes",
+    month: row.record_month_num ?? "Sin mes",
     year: row.record_year ?? "Sin año",
     isoWeekId: row.iso_week_id ?? "Sin semana",
     totalApertura,

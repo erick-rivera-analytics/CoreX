@@ -139,11 +139,6 @@ const API_ACCESS_RULES_UNSORTED: ApiAccessRule[] = [
     requiredResources: ["/dashboard/calidad/punto-apertura"],
   },
   {
-    pathnamePrefix: "/api/dead-plants-reseed",
-    policy: "resource-bound",
-    requiredResources: ["/dashboard/dead-plants-reseed"],
-  },
-  {
     pathnamePrefix: "/api/me/profile",
     policy: "resource-bound",
     requiredResources: ["/dashboard/mi-cuenta"],
@@ -172,6 +167,31 @@ const API_ACCESS_RULES_UNSORTED: ApiAccessRule[] = [
     pathnamePrefix: "/api/postcosecha/administrar-maestros/skus",
     policy: "resource-bound",
     requiredResources: ["/dashboard/postcosecha/administrar-maestros/skus"],
+  },
+  {
+    pathnamePrefix: "/api/bodega/administrar-maestros/unidades",
+    policy: "resource-bound",
+    requiredResources: ["/dashboard/bodega/administrar-maestros/unidades"],
+  },
+  {
+    pathnamePrefix: "/api/bodega/administrar-maestros/categorias",
+    policy: "resource-bound",
+    requiredResources: ["/dashboard/bodega/administrar-maestros/categorias"],
+  },
+  {
+    pathnamePrefix: "/api/bodega/administrar-maestros/productos",
+    policy: "resource-bound",
+    requiredResources: ["/dashboard/bodega/administrar-maestros/productos"],
+  },
+  {
+    pathnamePrefix: "/api/bodega/administrar-maestros/presentaciones-conversiones",
+    policy: "resource-bound",
+    requiredResources: ["/dashboard/bodega/administrar-maestros/presentaciones-conversiones"],
+  },
+  {
+    pathnamePrefix: "/api/bodega/administrar-maestros/actividades-fuente",
+    policy: "resource-bound",
+    requiredResources: ["/dashboard/bodega/administrar-maestros/productos"],
   },
   {
     pathnamePrefix: "/api/postcosecha/balanzas",

@@ -27,7 +27,7 @@ export type ResourcePermission = {
  * Hook canónico para resolver permisos de un recurso concreto.
  *
  * @example
- * const { canView, canWrite, isLoading } = usePermission("/dashboard/dead-plants-reseed");
+ * const { canView, canWrite, isLoading } = usePermission("/dashboard/productividad");
  * if (isLoading) return <Skeleton />;
  * if (!canView) return null;
  *

@@ -18,7 +18,7 @@ function makeRecord(overrides: Partial<PuntoAperturaRecord> = {}): PuntoApertura
     ciclo: "C001",
     area: "Area A",
     spType: "SP1",
-    month: "2024-01",
+    month: "1",
     year: "2024",
     isoWeekId: "2024-01",
     totalApertura: 100,
@@ -48,6 +48,7 @@ describe("normalizePuntoAperturaFilters", () => {
     expect(result.area).toBe("all");
     expect(result.spType).toBe("all");
     expect(result.month).toBe("all");
+    expect(result.date).toBe("");
     expect(result.dominantClass).toBe("all");
   });
 
@@ -56,13 +57,16 @@ describe("normalizePuntoAperturaFilters", () => {
       isoWeek: "2024-01",
       area: "Area A",
       spType: "SP1",
-      month: "2024-01",
+      month: "1",
       year: "2024",
+      date: "2024-01-15",
       dominantClass: "Boton",
     });
     expect(result.isoWeek).toBe("2024-01");
     expect(result.area).toBe("Area A");
     expect(result.spType).toBe("SP1");
+    expect(result.month).toBe("1");
+    expect(result.date).toBe("2024-01-15");
   });
 
   it("normalizes null/undefined to 'all'", () => {
@@ -74,6 +78,12 @@ describe("normalizePuntoAperturaFilters", () => {
   it("trims whitespace from values", () => {
     const result = normalizePuntoAperturaFilters({ year: "  2024  " });
     expect(result.year).toBe("2024");
+  });
+
+  it("normalizes the exact day filter independently from select filters", () => {
+    const result = normalizePuntoAperturaFilters({ date: " 2024-04-09T08:00:00 " as unknown as string });
+    expect(result.date).toBe("2024-04-09");
+    expect(result.month).toBe("all");
   });
 });
 

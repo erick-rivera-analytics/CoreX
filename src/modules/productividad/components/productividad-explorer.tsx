@@ -15,7 +15,6 @@ import { ScrollFadeTable } from "@/shared/tables/scroll-fade-table";
 import { Card, CardContent } from "@/shared/ui/card";
 import { fetchJson } from "@/lib/fetch-json";
 import { MultiSelectField } from "@/shared/filters/multi-select-field";
-import { SingleSelectField } from "@/shared/filters/single-select-field";
 import { DetailSection, FilterPanel, KpiGrid } from "@/shared/layout/filter-panel";
 import { SectionPageShell } from "@/shared/layout/section-page-shell";
 import { formatDecimal, formatHours, formatInteger, formatMonthNumeric, formatPercent } from "@/shared/lib/format";
@@ -30,7 +29,6 @@ import type {
 } from "@/lib/fenograma";
 import type {
   ProductividadDashboardData,
-  ProductividadEtapa,
   ProductividadFilters,
   ProductividadRow,
 } from "@/lib/productividad";
@@ -51,7 +49,6 @@ function buildQueryString(filters: ProductividadFilters): string {
   params.set("variety", filters.variety);
   params.set("area", filters.area);
   params.set("status", filters.status);
-  params.set("costArea", filters.costArea);
   return params.toString();
 }
 
@@ -648,16 +645,6 @@ export function ProductividadExplorer({ initialData }: { initialData: Productivi
     setFilters(initialData.filters);
   }
 
-  const etapaOptions = ["Vegetativo (Campo)", "Cosecha"] as const;
-  const etapaMap: Record<string, ProductividadEtapa> = {
-    "Vegetativo (Campo)": "CAMPO",
-    "Cosecha": "COSECHA",
-  };
-  const etapaReverse: Record<string, string> = {
-    CAMPO: "Vegetativo (Campo)",
-    COSECHA: "Cosecha",
-  };
-
   return (
     <div className="min-w-0 space-y-4">
       <SectionPageShell
@@ -667,21 +654,13 @@ export function ProductividadExplorer({ initialData }: { initialData: Productivi
         icon={<Clock className="size-6" aria-hidden="true" />}
       >
         <FilterPanel>
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-8">
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-7">
             <MultiSelectField id="prod-year" label="Año" value={filters.year} options={data.options.years} onChange={(value) => updateFilter("year", value)} />
             <MultiSelectField id="prod-month" label="Mes" value={filters.month} options={data.options.months} onChange={(value) => updateFilter("month", value)} displayValue={formatMonthNumeric} />
             <MultiSelectField id="prod-area" label="Área" value={filters.area} options={data.options.areas} onChange={(value) => updateFilter("area", value)} />
             <MultiSelectField id="prod-sp-type" label="Tipo SP" value={filters.spType} options={data.options.spTypes} onChange={(value) => updateFilter("spType", value)} />
             <MultiSelectField id="prod-variety" label="Variedad" value={filters.variety} options={data.options.varieties} onChange={(value) => updateFilter("variety", value)} />
             <MultiSelectField id="prod-status" label="Estado" value={filters.status} options={data.options.statuses} onChange={(value) => updateFilter("status", value)} />
-            <SingleSelectField
-              id="prod-etapa"
-              label="Etapa"
-              value={etapaReverse[filters.costArea] ?? ""}
-              options={[...etapaOptions]}
-              onChange={(val) => updateFilter("costArea", etapaMap[val] ?? "all" as ProductividadEtapa)}
-              emptyLabel="Todas las etapas"
-            />
             <div className="flex items-end">
               <Button variant="outline" className="w-full" onClick={resetFilters}>
                 <RefreshCcw className="size-4" aria-hidden="true" />
