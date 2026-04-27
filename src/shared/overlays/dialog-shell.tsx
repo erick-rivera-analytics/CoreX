@@ -1,17 +1,18 @@
 "use client";
 
 import { useEffect } from "react";
+
 import { cn } from "@/lib/utils";
 
 /**
- * Tier de z-index canónico del DialogShell.
+ * Tier de z-index canonico del DialogShell.
  *
- * - `primary` (default): `z-[60]` — para modales sobre la página.
- * - `secondary`: `z-[70]` — para modales que se abren ENCIMA de otro modal
- *   primary. Caso típico: la ficha de persona abierta desde dentro de
+ * - `primary` (default): `z-[60]` - para modales sobre la pagina.
+ * - `secondary`: `z-[70]` - para modales que se abren ENCIMA de otro modal
+ *   primary. Caso tipico: la ficha de persona abierta desde dentro de
  *   `HoursCamaOverlay` (que ya es un DialogShell primary).
  *
- * Nota: el tier numérico está alineado con `--z-modal-primary`/`--z-modal-secondary`
+ * Nota: el tier numerico esta alineado con `--z-modal-primary`/`--z-modal-secondary`
  * en `globals.css`.
  */
 export type DialogShellPriority = "primary" | "secondary";
@@ -68,18 +69,21 @@ export function DialogShell({
         "fixed inset-0 flex items-center justify-center p-4",
         priority === "secondary" ? "z-[70]" : "z-[60]",
       )}
-      onClick={onClose}
       role="dialog"
       aria-modal="true"
       aria-label={title ?? undefined}
     >
-      <div className="absolute inset-0 bg-background/60 backdrop-blur-sm" />
+      <button
+        type="button"
+        aria-label={title ? `Cerrar ${title}` : "Cerrar dialogo"}
+        className="absolute inset-0 bg-background/60 backdrop-blur-sm"
+        onClick={onClose}
+      />
       <div
         className={cn(
           "relative flex max-h-[min(90dvh,960px)] w-full flex-col overflow-hidden rounded-[20px] border border-border/80 bg-card shadow-[var(--shadow-overlay)]",
           maxWidth,
         )}
-        onClick={(event) => event.stopPropagation()}
       >
         {(title || description || headerActions) ? (
           <div className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-border/70 bg-card/96 px-5 py-4 backdrop-blur">

@@ -93,38 +93,42 @@ export function MyWorkCalendar({
           const itemsForDay = byDate[dateKey] ?? [];
 
           return (
-            <button
+            <div
               key={dateKey}
-              type="button"
-              onClick={() => onSelectDate(dateKey)}
               className={cn(
-                "min-h-28 rounded-[18px] border border-border/70 bg-background/70 p-3 text-left transition-colors hover:bg-primary/6",
+                "relative min-h-28 rounded-[18px] border border-border/70 bg-background/70 p-3 text-left transition-colors hover:bg-primary/6",
                 !cell.currentMonth && "opacity-55",
                 selectedDate === dateKey && "ring-2 ring-ring/40",
               )}
             >
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-sm font-medium">{cell.date.getDate()}</span>
-                {itemsForDay.length > 0 ? <Badge variant="outline">{itemsForDay.length}</Badge> : null}
+              <button
+                type="button"
+                onClick={() => onSelectDate(dateKey)}
+                aria-label={`Seleccionar ${dateKey}`}
+                className="absolute inset-0 rounded-[18px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+              />
+              <div className="pointer-events-none relative z-10">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-sm font-medium">{cell.date.getDate()}</span>
+                  {itemsForDay.length > 0 ? <Badge variant="outline">{itemsForDay.length}</Badge> : null}
+                </div>
+                <div className="mt-3 space-y-1">
+                  {itemsForDay.slice(0, 2).map((item) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => onOpenItem(item)}
+                      className={cn(
+                        "pointer-events-auto block w-full truncate rounded-full px-2 py-1 text-left text-[11px] font-medium",
+                        pillClass(item.colorToken, item.kind),
+                      )}
+                    >
+                      {item.kind === "event" ? "● " : "○ "}{item.title}
+                    </button>
+                  ))}
+                </div>
               </div>
-              <div className="mt-3 space-y-1">
-                {itemsForDay.slice(0, 2).map((item) => (
-                  <span
-                    key={item.id}
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      onOpenItem(item);
-                    }}
-                    className={cn(
-                      "block truncate rounded-full px-2 py-1 text-[11px] font-medium",
-                      pillClass(item.colorToken, item.kind),
-                    )}
-                  >
-                    {item.kind === "event" ? "● " : "○ "}{item.title}
-                  </span>
-                ))}
-              </div>
-            </button>
+            </div>
           );
         })}
       </div>

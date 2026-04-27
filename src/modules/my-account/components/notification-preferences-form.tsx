@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 import { Badge } from "@/shared/ui/badge";
 import { Button } from "@/shared/ui/button";
@@ -23,6 +23,11 @@ const PREFERENCE_ITEMS: PreferenceItem[] = [
   { key: "emailReminder", title: "Correo por recordatorio", group: "email" },
 ];
 
+type NotificationDraftState = {
+  sourceSignature: string | null;
+  draft: MyAccountNotificationPreferences | null;
+};
+
 export function NotificationPreferencesForm({
   value,
   onSave,
@@ -32,10 +37,32 @@ export function NotificationPreferencesForm({
   onSave: (nextValue: MyAccountNotificationPreferences) => void;
   emailDisabled?: boolean;
 }) {
-  const [draft, setDraft] = useState(value);
+  const [state, setState] = useState<NotificationDraftState>({
+    sourceSignature: null,
+    draft: null,
+  });
+  const valueSignature = useMemo(
+    () => PREFERENCE_ITEMS.map(({ key }) => (value[key] ? "1" : "0")).join(""),
+    [value],
+  );
+  const currentValue = state.draft ?? value;
+
+  if (state.sourceSignature !== valueSignature) {
+    setState({
+      sourceSignature: valueSignature,
+      draft: null,
+    });
+  }
 
   function toggle(key: keyof MyAccountNotificationPreferences) {
-    setDraft((current) => ({ ...current, [key]: !current[key] }));
+    setState((currentState) => {
+      const baseValue = currentState.draft ?? value;
+
+      return {
+        sourceSignature: valueSignature,
+        draft: { ...baseValue, [key]: !baseValue[key] },
+      };
+    });
   }
 
   return (
@@ -58,12 +85,12 @@ export function NotificationPreferencesForm({
                 <span className="text-sm">{item.title}</span>
                 {disabled ? (
                   <Badge variant="outline" className="text-[10px] uppercase tracking-wide">
-                    Proximamente
+                    Próximamente
                   </Badge>
                 ) : null}
               </div>
               <ToggleSwitch
-                checked={draft[item.key]}
+                checked={currentValue[item.key]}
                 disabled={disabled}
                 onCheckedChange={() => toggle(item.key)}
               />
@@ -72,7 +99,7 @@ export function NotificationPreferencesForm({
         })}
 
         <div className="flex justify-end pt-2">
-          <Button type="button" onClick={() => onSave(draft)}>
+          <Button type="button" onClick={() => onSave(currentValue)}>
             Guardar notificaciones
           </Button>
         </div>

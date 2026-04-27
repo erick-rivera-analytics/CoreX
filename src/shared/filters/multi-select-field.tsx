@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useReducer, useRef } from "react";
 import { createPortal } from "react-dom";
 import { Check, ChevronDown, Search, X } from "lucide-react";
 
@@ -25,6 +25,72 @@ export type MultiSelectFieldProps = {
   displayValue?: (option: string) => string;
 };
 
+type MultiSelectPanelStyle = {
+  top: number;
+  left: number;
+  width: number;
+  maxHeight: number;
+};
+
+type MultiSelectFieldState = {
+  open: boolean;
+  search: string;
+  draftValues: string[];
+  panelStyle: MultiSelectPanelStyle | null;
+};
+
+type MultiSelectFieldAction =
+  | { type: "open"; draftValues: string[] }
+  | { type: "close" }
+  | { type: "set-search"; search: string }
+  | { type: "set-draft-values"; draftValues: string[] }
+  | { type: "toggle-option"; option: string }
+  | { type: "set-panel-style"; panelStyle: MultiSelectPanelStyle | null };
+
+function multiSelectFieldReducer(
+  state: MultiSelectFieldState,
+  action: MultiSelectFieldAction,
+): MultiSelectFieldState {
+  switch (action.type) {
+    case "open":
+      return {
+        ...state,
+        open: true,
+        search: "",
+        draftValues: action.draftValues,
+      };
+    case "close":
+      return {
+        ...state,
+        open: false,
+      };
+    case "set-search":
+      return {
+        ...state,
+        search: action.search,
+      };
+    case "set-draft-values":
+      return {
+        ...state,
+        draftValues: action.draftValues,
+      };
+    case "toggle-option":
+      return {
+        ...state,
+        draftValues: state.draftValues.includes(action.option)
+          ? state.draftValues.filter((entry) => entry !== action.option)
+          : [...state.draftValues, action.option],
+      };
+    case "set-panel-style":
+      return {
+        ...state,
+        panelStyle: action.panelStyle,
+      };
+    default:
+      return state;
+  }
+}
+
 export function MultiSelectField({
   id,
   label,
@@ -35,10 +101,15 @@ export function MultiSelectField({
   placeholder = "Buscar opcion...",
   displayValue,
 }: MultiSelectFieldProps) {
-  const [open, setOpen] = useState(false);
-  const [search, setSearch] = useState("");
-  const [draftValues, setDraftValues] = useState<string[]>(() => decodeMultiSelectValue(value));
-  const [panelStyle, setPanelStyle] = useState<{ top: number; left: number; width: number; maxHeight: number } | null>(null);
+  const [{ open, search, draftValues, panelStyle }, dispatch] = useReducer(
+    multiSelectFieldReducer,
+    {
+      open: false,
+      search: "",
+      draftValues: decodeMultiSelectValue(value),
+      panelStyle: null,
+    },
+  );
   const containerRef = useRef<HTMLDivElement | null>(null);
   const buttonRef = useRef<HTMLButtonElement | null>(null);
   const panelRef = useRef<HTMLDivElement | null>(null);
@@ -74,24 +145,27 @@ export function MultiSelectField({
       const left = Math.min(rect.left, window.innerWidth - maxWidth - viewportPadding);
       const availableHeight = Math.max(280, window.innerHeight - rect.bottom - 24);
 
-      setPanelStyle({
-        top: Math.min(rect.bottom + 8, window.innerHeight - availableHeight - viewportPadding),
-        left: Math.max(viewportPadding, left),
-        width: maxWidth,
-        maxHeight: Math.min(availableHeight, 420),
+      dispatch({
+        type: "set-panel-style",
+        panelStyle: {
+          top: Math.min(rect.bottom + 8, window.innerHeight - availableHeight - viewportPadding),
+          left: Math.max(viewportPadding, left),
+          width: maxWidth,
+          maxHeight: Math.min(availableHeight, 420),
+        },
       });
     };
 
     const handlePointerDown = (event: MouseEvent) => {
       const target = event.target as Node;
       if (!containerRef.current?.contains(target) && !panelRef.current?.contains(target)) {
-        setOpen(false);
+        dispatch({ type: "close" });
       }
     };
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        setOpen(false);
+        dispatch({ type: "close" });
       }
     };
 
@@ -110,33 +184,25 @@ export function MultiSelectField({
   }, [open]);
 
   function toggleOption(option: string) {
-    setDraftValues((current) => {
-      if (current.includes(option)) {
-        return current.filter((entry) => entry !== option);
-      }
-
-      return [...current, option];
-    });
+    dispatch({ type: "toggle-option", option });
   }
 
   function applyChanges(nextValues = draftValues) {
     onChange(nextValues.length ? encodeMultiSelectValue(nextValues) : "all");
-    setOpen(false);
+    dispatch({ type: "close" });
   }
 
   function resetDraft() {
-    setDraftValues(selectedValues);
+    dispatch({ type: "set-draft-values", draftValues: selectedValues });
   }
 
   function openPanel() {
-    setDraftValues(selectedValues);
-    setSearch("");
-    setOpen(true);
+    dispatch({ type: "open", draftValues: selectedValues });
   }
 
   function togglePanel() {
     if (open) {
-      setOpen(false);
+      dispatch({ type: "close" });
       return;
     }
 
@@ -194,15 +260,25 @@ export function MultiSelectField({
                     <Search className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
                     <Input
                       value={search}
-                      onChange={(event) => setSearch(event.target.value)}
+                      onChange={(event) => dispatch({ type: "set-search", search: event.target.value })}
                       placeholder={placeholder}
                       className="pl-8"
                     />
                   </div>
-                  <Button type="button" variant="outline" size="sm" onClick={() => setDraftValues(options)}>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => dispatch({ type: "set-draft-values", draftValues: options })}
+                  >
                     Todo
                   </Button>
-                  <Button type="button" variant="ghost" size="sm" onClick={() => setDraftValues([])}>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => dispatch({ type: "set-draft-values", draftValues: [] })}
+                  >
                     Limpiar
                   </Button>
                 </div>

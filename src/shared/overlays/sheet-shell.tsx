@@ -72,7 +72,6 @@ export function SheetShell({
             "flex h-full w-full flex-col overflow-hidden rounded-[24px] border border-border/80 bg-card shadow-[var(--shadow-overlay)]",
             widthClassName,
           )}
-          onClick={(event) => event.stopPropagation()}
         >
           <div className="sticky top-0 z-10 flex items-start gap-3 border-b border-border/70 bg-card/96 px-5 py-4 backdrop-blur">
             <div className="min-w-0 flex-1">

@@ -17,10 +17,15 @@ export type SearchInputProps = {
   disabled?: boolean;
 };
 
+type SearchInputState = {
+  sourceValue: string | null;
+  draftValue: string | null;
+};
+
 /**
- * Input de búsqueda canónico con icono leading, botón clear y debounce opcional.
+ * Input de busqueda canonico con icono leading, boton clear y debounce opcional.
  *
- * Para filtros de tabla, búsqueda en listas, autocomplete simple. Si necesitas
+ * Para filtros de tabla, busqueda en listas, autocomplete simple. Si necesitas
  * tipo dropdown con opciones, usar `MultiSelectField` o `SingleSelectField`.
  */
 export function SearchInput({
@@ -33,16 +38,18 @@ export function SearchInput({
   className,
   disabled,
 }: SearchInputProps) {
-  const [internal, setInternal] = useState(value);
-  const [prevValue, setPrevValue] = useState(value);
+  const [state, setState] = useState<SearchInputState>({
+    sourceValue: null,
+    draftValue: null,
+  });
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const inputValue = state.draftValue ?? value;
 
-  // Sincroniza prop → buffer interno SIN useEffect (anti-pattern derived-state).
-  // Patrón oficial React 19 "store-info-from-previous-render":
-  // https://react.dev/reference/react/useState#storing-information-from-previous-renders
-  if (prevValue !== value) {
-    setPrevValue(value);
-    setInternal(value);
+  if (state.sourceValue !== value) {
+    setState({
+      sourceValue: value,
+      draftValue: null,
+    });
   }
 
   useEffect(() => {
@@ -52,10 +59,23 @@ export function SearchInput({
   }, []);
 
   const handleChange = (next: string) => {
-    setInternal(next);
+    setState({
+      sourceValue: value,
+      draftValue: next,
+    });
     if (debounceMs > 0) {
       if (timerRef.current) clearTimeout(timerRef.current);
-      timerRef.current = setTimeout(() => onChange(next), debounceMs);
+      timerRef.current = setTimeout(() => {
+        timerRef.current = null;
+        setState((currentState) => {
+          if (currentState.draftValue !== next) {
+            return currentState;
+          }
+
+          onChange(next);
+          return currentState;
+        });
+      }, debounceMs);
     } else {
       onChange(next);
     }
@@ -63,7 +83,11 @@ export function SearchInput({
 
   const handleClear = () => {
     if (timerRef.current) clearTimeout(timerRef.current);
-    setInternal("");
+    timerRef.current = null;
+    setState({
+      sourceValue: value,
+      draftValue: "",
+    });
     onChange("");
   };
 
@@ -73,14 +97,14 @@ export function SearchInput({
       <input
         id={id}
         type="search"
-        value={internal}
+        value={inputValue}
         onChange={(event) => handleChange(event.target.value)}
         placeholder={placeholder}
         aria-label={ariaLabel}
         disabled={disabled}
         className="h-11 w-full rounded-[16px] border border-input bg-background pl-10 pr-10 text-sm text-foreground outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring/40 disabled:opacity-60"
       />
-      {internal ? (
+      {inputValue ? (
         <button
           type="button"
           onClick={handleClear}
