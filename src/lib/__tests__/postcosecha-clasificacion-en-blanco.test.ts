@@ -19,7 +19,13 @@ import {
 } from "@/lib/postcosecha-clasificacion-en-blanco";
 import type { PoscosechaClasificacionResult } from "@/lib/postcosecha-clasificacion-en-blanco-types";
 
-function createSolveResult(sku: string, pedidoResuelto: number): PoscosechaClasificacionResult {
+function createSolveResult(
+  sku: string,
+  pedidoResuelto: number,
+  cumplimientoPesoMacro = 1.013,
+): PoscosechaClasificacionResult {
+  const pesoIdealTotal = pedidoResuelto * 750;
+  const pesoRealTotal = pesoIdealTotal * cumplimientoPesoMacro;
   return {
     stage1Summary: {
       pedido_bunches_total: pedidoResuelto,
@@ -27,12 +33,13 @@ function createSolveResult(sku: string, pedidoResuelto: number): PoscosechaClasi
       ajuste_bunches_total: 0,
     },
     stage2Summary: {
-      peso_disponible_total: pedidoResuelto * 750,
-      peso_ideal_pedido_total: pedidoResuelto * 750,
-      peso_ideal_resuelto_total: pedidoResuelto * 750,
-      peso_real_total: pedidoResuelto * 760,
-      sobrepeso_real_vs_ideal: pedidoResuelto * 10,
-      sobrepeso_pct_macro: 0.013,
+      peso_disponible_total: pesoIdealTotal,
+      peso_ideal_pedido_total: pesoIdealTotal,
+      peso_ideal_resuelto_total: pesoIdealTotal,
+      peso_real_total: pesoRealTotal,
+      sobrepeso_real_vs_ideal: pesoRealTotal - pesoIdealTotal,
+      sobrepeso_pct_macro: cumplimientoPesoMacro - 1,
+      cumplimiento_peso_macro: cumplimientoPesoMacro,
     },
     solverMeta: {
       status: "Optimal",
@@ -47,18 +54,18 @@ function createSolveResult(sku: string, pedidoResuelto: number): PoscosechaClasi
         ajusteBunches: 0,
         cumplimientoBunches: 1,
         pesoIdealBunch: 750,
-        pesoIdealPedido: pedidoResuelto * 750,
-        pesoIdealResuelto: pedidoResuelto * 750,
-        pesoRealTotal: pedidoResuelto * 760,
-        pesoRealBunch: 760,
+        pesoIdealPedido: pesoIdealTotal,
+        pesoIdealResuelto: pesoIdealTotal,
+        pesoRealTotal: pesoRealTotal,
+        pesoRealBunch: pedidoResuelto > 0 ? pesoRealTotal / pedidoResuelto : 0,
         tallosMin: 20,
         tallosMax: 22,
         tallosPromedioRamo: 20,
         pesoMinObjetivo: 727.5,
         pesoMaxObjetivo: 772.5,
-        sobrepesoPct: 0.013,
-        sobrepesoBunch: 10,
-        sobrepesoTotal: pedidoResuelto * 10,
+        sobrepesoPct: cumplimientoPesoMacro - 1,
+        sobrepesoBunch: pedidoResuelto > 0 ? (pesoRealTotal - pesoIdealTotal) / pedidoResuelto : 0,
+        sobrepesoTotal: pesoRealTotal - pesoIdealTotal,
         tallosAsignadosNetos: pedidoResuelto * 20,
         tallosAsignadosBrutos: pedidoResuelto * 20,
         mallasTotales: pedidoResuelto,
@@ -114,14 +121,18 @@ function createMockChild(command: string) {
 
         const payload = JSON.parse(buffer || "{}") as {
           orders?: Array<Record<string, number | string>>;
+          availability?: Array<Record<string, number | string>>;
         };
         const firstOrder = payload.orders?.[0] ?? {};
         const pedidoResuelto = ["fecha_1", "fecha_2", "fecha_3", "fecha_4", "fecha_5"].reduce(
           (acc, key) => acc + Number(firstOrder[key] ?? 0),
           0,
         );
+        const firstAvailability = payload.availability?.[0] ?? {};
+        const isAperturaRun = Number(firstAvailability.fecha_2 ?? 0) > 0;
+        const cumplimiento = isAperturaRun && pedidoResuelto > 2 ? 0.95 : 1.0;
 
-        child.stdout.emit("data", JSON.stringify(createSolveResult(String(firstOrder.sku ?? "SKU"), pedidoResuelto)));
+        child.stdout.emit("data", JSON.stringify(createSolveResult(String(firstOrder.sku ?? "SKU"), pedidoResuelto, cumplimiento)));
         child.emit("close", 0);
       });
     },
@@ -206,5 +217,48 @@ describe("postcosecha clasificacion server", () => {
     expect(response.runs.map((run) => run.mode)).toEqual(["GV", "APERTURA", "PRECLASIFICACION"]);
     expect(response.runs.every((run) => run.result !== null)).toBe(true);
     expect(vi.mocked(spawn).mock.calls.filter((call) => call[1]?.[1] === "solve")).toHaveLength(3);
+  });
+
+  it("reserva demanda soft para modos posteriores cuando un modo cae bajo 97%", async () => {
+    const response = await runClasificacionEnBlancoSolver({
+      orders: [
+        {
+          skuId: "sku-1",
+          sku: "750X20MIN",
+          fecha_1: 0,
+          fecha_2: 2,
+          fecha_3: 2,
+          fecha_4: 0,
+          fecha_5: 0,
+        },
+      ],
+      availability: [
+        {
+          grado: 40,
+          pesoTalloSeed: 40,
+          fecha_1: 0,
+          fecha_2: 10,
+          fecha_3: 10,
+          fecha_4: 0,
+          fecha_5: 0,
+        },
+      ],
+      settings: { desperdicio: 0 },
+      orderSlots: [
+        { key: "fecha_2", restriction: null, restrictionMode: "SOFT" },
+        { key: "fecha_3", restriction: null, restrictionMode: "SOFT" },
+      ],
+      lotSlots: [
+        { key: "fecha_2", origin: "APERTURA", lotDate: "2026-04-22" },
+        { key: "fecha_3", origin: "PRECLASIFICACION", lotDate: "2026-04-23" },
+      ],
+    });
+
+    const aperturaRun = response.runs.find((run) => run.mode === "APERTURA");
+    const preclasificacionRun = response.runs.find((run) => run.mode === "PRECLASIFICACION");
+
+    expect(aperturaRun?.result?.stage2Summary.cumplimiento_peso_macro).toBeGreaterThanOrEqual(0.97);
+    expect(aperturaRun?.result?.orderRows[0]?.pedidoResuelto).toBeLessThan(4);
+    expect(preclasificacionRun?.result?.orderRows[0]?.pedidoResuelto).toBeGreaterThan(0);
   });
 });

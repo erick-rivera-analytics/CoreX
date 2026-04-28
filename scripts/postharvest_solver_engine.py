@@ -872,7 +872,7 @@ def solve_pipeline(
         stage2_macro_floor_shortfall = pulp.LpVariable("stage2_macro_floor_shortfall", lowBound=0)
         stage2_macro_target_low = pulp.LpVariable("stage2_macro_target_low", lowBound=0)
         stage2_macro_target_high = pulp.LpVariable("stage2_macro_target_high", lowBound=0)
-        stage2_max_overweight_ratio = pulp.LpVariable("stage2_max_overweight_ratio", lowBound=0)
+        stage2_max_deviation_ratio = pulp.LpVariable("stage2_max_deviation_ratio", lowBound=0)
 
         for order_position in active_order_positions:
             fixed_bunches = int(fulfilled_bunches[order_position])
@@ -954,8 +954,12 @@ def solve_pipeline(
             if ideal_total > 0:
                 stage2_problem += (
                     stage2_over_ideal[order_position]
-                    <= stage2_max_overweight_ratio * ideal_total
+                    <= stage2_max_deviation_ratio * ideal_total
                 ), f"stage2_max_over_ratio_{order_position}"
+                stage2_problem += (
+                    stage2_under_ideal[order_position]
+                    <= stage2_max_deviation_ratio * ideal_total
+                ), f"stage2_max_under_ratio_{order_position}"
             for grade_position in active_grade_positions:
                 stage2_problem += (
                     stage2_x[order_position, grade_position]
@@ -1012,7 +1016,7 @@ def solve_pipeline(
         ), "stage2_macro_target_high_balance"
         macro_violation_expr = stage2_macro_floor_shortfall
         macro_target_deviation_expr = stage2_macro_target_low + stage2_macro_target_high
-        balance_overweight_expr = stage2_max_overweight_ratio
+        balance_deviation_expr = stage2_max_deviation_ratio
 
         stage2_problem.setObjective(macro_violation_expr)
         stage2_status_macro = solve_or_raise(
@@ -1041,31 +1045,18 @@ def solve_pipeline(
             <= macro_target_deviation_opt + objective_fix_tolerance(macro_target_deviation_opt)
         ), "stage2_fix_macro_target_deviation"
 
-        stage2_problem.setObjective(balance_overweight_expr)
+        stage2_problem.setObjective(balance_deviation_expr)
         stage2_status_balance = solve_or_raise(
             stage2_problem,
             stage2_solver,
-            "No se pudo balancear el sobrepeso maximo por SKU",
+            "No se pudo balancear la desviacion maxima por SKU",
             integer_vars=list(stage2_u.values()),
             allow_feasible_incumbent=True,
         )
-        balance_overweight_opt = float(pulp.value(balance_overweight_expr) or 0.0)
+        balance_overweight_opt = float(pulp.value(balance_deviation_expr) or 0.0)
         stage2_problem += (
-            balance_overweight_expr <= balance_overweight_opt + objective_fix_tolerance(balance_overweight_opt)
-        ), "stage2_fix_balance_overweight"
-
-        stage2_problem.setObjective(overweight_expr)
-        stage2_status_overweight = solve_or_raise(
-            stage2_problem,
-            stage2_solver,
-            "No se pudo minimizar el sobrepeso real respecto al ideal",
-            integer_vars=list(stage2_u.values()),
-            allow_feasible_incumbent=True,
-        )
-        overweight_opt = float(pulp.value(overweight_expr) or 0.0)
-        stage2_problem += (
-            overweight_expr <= overweight_opt + objective_fix_tolerance(overweight_opt)
-        ), "stage2_fix_overweight"
+            balance_deviation_expr <= balance_overweight_opt + objective_fix_tolerance(balance_overweight_opt)
+        ), "stage2_fix_balance_deviation"
 
         stage2_problem.setObjective(ideal_deviation_expr)
         stage2_status_ideal = solve_or_raise(
@@ -1079,6 +1070,19 @@ def solve_pipeline(
         stage2_problem += (
             ideal_deviation_expr <= ideal_deviation_opt + objective_fix_tolerance(ideal_deviation_opt)
         ), "stage2_fix_ideal_deviation"
+
+        stage2_problem.setObjective(overweight_expr)
+        stage2_status_overweight = solve_or_raise(
+            stage2_problem,
+            stage2_solver,
+            "No se pudo minimizar el sobrepeso real residual respecto al ideal",
+            integer_vars=list(stage2_u.values()),
+            allow_feasible_incumbent=True,
+        )
+        overweight_opt = float(pulp.value(overweight_expr) or 0.0)
+        stage2_problem += (
+            overweight_expr <= overweight_opt + objective_fix_tolerance(overweight_opt)
+        ), "stage2_fix_overweight"
 
         stage2_problem.setObjective(recipe_gap_expr)
         stage2_status_recipe = solve_or_raise(
