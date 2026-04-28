@@ -15,6 +15,7 @@ import {
   UserCircle2,
   UserCog,
   BriefcaseBusiness,
+  UserSquare,
 } from "lucide-react";
 
 export type ModuleStatus = "active" | "hidden" | "internal";
@@ -154,6 +155,20 @@ export const MODULE_CATALOG: CatalogModule[] = [
     summary: "Ingresos, salidas y tasa de rotación por semana.",
     href: "/dashboard/talento-humano/rotacion-laboral",
     icon: TrendingDown,
+    navigationGroup: "Dashboard",
+    trail: ["Indicadores", "Talento Humano"],
+    accessSection: "Dashboard / Indicadores",
+    status: "active",
+    mobileVisible: false,
+  },
+  {
+    key: "talento-seguimientos",
+    label: "Seguimientos",
+    title: "Seguimientos Trabajo Social",
+    eyebrow: "Dashboard / Indicadores / Talento Humano",
+    summary: "Registro de seguimientos de Trabajo Social: consulta programados y registra respuestas AGR/ADM.",
+    href: "/dashboard/talento-humano/seguimientos",
+    icon: UserSquare,
     navigationGroup: "Dashboard",
     trail: ["Indicadores", "Talento Humano"],
     accessSection: "Dashboard / Indicadores",
