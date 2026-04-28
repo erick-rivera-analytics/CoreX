@@ -130,7 +130,9 @@ export function buildOrdenTrabajoDataTex(
     `\\SetDocCode{OT-CLAS-${codeDate}}`,
     `\\SetDocDate{${dateStr}}`,
     "",
-    "\\long\\newcommand{\\OrdenBody}{%",
+    // LaTeX2e: \newcommand ya es \long por default; agregar \long\newcommand
+    // dispara "You can't use \long ... with \let". No usar el prefijo \long aqui.
+    "\\newcommand{\\OrdenBody}{%",
     `{\\small\\color{CanonMuted}Incluye ${runCount}~corrida${runCount !== 1 ? "s" : ""} del solver por origen.}`,
     "",
     runSections,

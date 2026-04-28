@@ -40,10 +40,26 @@ ENV HOSTNAME=0.0.0.0
 
 WORKDIR /app
 
+# LaTeX runtime para pdf-canon (canon.cls):
+#   - texlive-latex-extra        → tcolorbox, adjustbox, titlesec, multirow, etc.
+#   - texlive-fonts-recommended  → wrappers .sty (tgpagella.sty, helvet.sty)
+#   - texlive-fonts-extra        → inconsolata, fuentes auxiliares
+#   - texlive-lang-spanish       → babel[spanish] requerido por canon.cls
+#   - texlive-pictures           → tikz (lo carga tcolorbox[most])
+#   - tex-gyre                   → archivos de fuente TeX Gyre Pagella; con
+#                                  --no-install-recommends NO se arrastra como
+#                                  Recommends de texlive-fonts-recommended y
+#                                  por eso "tgpagella.sty not found" aparecia
+#                                  aun teniendo el .sty: faltaban los .pfb/.tfm.
+#   - lmodern                    → fallback tipográfico
+# `mktexlsr` regenera la base ls-R de kpathsea para que pdflatex localice los
+# .sty/.tfm recien instalados sin depender del trigger del paquete.
 RUN apt-get update \
   && apt-get install -y --no-install-recommends \
      python3 python3-pip python3-numpy python3-pandas \
      texlive-latex-extra texlive-fonts-recommended texlive-fonts-extra texlive-lang-spanish \
+     texlive-pictures tex-gyre lmodern \
+  && mktexlsr \
   && pip3 install --no-cache-dir --break-system-packages pulp \
   && ln -sf python3 /usr/bin/python \
   && rm -rf /var/lib/apt/lists/* \
