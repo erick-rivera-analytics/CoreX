@@ -156,7 +156,21 @@ function EventPill({ record, onClick, highlighted }: { record: ProgramacionRecor
       }}
       className="flex items-center gap-1"
       title={`${record.blockId} · ${record.variety ?? "—"} · SP: ${record.spType ?? "—"} · Área: ${record.areaId ?? "—"}`}
+      // a11y: cuando es interactivo, queda foco-able y responde a Enter/Space.
+      // Sin onClick conserva semantica decorativa (sin role/tabIndex/keydown).
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
       onClick={onClick}
+      onKeyDown={
+        onClick
+          ? (event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                onClick(event as unknown as React.MouseEvent);
+              }
+            }
+          : undefined
+      }
     >
       {/* Fumigación Dron badge */}
       {isDron && (
