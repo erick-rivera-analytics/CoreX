@@ -5,12 +5,9 @@
 
 export type EmployeeFollowupRouteCode = "AGR" | "ADM";
 
-export type EmployeeFollowupRouteSource =
-  | "scheduled_followup"
-  | "job_classification_fallback"
-  | "manual_admin_override";
+export type EmployeeFollowupRouteSource = "scheduled_followup" | "job_classification_fallback" | "manual_admin_override";
 
-export type EmployeeFollowupStatus = "pending" | "registered" | "annulled";
+export type EmployeeFollowupStatus = "pending" | "registered";
 
 export type EmployeeFollowupCatalogOption = {
   itemCode: string;
@@ -27,6 +24,8 @@ export type EmployeeFollowupBootPayload = {
   options: {
     routes: Array<{ value: string; label: string }>;
     associatedWorkers: string[];
+    years: string[];
+    months: string[];
     statuses: Array<{ value: EmployeeFollowupStatus; label: string }>;
   };
   permissions: {
@@ -217,9 +216,8 @@ export type EmployeeFollowupResponseInput = {
 };
 
 export type EmployeeFollowupUpdateInput = {
-  action: "update" | "annul" | "reactivate";
+  action: "update";
   changeReason: string;
-  invalidReasonCode?: string | null;
 } & Partial<EmployeeFollowupResponseInput>;
 
 // ─── Filters ──────────────────────────────────────────────────────────────────
@@ -230,6 +228,8 @@ export type EmployeeFollowupFilters = {
   associatedWorker?: string;
   route?: EmployeeFollowupRouteCode | "";
   status?: EmployeeFollowupStatus | "all";
+  year?: string;
+  month?: string;
   dateFrom?: string;
   dateTo?: string;
   uniqueFollowUpCode?: string;
@@ -241,7 +241,6 @@ export type EmployeeFollowupKpis = {
   totalScheduled: number;
   totalPending: number;
   totalRegistered: number;
-  totalAnnulled: number;
 };
 
 // ─── DB Query rows ────────────────────────────────────────────────────────────
@@ -333,7 +332,6 @@ export type PersonProfileQueryRow = {
   city: string | null;
   job_title: string | null;
   employer_name: string | null;
-  job_classification: string | null;
   job_classification_code: string | null;
   associated_worker_name: string | null;
   last_entry_date: string | null;

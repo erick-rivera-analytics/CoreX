@@ -2,8 +2,13 @@
 
 import { useState } from "react";
 import { formatDate } from "@/shared/lib/format";
+import { Badge } from "@/shared/ui/badge";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card";
 import { ScrollFadeTable } from "@/shared/tables/scroll-fade-table";
 import { SortableHeader } from "@/shared/tables/sortable-header";
+import { ClickableTableRow } from "@/shared/tables/clickable-table-row";
+import { StandardTable, StandardTd } from "@/shared/tables/standard-table";
+import { cn } from "@/lib/utils";
 import type { EmployeeScheduledFollowupRow } from "@/modules/talento-humano/seguimientos/server/types";
 
 type SortKey = "personName" | "followUpDate" | "derivedRoute" | "status";
@@ -11,13 +16,11 @@ type SortKey = "personName" | "followUpDate" | "derivedRoute" | "status";
 const STATUS_LABELS: Record<string, string> = {
   pending: "Pendiente",
   registered: "Registrado",
-  annulled: "Anulado",
 };
 
-const STATUS_COLORS: Record<string, string> = {
-  pending: "text-amber-600",
-  registered: "text-green-600",
-  annulled: "text-red-500",
+const STATUS_VARIANTS: Record<string, "outline" | "success"> = {
+  pending: "outline",
+  registered: "success",
 };
 
 type Props = {
@@ -49,17 +52,21 @@ export function ScheduledFollowupTable({ rows, selectedFollowup, onSelect, isLoa
   });
 
   return (
-    <div className="rounded-lg border bg-card">
-      <div className="border-b px-4 py-3 text-sm font-medium text-muted-foreground">
-        {isLoading ? "Cargando..." : `${rows.length} seguimiento(s)`}
-      </div>
-      <ScrollFadeTable>
-        <table className="w-full text-sm">
+    <Card className="starter-panel border-border/70 bg-card/84">
+      <CardHeader className="space-y-1">
+        <CardTitle className="text-lg">Agenda de seguimientos</CardTitle>
+        <CardDescription>
+          {isLoading ? "Cargando agenda..." : `${rows.length} seguimiento(s) con los filtros actuales.`}
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="pt-0">
+        <ScrollFadeTable className="border border-border/70 bg-background/70" innerClassName="max-h-[calc(100dvh-19rem)] overflow-y-auto">
+          <StandardTable>
           <thead>
-            <tr className="border-b bg-muted/40">
+            <tr>
               <SortableHeader label="Persona" sortKey="personName" activeSortKey={sortKey} direction={sortDir} onSort={handleSort} />
               <SortableHeader label="Fecha" sortKey="followUpDate" activeSortKey={sortKey} direction={sortDir} onSort={handleSort} />
-              <SortableHeader label="Ruta" sortKey="derivedRoute" activeSortKey={sortKey} direction={sortDir} onSort={handleSort} />
+              <SortableHeader label="Clasificacion" sortKey="derivedRoute" activeSortKey={sortKey} direction={sortDir} onSort={handleSort} />
               <SortableHeader label="Estado" sortKey="status" activeSortKey={sortKey} direction={sortDir} onSort={handleSort} />
             </tr>
           </thead>
@@ -68,28 +75,42 @@ export function ScheduledFollowupTable({ rows, selectedFollowup, onSelect, isLoa
               const isSelected = selectedFollowup?.uniqueFollowUpCode === row.uniqueFollowUpCode
                 && selectedFollowup?.personId === row.personId;
               return (
-                <tr
+                <ClickableTableRow
                   key={`${row.uniqueFollowUpCode}::${row.personId}`}
-                  className={`cursor-pointer border-b transition-colors hover:bg-muted/30 ${isSelected ? "bg-muted/60 font-medium" : ""}`}
-                  onClick={() => onSelect(row)}
+                  onSelect={() => onSelect(row)}
+                  className={cn("border-b border-border/60", isSelected && "bg-slate-900 text-white hover:bg-slate-900")}
                 >
-                  <td className="px-4 py-2">
-                    <p className="font-medium">{row.personName}</p>
-                    <p className="text-xs text-muted-foreground">{row.areaName ?? row.areaGeneral ?? "—"}</p>
-                  </td>
-                  <td className="px-4 py-2 text-xs">
+                  <StandardTd>
+                    <p className="max-w-[22rem] truncate font-medium">{row.personName}</p>
+                    <p className={cn("text-xs text-muted-foreground", isSelected && "text-white/70")}>
+                      {row.areaName ?? row.areaGeneral ?? "Sin área vigente"}
+                    </p>
+                  </StandardTd>
+                  <StandardTd className="text-xs">
                     {formatDate(row.followUpDate)}
-                  </td>
-                  <td className="px-4 py-2 text-xs font-mono">{row.derivedRoute}</td>
-                  <td className={`px-4 py-2 text-xs font-medium ${STATUS_COLORS[row.status] ?? ""}`}>
-                    {STATUS_LABELS[row.status] ?? row.status}
-                  </td>
-                </tr>
+                  </StandardTd>
+                  <StandardTd className="text-xs">
+                    <Badge variant={isSelected ? "secondary" : "outline"}>{row.derivedRoute}</Badge>
+                  </StandardTd>
+                  <StandardTd className="text-xs">
+                    <Badge variant={isSelected ? "secondary" : STATUS_VARIANTS[row.status] ?? "outline"}>
+                      {STATUS_LABELS[row.status] ?? row.status}
+                    </Badge>
+                  </StandardTd>
+                </ClickableTableRow>
               );
             })}
+            {!sorted.length ? (
+              <tr>
+                <td colSpan={4} className="px-4 py-10 text-center text-sm text-muted-foreground">
+                  No hay seguimientos con los filtros actuales.
+                </td>
+              </tr>
+            ) : null}
           </tbody>
-        </table>
-      </ScrollFadeTable>
-    </div>
+          </StandardTable>
+        </ScrollFadeTable>
+      </CardContent>
+    </Card>
   );
 }

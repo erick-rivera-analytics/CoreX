@@ -143,15 +143,19 @@ export function MultiSelectField({
       const viewportPadding = 12;
       const maxWidth = Math.min(Math.max(rect.width, 320), window.innerWidth - viewportPadding * 2);
       const left = Math.min(rect.left, window.innerWidth - maxWidth - viewportPadding);
-      const availableHeight = Math.max(280, window.innerHeight - rect.bottom - 24);
+      const spaceBelow = Math.max(0, window.innerHeight - rect.bottom - viewportPadding);
+      const spaceAbove = Math.max(0, rect.top - viewportPadding);
+      const openAbove = spaceBelow < 320 && spaceAbove > spaceBelow;
+      const availableHeight = Math.max(220, openAbove ? spaceAbove - 8 : spaceBelow - 8);
+      const maxHeight = Math.min(availableHeight, 420);
 
       dispatch({
         type: "set-panel-style",
         panelStyle: {
-          top: Math.min(rect.bottom + 8, window.innerHeight - availableHeight - viewportPadding),
+          top: openAbove ? Math.max(viewportPadding, rect.top - maxHeight - 8) : rect.bottom + 8,
           left: Math.max(viewportPadding, left),
           width: maxWidth,
-          maxHeight: Math.min(availableHeight, 420),
+          maxHeight,
         },
       });
     };

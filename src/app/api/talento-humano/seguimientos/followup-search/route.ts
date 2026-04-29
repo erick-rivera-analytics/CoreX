@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { requireAuth } from "@/lib/api-auth";
-import { handleApiError } from "@/lib/api-error";
+import { apiJsonError, handleApiError } from "@/lib/api-error";
 import { loadScheduledFollowups } from "@/lib/talento-humano-seguimientos-schedule";
+import { followupFiltersSchema } from "@/lib/talento-humano-seguimientos-schemas";
 import type { EmployeeFollowupFilters } from "@/modules/talento-humano/seguimientos/server/types";
 
 export const dynamic = "force-dynamic";
@@ -15,16 +16,24 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const asOfDate = searchParams.get("asOfDate")?.trim() || new Date().toISOString().slice(0, 10);
 
-    const filters: EmployeeFollowupFilters = {
+    const parsed = followupFiltersSchema.safeParse({
       asOfDate,
       personSearch: searchParams.get("q")?.trim() || undefined,
       associatedWorker: searchParams.get("associatedWorker")?.trim() || undefined,
-      route: (searchParams.get("route")?.trim() as "AGR" | "ADM" | "" | undefined) || undefined,
-      status: (searchParams.get("status")?.trim() as EmployeeFollowupFilters["status"]) || "all",
+      route: searchParams.get("route")?.trim() || undefined,
+      status: searchParams.get("status")?.trim() || "all",
+      year: searchParams.get("year")?.trim() || undefined,
+      month: searchParams.get("month")?.trim() || undefined,
       dateFrom: searchParams.get("dateFrom")?.trim() || undefined,
       dateTo: searchParams.get("dateTo")?.trim() || undefined,
       uniqueFollowUpCode: searchParams.get("uniqueFollowUpCode")?.trim() || undefined,
-    };
+    });
+
+    if (!parsed.success) {
+      return apiJsonError("Filtros de seguimiento invalidos.", 400);
+    }
+
+    const filters = parsed.data as EmployeeFollowupFilters;
 
     const rows = await loadScheduledFollowups(filters);
 

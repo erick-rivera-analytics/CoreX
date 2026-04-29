@@ -221,7 +221,7 @@ export async function createFollowupResponse(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Actualizar / Anular / Reactivar (crea nueva versión, preserva historia)
+// Actualizar respuesta (crea nueva version, preserva historia)
 // ─────────────────────────────────────────────────────────────────────────────
 
 export async function updateFollowupResponse(
@@ -231,7 +231,7 @@ export async function updateFollowupResponse(
   runId: string,
 ): Promise<{ newEventId: string; newVersion: number }> {
   return withHumanTalentTransaction(async (client) => {
-    // Leer versión actual
+    // Leer version actual
     const currentResult = await client.query<FollowupResponseQueryRow>(
       `SELECT * FROM public.tthh_fact_employee_followup_response_cur WHERE event_id = $1`,
       [eventId],
@@ -239,7 +239,7 @@ export async function updateFollowupResponse(
     const current = currentResult.rows[0];
     if (!current) throw new Error(`Respuesta no encontrada: ${eventId}`);
     if (!current.is_latest_valid_version) {
-      throw new Error("Solo se puede modificar la última versión vigente.");
+      throw new Error("Solo se puede modificar la ultima version vigente.");
     }
 
     const newEventId = randomUUID();
@@ -247,22 +247,28 @@ export async function updateFollowupResponse(
     const now = new Date().toISOString();
     const eventDate = now.slice(0, 10);
 
-    // Determinar nuevo estado de validez
-    const isValid = input.action !== "annul";
-    const invalidReasonCode = input.action === "annul" ? (input.invalidReasonCode ?? null) : null;
+    // La correccion siempre crea una nueva version vigente.
+    const isValid = true;
+    const invalidReasonCode = null;
 
-    // Marcar versión anterior como no-latest
+    // Marcar version anterior como historica e invalida sin borrarla.
     await client.query(
       `UPDATE public.tthh_fact_employee_followup_response_cur
-       SET is_latest_valid_version = false
+       SET is_latest_valid_version = false,
+           is_valid = false,
+           invalid_reason_code = COALESCE(invalid_reason_code, 'superseded_by_update'),
+           change_reason = $2,
+           actor_id = $3,
+           run_id = $4
        WHERE event_id = $1`,
-      [eventId],
+      [eventId, input.changeReason, actorId, runId],
     );
 
-    // Para "update" con datos nuevos, mezclar con los campos del current
-    const merged = input.action === "update" ? { ...current, ...input } : current;
+    // Mezclar campos nuevos con la version actual.
+    const pick = <T>(nextValue: T | null | undefined, currentValue: T | null) =>
+      nextValue === undefined ? currentValue : nextValue;
 
-    // Insertar nueva versión
+    // Insertar nueva version.
     await client.query(
       `
       INSERT INTO public.tthh_fact_employee_followup_response_cur (
@@ -319,55 +325,91 @@ export async function updateFollowupResponse(
         current.followup_route_code, current.followup_route_source, current.scheduled_follow_up_type,
         current.job_classification_code_snapshot,
         now, eventDate, current.follow_up_date,
-        merged.agr_followup_frequency_code ?? null, merged.work_difficulty_observation ?? null,
-        merged.coworker_treatment_rating_code ?? null, merged.supervisor_treatment_rating_code ?? null,
-        merged.area_manager_treatment_rating_code ?? null, merged.conflict_person_id ?? null, merged.conflict_situation_detail ?? null,
-        merged.work_like_most_observation ?? null, merged.improvement_opportunity_observation ?? null,
-        merged.agr_satisfaction_observation ?? null, merged.retention_intention_code ?? null,
-        merged.retention_reason_observation ?? null, merged.hr_support_need_code ?? null, merged.hr_support_need_other_detail ?? null,
-        merged.family_pregnancy_relation_code ?? null, merged.family_pregnancy_observation ?? null,
-        merged.has_inconvenience_code ?? null, merged.inconvenience_date ?? null, merged.inconvenience_activity_code ?? null,
-        merged.inconvenience_activity_other_detail ?? null, merged.inconvenience_type_code ?? null,
-        merged.inconvenience_type_other_detail ?? null,
-        merged.adm_followup_frequency_code ?? null, merged.induction_sufficient_code ?? null, merged.transport_problem_code ?? null,
-        merged.team_welcome_code ?? null, merged.adaptation_negative_observation ?? null, merged.adaptation_suggestion ?? null,
-        merged.role_clarity_satisfaction_code ?? null, merged.work_environment_satisfaction_code ?? null,
-        merged.equipment_satisfaction_code ?? null, merged.probation_satisfaction_suggestion ?? null,
-        merged.recent_work_satisfaction_code ?? null, merged.work_aspect_to_improve_code ?? null,
-        merged.work_aspect_to_improve_other_detail ?? null, merged.dissatisfaction_detail ?? null,
-        merged.final_retention_intention_code ?? null, merged.final_stay_suggestion ?? null,
+        pick(input.agrFollowupFrequencyCode, current.agr_followup_frequency_code),
+        pick(input.workDifficultyObservation, current.work_difficulty_observation),
+        pick(input.coworkerTreatmentRatingCode, current.coworker_treatment_rating_code),
+        pick(input.supervisorTreatmentRatingCode, current.supervisor_treatment_rating_code),
+        pick(input.areaManagerTreatmentRatingCode, current.area_manager_treatment_rating_code),
+        pick(input.conflictPersonId, current.conflict_person_id),
+        pick(input.conflictSituationDetail, current.conflict_situation_detail),
+        pick(input.workLikeMostObservation, current.work_like_most_observation),
+        pick(input.improvementOpportunityObservation, current.improvement_opportunity_observation),
+        pick(input.agrSatisfactionObservation, current.agr_satisfaction_observation),
+        pick(input.retentionIntentionCode, current.retention_intention_code),
+        pick(input.retentionReasonObservation, current.retention_reason_observation),
+        pick(input.hrSupportNeedCode, current.hr_support_need_code),
+        pick(input.hrSupportNeedOtherDetail, current.hr_support_need_other_detail),
+        pick(input.familyPregnancyRelationCode, current.family_pregnancy_relation_code),
+        pick(input.familyPregnancyObservation, current.family_pregnancy_observation),
+        pick(input.hasInconvenienceCode, current.has_inconvenience_code),
+        pick(input.inconvenienceDate, current.inconvenience_date),
+        pick(input.inconvenienceActivityCode, current.inconvenience_activity_code),
+        pick(input.inconvenienceActivityOtherDetail, current.inconvenience_activity_other_detail),
+        pick(input.inconvenienceTypeCode, current.inconvenience_type_code),
+        pick(input.inconvenienceTypeOtherDetail, current.inconvenience_type_other_detail),
+        pick(input.admFollowupFrequencyCode, current.adm_followup_frequency_code),
+        pick(input.inductionSufficientCode, current.induction_sufficient_code),
+        pick(input.transportProblemCode, current.transport_problem_code),
+        pick(input.teamWelcomeCode, current.team_welcome_code),
+        pick(input.adaptationNegativeObservation, current.adaptation_negative_observation),
+        pick(input.adaptationSuggestion, current.adaptation_suggestion),
+        pick(input.roleClaritySatisfactionCode, current.role_clarity_satisfaction_code),
+        pick(input.workEnvironmentSatisfactionCode, current.work_environment_satisfaction_code),
+        pick(input.equipmentSatisfactionCode, current.equipment_satisfaction_code),
+        pick(input.probationSatisfactionSuggestion, current.probation_satisfaction_suggestion),
+        pick(input.recentWorkSatisfactionCode, current.recent_work_satisfaction_code),
+        pick(input.workAspectToImproveCode, current.work_aspect_to_improve_code),
+        pick(input.workAspectToImproveOtherDetail, current.work_aspect_to_improve_other_detail),
+        pick(input.dissatisfactionDetail, current.dissatisfaction_detail),
+        pick(input.finalRetentionIntentionCode, current.final_retention_intention_code),
+        pick(input.finalStaySuggestion, current.final_stay_suggestion),
         isValid, invalidReasonCode, now, runId, actorId, input.changeReason,
       ],
     );
 
-    // Para "update" con nuevas selecciones: invalidar las anteriores e insertar las nuevas.
-    // Las selecciones se reciben como campo extra en el body; si no se envían, se conservan las del original.
+    // Si no llegan selecciones nuevas, se copian las vigentes de la version anterior.
     type SelectionItem = { selectionGroupCode: string; catalogCode: string; itemCode: string; otherDetail?: string | null; displayOrder?: number | null };
     const rawSelections = (input as Record<string, unknown>)["selections"];
-    if (input.action === "update" && Array.isArray(rawSelections)) {
-      await client.query(
-        `UPDATE public.tthh_asgn_employee_followup_catalog_selection_cur
-         SET is_valid = false, change_reason = $1, actor_id = $2, run_id = $3
-         WHERE event_id = $4 AND is_valid = true`,
-        [input.changeReason, actorId, runId, eventId],
-      );
-
-      for (const sel of rawSelections as SelectionItem[]) {
-        await client.query(
+    const selectionRows = Array.isArray(rawSelections)
+      ? rawSelections as SelectionItem[]
+      : (await client.query<FollowupSelectionQueryRow>(
           `
-          INSERT INTO public.tthh_asgn_employee_followup_catalog_selection_cur (
-            selection_id, event_id, selection_group_code, catalog_code, item_code,
-            other_detail, display_order, is_valid, loaded_at, run_id, actor_id, change_reason
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, true, $8, $9, $10, $11)
+          SELECT *
+          FROM public.tthh_asgn_employee_followup_catalog_selection_cur
+          WHERE event_id = $1 AND is_valid = true
+          ORDER BY selection_group_code, display_order, item_code
           `,
-          [
-            randomUUID(), newEventId,
-            sel.selectionGroupCode, sel.catalogCode, sel.itemCode,
-            sel.otherDetail ?? null, sel.displayOrder ?? null,
-            now, runId, actorId, input.changeReason,
-          ],
-        );
-      }
+          [eventId],
+        )).rows.map((selection) => ({
+          selectionGroupCode: selection.selection_group_code,
+          catalogCode: selection.catalog_code,
+          itemCode: selection.item_code,
+          otherDetail: selection.other_detail,
+          displayOrder: selection.display_order,
+        }));
+
+    await client.query(
+      `UPDATE public.tthh_asgn_employee_followup_catalog_selection_cur
+       SET is_valid = false, change_reason = $1, actor_id = $2, run_id = $3
+       WHERE event_id = $4 AND is_valid = true`,
+      [input.changeReason, actorId, runId, eventId],
+    );
+
+    for (const sel of selectionRows) {
+      await client.query(
+        `
+        INSERT INTO public.tthh_asgn_employee_followup_catalog_selection_cur (
+          selection_id, event_id, selection_group_code, catalog_code, item_code,
+          other_detail, display_order, is_valid, loaded_at, run_id, actor_id, change_reason
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, true, $8, $9, $10, $11)
+        `,
+        [
+          randomUUID(), newEventId,
+          sel.selectionGroupCode, sel.catalogCode, sel.itemCode,
+          sel.otherDetail ?? null, sel.displayOrder ?? null,
+          now, runId, actorId, input.changeReason,
+        ],
+      );
     }
 
     return { newEventId, newVersion };

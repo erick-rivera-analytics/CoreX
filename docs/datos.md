@@ -523,7 +523,7 @@ Cuando se corrige un registro: la versión antigua pone `is_latest_valid_version
 
 | Vista/Tabla | Uso |
 |-------------|-----|
-| `gld.vw_tthh_asg_followup_scd2` | Seguimientos programados (person_id, follow_up_type, follow_up_code, unique_follow_up_code, follow_up_date) |
+| `gld.mv_tthh_asgn_followup_scd2` | Seguimientos programados (person_id, follow_up_type, follow_up_code, unique_follow_up_code, follow_up_date) |
 | `slv.tthh_dim_person_profile_scd2` | Perfil persona (is_current=true, is_valid=true) |
 | `slv.tthh_asgn_person_area_event_scd2` | Asignaciones de área (event_type='CA', PIT con asOfDate) |
 | `slv.camp_dim_area_profile_scd2` | Perfil área (area_name, area_general) |
@@ -546,7 +546,7 @@ Implementado en `src/lib/talento-humano-seguimientos-person.ts`.
 `loadScheduledFollowups()` hace **dos queries separadas**:
 1. `query()` (pool principal) → seguimientos DW + perfil persona + área vigente PIT.
 2. `queryHumanTalent()` (pool secundario) → respuestas latest valid por `(unique_follow_up_code, person_id)`.
-3. Merge en TypeScript → calcula `status: "pending" | "registered" | "annulled"`.
+3. Merge en TypeScript -> calcula `status: "pending" | "registered"`.
 
 ### Aplicar el SQL
 
@@ -561,21 +561,17 @@ node scripts/apply-human-talent-sql.mjs
 
 El script aplica `sql/db_human_talent.sql` (idempotente: `CREATE TABLE IF NOT EXISTS`, `INSERT ... WHERE NOT EXISTS`).
 
-### Seed pendiente: agr_followup_frequency
+### Seed incluido: agr_followup_frequency
 
-El catálogo `agr_followup_frequency` **no se seedea automáticamente** porque sus valores dependen de `gld.vw_tthh_asg_followup_scd2.follow_up_type` en el DW real. Pasos:
+El catálogo `agr_followup_frequency` se seedea desde `sql/db_human_talent.sql` con los valores reales observados en `gld.mv_tthh_asgn_followup_scd2.follow_up_type`:
 
-1. Consultar en DW: `SELECT DISTINCT follow_up_type FROM gld.vw_tthh_asg_followup_scd2 ORDER BY 1;`
-2. Mapear cada valor real a un `item_code` en inglés (`type_1`, `weekly`, etc.).
-3. Insertar en `db_human_talent`:
+- `T1`
+- `T2`
+- `T3`
+- `T4`
+- `T5`
 
-```sql
-INSERT INTO public.common_dim_catalog_item_scd2
-  (catalog_code, item_code, item_label_es, display_order, run_id, change_reason)
-VALUES
-  ('agr_followup_frequency', '<item_code>', '<label_es>', <ord>, 'seed_agr_freq_v1', 'initial_load')
-ON CONFLICT DO NOTHING;
-```
+Si el DW agrega nuevos valores, se deben añadir al bloque de seeds de `agr_followup_frequency` y volver a ejecutar `node scripts/apply-human-talent-sql.mjs`.
 
 ### Degradación graceful
 

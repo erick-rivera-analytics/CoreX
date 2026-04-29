@@ -65,7 +65,7 @@ Registro actual (`src/lib/access-control.ts`, `PANEL_ACCESS_RESOURCES`):
 - `panel:tthh.followups.view` - Seguimientos / Ver
 - `panel:tthh.followups.write` - Seguimientos / Registrar (requerido para POST /responses)
 - `panel:tthh.followups.sensitive` - Seguimientos / Ver datos sensibles (sin el, los campos de familia/embarazo/conflictos/RRHH retornan null)
-- `panel:tthh.followups.admin` - Seguimientos / Corregir y anular (requerido para PATCH /responses)
+- `panel:tthh.followups.admin` - Seguimientos / Corregir (requerido para PATCH /responses)
 
 Flujo para agregar uno nuevo:
 

@@ -368,9 +368,9 @@ Carga inicial: catálogos del módulo, lista de trabajadoras sociales y permisos
 
 ### `GET /api/talento-humano/seguimientos/followup-search`
 Lista seguimientos programados con filtros.  
-**Query params:** `asOfDate`, `q` (persona), `associatedWorker`, `route` (AGR|ADM), `status` (pending|registered|annulled), `dateFrom`, `dateTo`, `uniqueFollowUpCode`  
+**Query params:** `asOfDate`, `q` (persona), `associatedWorker`, `route` (AGR|ADM), `status` (pending|registered), `dateFrom`, `dateTo`, `uniqueFollowUpCode`
 **Response:** `{ rows: EmployeeScheduledFollowupRow[] }` — máx. 500 filas.  
-**Arquitectura:** composición en API — DW (`gld.vw_tthh_asg_followup_scd2`) + db_human_talent (estado de respuesta), merge en TypeScript.
+**Arquitectura:** composición en API — DW (`gld.mv_tthh_asgn_followup_scd2`) + db_human_talent (estado de respuesta), merge en TypeScript.
 
 ### `GET /api/talento-humano/seguimientos/person-search`
 Búsqueda de personas por nombre o código.  
@@ -404,7 +404,7 @@ Detalle de una respuesta específica.
 Corrige, anula o reactiva una respuesta existente.  
 **RBAC adicional:** requiere `panel:tthh.followups.admin` o superadmin.  
 **Rate limit:** mismo que POST.  
-**Body:** `{ action: "update" | "annul" | "reactivate", changeReason, invalidReasonCode?, ...campos }`  
+**Body:** `{ action: "update", changeReason, ...campos }`
 **Transacción (versionado):** marca versión anterior con `is_latest_valid_version=false` → inserta nueva versión con `response_version+1`, `supersedes_event_id` apuntando a la anterior.
 
 ---

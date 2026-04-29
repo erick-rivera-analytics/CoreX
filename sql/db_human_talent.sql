@@ -4,11 +4,8 @@
 -- Idempotente: ejecutable múltiples veces sin destruir datos.
 -- Solo crea/actualiza estructuras y asegura semillas básicas de catálogos.
 --
--- IMPORTANTE: este script NO seedea `agr_followup_frequency` items, porque el
--- conjunto real depende de los valores de `gld.vw_tthh_asg_followup_scd2.follow_up_type`
--- (Fase 1 de descubrimiento). Tras Fase 1, ejecutar el bloque de seed apropiado
--- (Tipo 1..Tipo 5 o weekly..quarterly o lo que aparezca) usando este mismo
--- patrón de INSERT ... WHERE NOT EXISTS.
+-- `agr_followup_frequency` se seedea con los valores reales T1..T5 observados en
+-- `gld.mv_tthh_asgn_followup_scd2.follow_up_type`.
 --
 -- Aplicar con: node scripts/apply-human-talent-sql.mjs
 -- ============================================================================
@@ -332,8 +329,13 @@ comment on table public.tthh_asgn_employee_followup_catalog_selection_cur is
 -- 4. VISTAS LOCALES (solo joins dentro de db_human_talent.public)
 -- ============================================================================
 
+drop view if exists public.vw_tthh_employee_followup_catalog_mismatch_cur;
+drop view if exists public.vw_tthh_employee_followup_response_with_labels_cur;
+drop view if exists public.vw_tthh_employee_followup_response_history_cur;
+drop view if exists public.vw_tthh_employee_followup_response_latest_cur;
+
 -- 4.1 Última versión vigente
-create or replace view public.vw_tthh_employee_followup_response_latest_cur as
+create view public.vw_tthh_employee_followup_response_latest_cur as
 select
   f.event_id,
   f.correction_group_id,
@@ -365,10 +367,10 @@ from public.tthh_fact_employee_followup_response_cur f
 where f.is_latest_valid_version = true;
 
 comment on view public.vw_tthh_employee_followup_response_latest_cur is
-  'Última versión por correction_group, marcada con is_latest_valid_version. Incluye is_valid para distinguir registered de annulled.';
+  'Ultima version por correction_group, marcada con is_latest_valid_version. Incluye is_valid para distinguir versiones vigentes de historicas.';
 
 -- 4.2 Historial completo
-create or replace view public.vw_tthh_employee_followup_response_history_cur as
+create view public.vw_tthh_employee_followup_response_history_cur as
 select
   f.correction_group_id,
   f.response_version,
@@ -393,10 +395,10 @@ from public.tthh_fact_employee_followup_response_cur f
 order by f.correction_group_id, f.response_version;
 
 comment on view public.vw_tthh_employee_followup_response_history_cur is
-  'Historial completo de versiones. Útil para auditoría y para reconstruir cadenas de corrección/anulación/reactivación.';
+  'Historial completo de versiones. Util para auditoria y para reconstruir cadenas de correccion.';
 
 -- 4.3 Latest + labels de catálogos (selección única)
-create or replace view public.vw_tthh_employee_followup_response_with_labels_cur as
+create view public.vw_tthh_employee_followup_response_with_labels_cur as
 select
   f.event_id,
   f.unique_follow_up_code,
@@ -447,7 +449,7 @@ comment on view public.vw_tthh_employee_followup_response_with_labels_cur is
   'Latest + labels de catálogos para columnas de selección única. Multiselects (work_difficulty, work_like_most, improvement_opportunity, short_retention_reason) viven en la tabla puente.';
 
 -- 4.4 Detección de inconsistencias (códigos usados que no existen como items activos)
-create or replace view public.vw_tthh_employee_followup_catalog_mismatch_cur as
+create view public.vw_tthh_employee_followup_catalog_mismatch_cur as
 with fact_codes as (
   select event_id, 'agr_followup_frequency' as catalog_code, agr_followup_frequency_code as item_code
   from public.tthh_fact_employee_followup_response_cur where agr_followup_frequency_code is not null
@@ -572,7 +574,7 @@ where not exists (
 );
 
 -- ============================================================================
--- 6. SEEDS DE ÍTEMS (excluye agr_followup_frequency — depende de Fase 1)
+-- 6. SEEDS DE ÍTEMS
 -- ============================================================================
 
 insert into public.common_dim_catalog_item_scd2 (catalog_code, item_code, item_label_es, display_order, run_id, change_reason)
@@ -583,8 +585,6 @@ from (values
   ('employee_followup_change_reason', 'manual_insert',      'Registro manual',            20),
   ('employee_followup_change_reason', 'manual_update',      'Corrección manual',          30),
   ('employee_followup_change_reason', 'source_correction',  'Corrección de fuente',       40),
-  ('employee_followup_change_reason', 'soft_delete',        'Anulación lógica',           50),
-  ('employee_followup_change_reason', 'reactivation',       'Reactivación',               60),
   ('employee_followup_change_reason', 'form_resubmission',  'Reenvío de formulario',      70),
   ('employee_followup_change_reason', 'merge_resolution',   'Resolución de duplicado',    80),
   ('employee_followup_change_reason', 'backfill',           'Carga histórica',            90),
@@ -594,8 +594,8 @@ from (values
   ('employee_followup_invalid_reason', 'wrong_person',         'Persona incorrecta',           20),
   ('employee_followup_invalid_reason', 'wrong_followup_code',  'Código de seguimiento incorrecto', 30),
   ('employee_followup_invalid_reason', 'data_entry_error',     'Error de digitación',          40),
-  ('employee_followup_invalid_reason', 'cancelled_followup',   'Seguimiento cancelado',        50),
   ('employee_followup_invalid_reason', 'test_record',          'Registro de prueba',           60),
+  ('employee_followup_invalid_reason', 'superseded_by_update', 'Versión reemplazada por modificación', 65),
   ('employee_followup_invalid_reason', 'other',                'Otro',                         70),
 
   -- 6.3 followup_route
@@ -607,7 +607,12 @@ from (values
   ('followup_route_source', 'job_classification_fallback',  'Derivado de clasificación laboral',   20),
   ('followup_route_source', 'manual_admin_override',        'Ajuste manual autorizado',            30),
 
-  -- 6.5 adm_followup_frequency
+  -- 6.5 followup_frequency
+  ('agr_followup_frequency', 'T1',             'T1',                           10),
+  ('agr_followup_frequency', 'T2',             'T2',                           20),
+  ('agr_followup_frequency', 'T3',             'T3',                           30),
+  ('agr_followup_frequency', 'T4',             'T4',                           40),
+  ('agr_followup_frequency', 'T5',             'T5',                           50),
   ('adm_followup_frequency', 'first_day',      '1er día de labores',           10),
   ('adm_followup_frequency', 'fifteen_days',   '15 días de labores',           20),
   ('adm_followup_frequency', 'probation_end',  'Final de periodo de prueba',   30),
@@ -768,6 +773,28 @@ where not exists (
     and i.is_current = true and i.is_valid = true
 );
 
+update public.common_dim_catalog_item_scd2
+set is_valid = false,
+    is_current = false,
+    valid_to = coalesce(valid_to, now()),
+    loaded_at = now(),
+    run_id = 'seed_tthh_followups_catalogs_v2',
+    change_reason = 'manual_update'
+where catalog_code = 'employee_followup_change_reason'
+  and item_code in ('soft_delete', 'reactivation')
+  and (is_valid = true or is_current = true);
+
+update public.common_dim_catalog_item_scd2
+set is_valid = false,
+    is_current = false,
+    valid_to = coalesce(valid_to, now()),
+    loaded_at = now(),
+    run_id = 'seed_tthh_followups_catalogs_v2',
+    change_reason = 'manual_update'
+where catalog_code = 'employee_followup_invalid_reason'
+  and item_code = 'cancelled_followup'
+  and (is_valid = true or is_current = true);
+
 -- ============================================================================
 -- 7. CATALOG USAGE — registrar dónde se consume cada catálogo
 -- ============================================================================
@@ -814,6 +841,37 @@ where not exists (
     and u.table_name = v.tname
     and u.column_name = v.cname
     and u.usage_role = v.role
+);
+
+-- ============================================================================
+-- 8. AJUSTES CANONICOS PDF TRABAJO SOCIAL
+-- ============================================================================
+
+-- Alinear labels/opciones de permanencia con el formulario Google original.
+update public.common_dim_catalog_item_scd2
+set item_label_es = 'Ambiente de trabajo',
+    loaded_at = now(),
+    change_reason = 'source_correction'
+where catalog_code = 'short_retention_reason'
+  and item_code = 'working_conditions'
+  and is_current = true
+  and is_valid = true
+  and item_label_es is distinct from 'Ambiente de trabajo';
+
+insert into public.common_dim_catalog_item_scd2
+  (catalog_code, item_code, item_label_es, display_order, run_id, change_reason)
+select v.catalog_code, v.item_code, v.label, v.ord, 'seed_tthh_followups_pdf_alignment_v2', 'source_correction'
+from (values
+  ('short_retention_reason', 'low_remuneration', 'Baja remuneración', 95),
+  ('short_retention_reason', 'long_workday',      'Larga jornada laboral', 96)
+) as v(catalog_code, item_code, label, ord)
+where not exists (
+  select 1
+  from public.common_dim_catalog_item_scd2 i
+  where i.catalog_code = v.catalog_code
+    and i.item_code = v.item_code
+    and i.is_current = true
+    and i.is_valid = true
 );
 
 -- ============================================================================

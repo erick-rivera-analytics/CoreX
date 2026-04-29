@@ -7,9 +7,9 @@ import { z } from "zod/v4";
 const trimmed = z.string().trim();
 const nullableCode = trimmed.max(64).nullish().transform((v) => v?.trim() || null);
 const nullableText = (max = 2000) => trimmed.max(max).nullish().transform((v) => v?.trim() || null);
-const optionalCode = trimmed.max(64).optional();
 const isoDate = () =>
   trimmed.regex(/^\d{4}-\d{2}-\d{2}$/, "Formato de fecha inválido (YYYY-MM-DD)");
+const selectList = trimmed.max(120).optional();
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Selección (multiselect bridge row)
@@ -98,20 +98,6 @@ export const createFollowupResponseSchema = z
     selections: z.array(employeeFollowupSelectionInputSchema).default([]),
   })
   // Validaciones cross-field
-  .refine(
-    (v) => {
-      if (v.followupRouteCode === "AGR") return Boolean(v.agrFollowupFrequencyCode);
-      return true;
-    },
-    { message: "El campo Frecuencia es obligatorio para la ruta AGR.", path: ["agrFollowupFrequencyCode"] },
-  )
-  .refine(
-    (v) => {
-      if (v.followupRouteCode === "ADM") return Boolean(v.admFollowupFrequencyCode);
-      return true;
-    },
-    { message: "El campo Frecuencia es obligatorio para la ruta ADM.", path: ["admFollowupFrequencyCode"] },
-  )
   .refine(
     (v) => {
       if (v.hasInconvenienceCode === "yes") {
@@ -209,22 +195,53 @@ export const createFollowupResponseSchema = z
 export type CreateFollowupResponseInput = z.infer<typeof createFollowupResponseSchema>;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Actualizar / anular / reactivar respuesta
+// Actualizar respuesta preservando historial
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const updateFollowupResponseSchema = z
   .object({
-    action: z.enum(["update", "annul", "reactivate"]),
+    action: z.literal("update"),
     changeReason: trimmed.min(1).max(200),
-    invalidReasonCode: nullableCode,
-  })
-  .refine(
-    (v) => {
-      if (v.action === "annul") return Boolean(v.invalidReasonCode);
-      return true;
-    },
-    { message: "Al anular, el código de razón de invalidación es obligatorio.", path: ["invalidReasonCode"] },
-  );
+    agrFollowupFrequencyCode: nullableCode,
+    workDifficultyObservation: nullableText(2000),
+    coworkerTreatmentRatingCode: nullableCode,
+    supervisorTreatmentRatingCode: nullableCode,
+    areaManagerTreatmentRatingCode: nullableCode,
+    conflictPersonId: nullableCode,
+    conflictSituationDetail: nullableText(2000),
+    workLikeMostObservation: nullableText(2000),
+    improvementOpportunityObservation: nullableText(2000),
+    agrSatisfactionObservation: nullableText(2000),
+    retentionIntentionCode: nullableCode,
+    retentionReasonObservation: nullableText(2000),
+    hrSupportNeedCode: nullableCode,
+    hrSupportNeedOtherDetail: nullableText(500),
+    familyPregnancyRelationCode: nullableCode,
+    familyPregnancyObservation: nullableText(2000),
+    hasInconvenienceCode: nullableCode,
+    inconvenienceDate: isoDate().nullish().transform((v) => v || null),
+    inconvenienceActivityCode: nullableCode,
+    inconvenienceActivityOtherDetail: nullableText(500),
+    inconvenienceTypeCode: nullableCode,
+    inconvenienceTypeOtherDetail: nullableText(500),
+    admFollowupFrequencyCode: nullableCode,
+    inductionSufficientCode: nullableCode,
+    transportProblemCode: nullableCode,
+    teamWelcomeCode: nullableCode,
+    adaptationNegativeObservation: nullableText(2000),
+    adaptationSuggestion: nullableText(2000),
+    roleClaritySatisfactionCode: nullableCode,
+    workEnvironmentSatisfactionCode: nullableCode,
+    equipmentSatisfactionCode: nullableCode,
+    probationSatisfactionSuggestion: nullableText(2000),
+    recentWorkSatisfactionCode: nullableCode,
+    workAspectToImproveCode: nullableCode,
+    workAspectToImproveOtherDetail: nullableText(500),
+    dissatisfactionDetail: nullableText(2000),
+    finalRetentionIntentionCode: nullableCode,
+    finalStaySuggestion: nullableText(2000),
+    selections: z.array(employeeFollowupSelectionInputSchema).optional(),
+  });
 
 export type UpdateFollowupResponseInput = z.infer<typeof updateFollowupResponseSchema>;
 
@@ -237,7 +254,9 @@ export const followupFiltersSchema = z.object({
   personSearch: trimmed.max(120).optional(),
   associatedWorker: trimmed.max(120).optional(),
   route: z.enum(["AGR", "ADM", ""]).optional(),
-  status: z.enum(["pending", "registered", "annulled", "all"]).optional(),
+  status: z.enum(["pending", "registered", "all"]).optional(),
+  year: selectList,
+  month: selectList,
   dateFrom: isoDate().optional(),
   dateTo: isoDate().optional(),
   uniqueFollowUpCode: trimmed.max(120).optional(),

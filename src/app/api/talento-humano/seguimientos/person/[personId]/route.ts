@@ -8,13 +8,14 @@ export const dynamic = "force-dynamic";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { personId: string } },
+  { params }: { params: Promise<{ personId: string }> },
 ) {
   const authError = await requireAuth(request);
   if (authError) return authError;
 
   try {
-    const personId = params.personId?.trim();
+    const { personId: rawPersonId } = await params;
+    const personId = rawPersonId?.trim();
     if (!personId) {
       return NextResponse.json({ message: "personId requerido." }, { status: 400 });
     }

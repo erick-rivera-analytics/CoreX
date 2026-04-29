@@ -1,11 +1,17 @@
 "use client";
 
+import { useState } from "react";
+import { ChevronsLeft, ChevronsRight } from "lucide-react";
+
+import { cn } from "@/lib/utils";
+import { Button } from "@/shared/ui/button";
 import type {
   EmployeeFollowupCatalogMap,
   EmployeeScheduledFollowupRow,
 } from "@/modules/talento-humano/seguimientos/server/types";
 import { ScheduledFollowupTable } from "@/modules/talento-humano/seguimientos/components/scheduled-followup-table";
 import { FollowupRegistrationPanel } from "@/modules/talento-humano/seguimientos/components/followup-registration-panel";
+import { FollowupResponseViewer } from "@/modules/talento-humano/seguimientos/components/followup-response-viewer";
 
 type Permissions = { canWrite: boolean; canSensitive: boolean; canAdmin: boolean };
 
@@ -31,11 +37,26 @@ export function FollowupWorkspace({
   asOfDate,
 }: Props) {
   const hasSelected = Boolean(selectedFollowup);
+  const [agendaCollapsed, setAgendaCollapsed] = useState(false);
+  const showExpandedForm = hasSelected && agendaCollapsed;
 
   return (
-    <div className="flex flex-col gap-4 lg:flex-row">
-      {/* Panel izquierdo: tabla de seguimientos (40%) */}
-      <div className={hasSelected ? "lg:w-[40%]" : "w-full"}>
+    <div className={cn("grid gap-4", showExpandedForm ? "xl:grid-cols-1" : "xl:grid-cols-[0.92fr_1.08fr]")}>
+      {hasSelected ? (
+        <div className="xl:col-span-full">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setAgendaCollapsed((current) => !current)}
+          >
+            {agendaCollapsed ? <ChevronsRight className="size-4" /> : <ChevronsLeft className="size-4" />}
+            {agendaCollapsed ? "Mostrar lista de colaboradores" : "Ocultar lista de colaboradores"}
+          </Button>
+        </div>
+      ) : null}
+
+      <div className={cn(hasSelected ? "min-w-0" : "min-w-0 xl:col-span-2", showExpandedForm && "hidden")}>
         <ScheduledFollowupTable
           rows={rows}
           selectedFollowup={selectedFollowup}
@@ -44,17 +65,26 @@ export function FollowupWorkspace({
         />
       </div>
 
-      {/* Panel derecho: registro (60%) */}
       {hasSelected && selectedFollowup && (
-        <div className="lg:w-[60%]">
-          <FollowupRegistrationPanel
-            followup={selectedFollowup}
-            catalogs={catalogs}
-            permissions={permissions}
-            asOfDate={asOfDate}
-            onSaved={onFollowupUpdated}
-            onClose={() => onSelectFollowup(null)}
-          />
+        <div className="min-w-0 xl:sticky xl:top-4 xl:self-start">
+          {selectedFollowup.status === "registered" && selectedFollowup.responseEventId ? (
+            <FollowupResponseViewer
+              key={`view::${selectedFollowup.responseEventId}`}
+              followup={selectedFollowup}
+              catalogs={catalogs}
+              onClose={() => onSelectFollowup(null)}
+            />
+          ) : (
+            <FollowupRegistrationPanel
+              key={`${selectedFollowup.uniqueFollowUpCode}::${selectedFollowup.personId}`}
+              followup={selectedFollowup}
+              catalogs={catalogs}
+              permissions={permissions}
+              asOfDate={asOfDate}
+              onSaved={onFollowupUpdated}
+              onClose={() => onSelectFollowup(null)}
+            />
+          )}
         </div>
       )}
     </div>

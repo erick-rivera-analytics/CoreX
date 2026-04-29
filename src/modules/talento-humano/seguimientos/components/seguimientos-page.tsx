@@ -12,7 +12,10 @@ import { MetricTile } from "@/shared/data-display/metric-tile";
 import { EmptyState } from "@/shared/data-display/empty-state";
 import { SingleSelectField } from "@/shared/filters/single-select-field";
 import { DateField } from "@/shared/filters/date-field";
+import { MultiSelectField } from "@/shared/filters/multi-select-field";
 import { SearchInput } from "@/shared/forms/search-input";
+import { Label } from "@/shared/ui/label";
+import { formatMonthNumeric } from "@/shared/lib/format";
 
 import type {
   EmployeeFollowupBootPayload,
@@ -25,10 +28,11 @@ import { FollowupWorkspace } from "@/modules/talento-humano/seguimientos/compone
 type Props = {
   initialCatalogs: EmployeeFollowupCatalogMap;
   initialWorkers: string[];
+  initialDateOptions: { years: string[]; months: string[] };
 };
 
 const bootFetcher = (url: string) =>
-  fetchJson<EmployeeFollowupBootPayload>(url, "No se pudo cargar el módulo.");
+  fetchJson<EmployeeFollowupBootPayload>(url, "No se pudo cargar el módulo.", { cache: "no-store" });
 
 const followupFetcher = (url: string) =>
   fetchJson<{ rows: EmployeeScheduledFollowupRow[] }>(url, "No se pudo cargar seguimientos.");
@@ -40,27 +44,52 @@ function buildFollowupQuery(filters: EmployeeFollowupFilters) {
   if (filters.associatedWorker) params.set("associatedWorker", filters.associatedWorker);
   if (filters.route) params.set("route", filters.route);
   if (filters.status && filters.status !== "all") params.set("status", filters.status);
+  if (filters.year && filters.year !== "all") params.set("year", filters.year);
+  if (filters.month && filters.month !== "all") params.set("month", filters.month);
   if (filters.dateFrom) params.set("dateFrom", filters.dateFrom);
   if (filters.dateTo) params.set("dateTo", filters.dateTo);
   return params.toString();
 }
 
 const today = new Date().toISOString().slice(0, 10);
+const currentYear = String(new Date().getFullYear());
+const currentMonth = String(new Date().getMonth() + 1);
 
 const DEFAULT_FILTERS: EmployeeFollowupFilters = {
   asOfDate: today,
   status: "all",
+  year: currentYear,
+  month: currentMonth,
 };
 
-export function SeguimientosPage({ initialCatalogs, initialWorkers }: Props) {
+export function SeguimientosPage({ initialCatalogs, initialWorkers, initialDateOptions }: Props) {
   const [filters, setFilters] = useState<EmployeeFollowupFilters>(DEFAULT_FILTERS);
   const [selectedFollowup, setSelectedFollowup] = useState<EmployeeScheduledFollowupRow | null>(null);
 
   const qs = buildFollowupQuery(filters);
 
   const { data: bootData } = useSWR("/api/talento-humano/seguimientos/boot", bootFetcher, {
+    fallbackData: {
+      catalogs: initialCatalogs,
+      options: {
+        routes: [
+          { value: "AGR", label: "Agrícola" },
+          { value: "ADM", label: "Administrativo" },
+        ],
+        associatedWorkers: initialWorkers,
+        years: initialDateOptions.years,
+        months: initialDateOptions.months,
+        statuses: [
+          { value: "pending", label: "Pendiente" },
+          { value: "registered", label: "Registrado" },
+        ],
+      },
+      permissions: { canWrite: false, canSensitive: false, canAdmin: false },
+    },
     revalidateOnFocus: false,
-    dedupingInterval: 120_000,
+    dedupingInterval: 15_000,
+    onError: (error) =>
+      toast.error(error instanceof Error ? error.message : "No se pudo cargar el módulo."),
   });
 
   const { data: followupsData, isValidating, mutate: mutateFollowups } = useSWR(
@@ -78,12 +107,13 @@ export function SeguimientosPage({ initialCatalogs, initialWorkers }: Props) {
   const catalogs = bootData?.catalogs ?? initialCatalogs;
   const permissions = bootData?.permissions ?? { canWrite: false, canSensitive: false, canAdmin: false };
   const workerOptions = bootData?.options.associatedWorkers ?? initialWorkers;
+  const yearOptions = bootData?.options.years ?? initialDateOptions.years;
+  const monthOptions = bootData?.options.months ?? initialDateOptions.months;
   const rows = followupsData?.rows ?? [];
 
   const totalScheduled = rows.length;
   const totalPending = rows.filter((r) => r.status === "pending").length;
   const totalRegistered = rows.filter((r) => r.status === "registered").length;
-  const totalAnnulled = rows.filter((r) => r.status === "annulled").length;
 
   function setFilter<K extends keyof EmployeeFollowupFilters>(key: K, value: EmployeeFollowupFilters[K]) {
     setFilters((prev) => ({ ...prev, [key]: value }));
@@ -103,12 +133,16 @@ export function SeguimientosPage({ initialCatalogs, initialWorkers }: Props) {
         icon={<UserSquare className="h-5 w-5" />}
       >
         <FilterPanel>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
-            <SearchInput
-              placeholder="Buscar persona..."
-              value={filters.personSearch ?? ""}
-              onChange={(v) => setFilter("personSearch", v || undefined)}
-            />
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-8">
+            <div className="min-w-0 space-y-2">
+              <Label htmlFor="filter-person-search">Buscar</Label>
+              <SearchInput
+                id="filter-person-search"
+                placeholder="Nombre o codigo..."
+                value={filters.personSearch ?? ""}
+                onChange={(v) => setFilter("personSearch", v || undefined)}
+              />
+            </div>
             <SingleSelectField
               id="filter-worker"
               label="Trabajadora social"
@@ -119,7 +153,7 @@ export function SeguimientosPage({ initialCatalogs, initialWorkers }: Props) {
             />
             <SingleSelectField
               id="filter-route"
-              label="Ruta"
+              label="Clasificacion"
               value={filters.route ?? ""}
               options={["AGR", "ADM"]}
               displayValue={(v) => (v === "AGR" ? "Agrícola" : "Administrativo")}
@@ -130,10 +164,25 @@ export function SeguimientosPage({ initialCatalogs, initialWorkers }: Props) {
               id="filter-status"
               label="Estado"
               value={filters.status ?? "all"}
-              options={["all", "pending", "registered", "annulled"]}
-              displayValue={(v) => ({ all: "Todos", pending: "Pendiente", registered: "Registrado", annulled: "Anulado" }[v] ?? v)}
+              options={["all", "pending", "registered"]}
+              displayValue={(v) => ({ all: "Todos", pending: "Pendiente", registered: "Registrado" }[v] ?? v)}
               onChange={(v) => setFilter("status", (v as EmployeeFollowupFilters["status"]) || "all")}
               omitEmpty
+            />
+            <MultiSelectField
+              id="filter-year"
+              label="Año"
+              value={filters.year ?? "all"}
+              options={yearOptions}
+              onChange={(value) => setFilter("year", value)}
+            />
+            <MultiSelectField
+              id="filter-month"
+              label="Mes"
+              value={filters.month ?? "all"}
+              options={monthOptions}
+              onChange={(value) => setFilter("month", value)}
+              displayValue={formatMonthNumeric}
             />
             <DateField
               label="Desde"
@@ -150,7 +199,6 @@ export function SeguimientosPage({ initialCatalogs, initialWorkers }: Props) {
             <MetricTile label="Programados" value={String(totalScheduled)} />
             <MetricTile label="Pendientes" value={String(totalPending)} />
             <MetricTile label="Registrados" value={String(totalRegistered)} />
-            <MetricTile label="Anulados" value={String(totalAnnulled)} />
           </KpiGrid>
         </FilterPanel>
       </SectionPageShell>

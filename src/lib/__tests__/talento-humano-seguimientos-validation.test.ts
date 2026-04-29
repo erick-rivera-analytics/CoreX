@@ -10,9 +10,9 @@ const BASE_AGR = {
   personId: "P-001",
   followupRouteCode: "AGR" as const,
   followupRouteSource: "scheduled_followup" as const,
+  scheduledFollowUpType: "T1",
   followUpDate: "2026-04-28",
   changeReason: "initial_load",
-  agrFollowupFrequencyCode: "type_1",
   selections: [],
 };
 
@@ -22,9 +22,9 @@ const BASE_ADM = {
   personId: "P-002",
   followupRouteCode: "ADM" as const,
   followupRouteSource: "scheduled_followup" as const,
+  scheduledFollowUpType: "T1",
   followUpDate: "2026-04-28",
   changeReason: "initial_load",
-  admFollowupFrequencyCode: "first_day",
   selections: [],
 };
 
@@ -39,20 +39,20 @@ describe("createFollowupResponseSchema", () => {
     expect(result.success).toBe(true);
   });
 
-  it("rechaza AGR sin agrFollowupFrequencyCode", () => {
+  it("acepta AGR sin frecuencia manual porque viene vinculada al seguimiento", () => {
     const result = createFollowupResponseSchema.safeParse({
       ...BASE_AGR,
       agrFollowupFrequencyCode: undefined,
     });
-    expect(result.success).toBe(false);
+    expect(result.success).toBe(true);
   });
 
-  it("rechaza ADM sin admFollowupFrequencyCode", () => {
+  it("acepta ADM sin frecuencia manual porque viene vinculada al seguimiento", () => {
     const result = createFollowupResponseSchema.safeParse({
       ...BASE_ADM,
       admFollowupFrequencyCode: undefined,
     });
-    expect(result.success).toBe(false);
+    expect(result.success).toBe(true);
   });
 
   it("rechaza has_inconvenience=yes sin fecha y actividad", () => {
@@ -155,29 +155,33 @@ describe("createFollowupResponseSchema", () => {
 });
 
 describe("updateFollowupResponseSchema", () => {
-  it("acepta action annul con invalidReasonCode", () => {
+  it("acepta solo action update", () => {
     const result = updateFollowupResponseSchema.safeParse({
-      action: "annul",
+      action: "update",
       changeReason: "data_entry_error",
-      invalidReasonCode: "data_entry_error",
     });
     expect(result.success).toBe(true);
   });
 
-  it("rechaza annul sin invalidReasonCode", () => {
+  it("acepta campos parciales de correccion sin exigir payload completo", () => {
     const result = updateFollowupResponseSchema.safeParse({
-      action: "annul",
+      action: "update",
+      changeReason: "manual_update",
+      inconvenienceActivityCode: "harvest",
+      inconvenienceTypeCode: "botrytis",
+      selections: [
+        { selectionGroupCode: "work_difficulty", catalogCode: "work_difficulty", itemCode: "missing_tools" },
+      ],
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("rechaza acciones distintas de update", () => {
+    const result = updateFollowupResponseSchema.safeParse({
+      action: "delete",
       changeReason: "data_entry_error",
     });
     expect(result.success).toBe(false);
-  });
-
-  it("acepta reactivate sin invalidReasonCode", () => {
-    const result = updateFollowupResponseSchema.safeParse({
-      action: "reactivate",
-      changeReason: "reactivation",
-    });
-    expect(result.success).toBe(true);
   });
 });
 

@@ -32,7 +32,7 @@ export function SearchInput({
   id,
   value,
   onChange,
-  placeholder = "Buscar…",
+  placeholder = "Buscar...",
   ariaLabel = "Buscar",
   debounceMs = 0,
   className,
@@ -96,7 +96,7 @@ export function SearchInput({
       <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
       <input
         id={id}
-        type="search"
+        type="text"
         value={inputValue}
         onChange={(event) => handleChange(event.target.value)}
         placeholder={placeholder}
@@ -108,7 +108,7 @@ export function SearchInput({
         <button
           type="button"
           onClick={handleClear}
-          aria-label="Limpiar búsqueda"
+          aria-label="Limpiar busqueda"
           className="absolute right-2 top-1/2 flex size-7 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
         >
           <X className="size-3.5" />

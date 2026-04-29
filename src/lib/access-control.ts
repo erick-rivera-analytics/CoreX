@@ -49,7 +49,7 @@ export const PANEL_ACCESS_RESOURCES: AccessResource[] = [
   { resourceKey: "panel:tthh.followups.view",      label: "Seguimientos / Ver",                section: "Paneles" },
   { resourceKey: "panel:tthh.followups.write",     label: "Seguimientos / Registrar",          section: "Paneles" },
   { resourceKey: "panel:tthh.followups.sensitive", label: "Seguimientos / Ver datos sensibles", section: "Paneles" },
-  { resourceKey: "panel:tthh.followups.admin",     label: "Seguimientos / Corregir y anular",  section: "Paneles" },
+  { resourceKey: "panel:tthh.followups.admin",     label: "Seguimientos / Corregir",            section: "Paneles" },
 ];
 
 const MODULE_ACCESS_RESOURCES: AccessResource[] = ALL_MANAGED_MODULES.map((module) => ({

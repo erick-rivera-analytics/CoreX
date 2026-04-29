@@ -33,36 +33,6 @@ export function deriveFollowupRoute(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Query PIT de área vigente
-// ─────────────────────────────────────────────────────────────────────────────
-
-const PIT_AREA_SUBQUERY = `
-  WITH current_area AS (
-    SELECT DISTINCT ON (e.person_id)
-      e.person_id,
-      e.area_id,
-      e.valid_from,
-      e.valid_to
-    FROM slv.tthh_asgn_person_area_event_scd2 e
-    WHERE e.event_type = 'CA'
-      AND e.is_valid = true
-      AND $1::date >= e.valid_from::date
-      AND $1::date < COALESCE(e.valid_to::date, DATE '9999-12-31')
-    ORDER BY e.person_id, e.valid_from DESC
-  )
-  SELECT
-    ca.person_id,
-    ca.area_id,
-    ap.area_name,
-    ap.area_general
-  FROM current_area ca
-  LEFT JOIN slv.camp_dim_area_profile_scd2 ap
-    ON ap.area_id = ca.area_id
-    AND ap.is_current = true
-    AND ap.is_valid = true
-`;
-
-// ─────────────────────────────────────────────────────────────────────────────
 // Búsqueda de personas
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -146,7 +116,6 @@ export async function getPersonDetail(
       p.city,
       p.job_title,
       p.employer_name,
-      p.job_classification,
       p.job_classification_code,
       p.associated_worker_name,
       p.last_entry_date,

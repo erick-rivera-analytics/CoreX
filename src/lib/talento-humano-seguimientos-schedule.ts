@@ -1,5 +1,6 @@
 import { query } from "@/lib/db";
 import { queryHumanTalent } from "@/lib/human-talent-db";
+import { decodeMultiSelectValue } from "@/lib/multi-select";
 import { deriveFollowupRoute } from "@/lib/talento-humano-seguimientos-person";
 import type {
   EmployeeFollowupFilters,
@@ -23,9 +24,41 @@ type ResponseStatusRow = {
   is_valid: boolean;
 };
 
+type FollowupDateOptionsRow = {
+  years: string[] | null;
+  months: string[] | null;
+};
+
+export async function loadFollowupDateOptions(): Promise<{ years: string[]; months: string[] }> {
+  const result = await query<FollowupDateOptionsRow>(`
+    WITH date_parts AS (
+      SELECT DISTINCT
+        EXTRACT(YEAR FROM f.follow_up_date::date)::int AS followup_year,
+        EXTRACT(MONTH FROM f.follow_up_date::date)::int AS followup_month
+      FROM gld.mv_tthh_asgn_followup_scd2 f
+      WHERE f.follow_up_date IS NOT NULL
+        AND EXTRACT(YEAR FROM f.follow_up_date::date)::int <= EXTRACT(YEAR FROM CURRENT_DATE)::int
+    )
+    SELECT
+      (
+        SELECT ARRAY_AGG(followup_year::text ORDER BY followup_year DESC)
+        FROM (SELECT DISTINCT followup_year FROM date_parts) years
+      ) AS years,
+      (
+        SELECT ARRAY_AGG(followup_month::text ORDER BY followup_month ASC)
+        FROM (SELECT DISTINCT followup_month FROM date_parts) months
+      ) AS months
+  `);
+
+  return {
+    years: result.rows[0]?.years ?? [],
+    months: result.rows[0]?.months ?? [],
+  };
+}
+
 /**
  * Construye el conjunto de seguimientos programados desde el DW y
- * mezcla el estado (pending/registered/annulled) consultando db_human_talent.
+ * mezcla el estado (pending/registered) consultando db_human_talent.
  *
  * Arquitectura: DW y db_human_talent son clusters separados → composición en API.
  */
@@ -58,6 +91,20 @@ export async function loadScheduledFollowups(
     pIdx++;
   }
 
+  const years = decodeMultiSelectValue(filters.year);
+  if (years.length > 0) {
+    conditions.push(`EXTRACT(YEAR FROM f.follow_up_date::date)::int::text = ANY($${pIdx}::text[])`);
+    params.push(years);
+    pIdx++;
+  }
+
+  const months = decodeMultiSelectValue(filters.month);
+  if (months.length > 0) {
+    conditions.push(`EXTRACT(MONTH FROM f.follow_up_date::date)::int::text = ANY($${pIdx}::text[])`);
+    params.push(months);
+    pIdx++;
+  }
+
   if (filters.dateFrom) {
     conditions.push(`f.follow_up_date::date >= $${pIdx}::date`);
     params.push(filters.dateFrom);
@@ -85,7 +132,7 @@ export async function loadScheduledFollowups(
       p.job_classification_code,
       a.area_name,
       a.area_general
-    FROM gld.vw_tthh_asg_followup_scd2 f
+    FROM gld.mv_tthh_asgn_followup_scd2 f
     JOIN slv.tthh_dim_person_profile_scd2 p
       ON p.person_id = f.person_id
       AND p.is_current = true
@@ -114,7 +161,14 @@ export async function loadScheduledFollowups(
   if (dwResult.rows.length === 0) return [];
 
   // ── 2. db_human_talent: estado de respuestas latest valid ─────────────────
-  const keys = dwResult.rows.map((r) => `('${r.unique_follow_up_code}','${r.person_id}')`).join(",");
+  const statusParams: unknown[] = [];
+  const keyTuples = dwResult.rows
+    .map((row) => {
+      statusParams.push(row.unique_follow_up_code, row.person_id);
+      const base = statusParams.length - 1;
+      return `($${base}, $${base + 1})`;
+    })
+    .join(",");
 
   const statusMap = new Map<string, ResponseStatusRow>();
 
@@ -130,9 +184,11 @@ export async function loadScheduledFollowups(
           is_valid
         FROM public.tthh_fact_employee_followup_response_cur
         WHERE is_latest_valid_version = true
-          AND (unique_follow_up_code, person_id) IN (${keys})
+          AND is_valid = true
+          AND (unique_follow_up_code, person_id) IN (${keyTuples})
         ORDER BY unique_follow_up_code, person_id, response_version DESC
         `,
+        statusParams,
       );
       for (const row of statusResult.rows) {
         statusMap.set(`${row.unique_follow_up_code}::${row.person_id}`, row);
@@ -155,9 +211,7 @@ export async function loadScheduledFollowups(
 
       const statusRow = statusMap.get(`${row.unique_follow_up_code}::${row.person_id}`);
       let status: EmployeeFollowupStatus = "pending";
-      if (statusRow) {
-        status = statusRow.is_valid ? "registered" : "annulled";
-      }
+      if (statusRow) status = "registered";
 
       // Filtrar por status
       if (filters.status && filters.status !== "all" && status !== filters.status) {

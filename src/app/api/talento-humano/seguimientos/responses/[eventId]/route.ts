@@ -14,7 +14,7 @@ export const dynamic = "force-dynamic";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { eventId: string } },
+  { params }: { params: Promise<{ eventId: string }> },
 ) {
   const authError = await requireAuth(request);
   if (authError) return authError;
@@ -23,7 +23,8 @@ export async function GET(
   if (!access) return NextResponse.json({ message: "No autenticado." }, { status: 401 });
 
   try {
-    const eventId = params.eventId?.trim();
+    const { eventId: rawEventId } = await params;
+    const eventId = rawEventId?.trim();
     if (!eventId) {
       return NextResponse.json({ message: "eventId requerido." }, { status: 400 });
     }
@@ -45,11 +46,11 @@ export async function GET(
   }
 }
 
-// ── PATCH: actualizar / anular / reactivar ────────────────────────────────────
+// PATCH: actualizar respuesta preservando historial.
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { eventId: string } },
+  { params }: { params: Promise<{ eventId: string }> },
 ) {
   const requestId = getRequestId(request);
   const authError = await requireAuth(request);
@@ -62,7 +63,7 @@ export async function PATCH(
   const canAdmin = access.isSuperadmin
     || canAccessResource("panel:tthh.followups.admin", access.allowedResources, access.isSuperadmin);
   if (!canAdmin) {
-    return apiJsonError("No tienes permiso para corregir o anular seguimientos.", 403, requestId);
+    return apiJsonError("No tienes permiso para corregir seguimientos.", 403, requestId);
   }
 
   // Rate limit
@@ -79,7 +80,8 @@ export async function PATCH(
     });
   }
 
-  const eventId = params.eventId?.trim();
+  const { eventId: rawEventId } = await params;
+  const eventId = rawEventId?.trim();
   if (!eventId) {
     return apiJsonError("eventId requerido.", 400, requestId);
   }

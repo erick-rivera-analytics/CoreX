@@ -1,12 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import { X } from "lucide-react";
+import { AlertCircle, Save, UserCheck, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { fetchJson } from "@/lib/fetch-json";
 import { decodeMultiSelectValue } from "@/lib/multi-select";
+import { cn } from "@/lib/utils";
+import { Badge } from "@/shared/ui/badge";
 import { Button } from "@/shared/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card";
 import { FormSection } from "@/shared/forms/form-section";
 import { SingleSelectField } from "@/shared/filters/single-select-field";
 
@@ -38,13 +41,52 @@ function buildDV(items: EmployeeFollowupCatalogOption[] = []) {
   return (code: string) => map.get(code) ?? code;
 }
 
+const CATALOG_LABELS: Record<string, string> = {
+  treatment_rating: "Trato",
+  yes_no: "Sí / No",
+  retention_intention: "Permanencia",
+  hr_support_need: "Apoyo RRHH",
+  family_pregnancy_relation: "Familiar / embarazo",
+  inconvenience_activity: "Actividad de novedad",
+  inconvenience_type: "Tipo de novedad",
+  work_difficulty: "Dificultades",
+  work_like_most: "Gustos del trabajo",
+  improvement_opportunity: "Oportunidades",
+  short_retention_reason: "Razón de salida corta",
+  adaptation_response: "Adaptación",
+  satisfaction_level: "Satisfacción",
+  work_aspect_to_improve: "Aspectos a mejorar",
+};
+
+const AGR_REQUIRED_CATALOGS = [
+  "treatment_rating",
+  "yes_no",
+  "retention_intention",
+  "hr_support_need",
+  "family_pregnancy_relation",
+  "inconvenience_activity",
+  "inconvenience_type",
+  "work_difficulty",
+  "work_like_most",
+  "improvement_opportunity",
+  "short_retention_reason",
+];
+
+const ADM_REQUIRED_CATALOGS = [
+  "yes_no",
+  "adaptation_response",
+  "satisfaction_level",
+  "retention_intention",
+  "work_aspect_to_improve",
+];
+
 const EMPTY_AGR: AgrFormState = {
-  agrFreq: "", workDiffEncoded: "", workDifficultyObs: "",
+  workDiffEncoded: "", workDiffOther: "", workDifficultyObs: "",
   coworkerRating: "", supervisorRating: "", areaManagerRating: "",
   conflictPersonId: "", conflictDetail: "",
-  workLikeMostEncoded: "", workLikeMostObs: "",
-  improvOppEncoded: "", improvementOppObs: "", agrSatisfactionObs: "",
-  retentionIntention: "", retentionReasonObs: "", shortRetentionEncoded: "",
+  workLikeMostEncoded: "", workLikeMostOther: "", workLikeMostObs: "",
+  improvOppEncoded: "", improvOppOther: "", improvementOppObs: "", agrSatisfactionObs: "",
+  retentionIntention: "", retentionReasonObs: "", shortRetentionEncoded: "", shortRetentionOther: "",
   hrSupportNeed: "", hrSupportOther: "",
   familyPregnancyRelation: "", familyPregnancyObs: "",
   hasInconvenience: "", inconvenienceDate: "",
@@ -53,7 +95,7 @@ const EMPTY_AGR: AgrFormState = {
 };
 
 const EMPTY_ADM: AdmFormState = {
-  admFreq: "", inductionSufficient: "", transportProblem: "", teamWelcome: "",
+  inductionSufficient: "", transportProblem: "", teamWelcome: "",
   adaptationNegObs: "", adaptationSuggestion: "",
   roleClarity: "", workEnvironment: "", equipmentSatisfaction: "",
   probationSuggestion: "", recentWorkSatisfaction: "",
@@ -77,18 +119,43 @@ export function FollowupRegistrationPanel({ followup, catalogs, permissions, asO
 
   const retentionOpts = toOpts(catalogs["retention_intention"]);
   const retentionDV = buildDV(catalogs["retention_intention"]);
+  const requiredCatalogs = route === "AGR" ? AGR_REQUIRED_CATALOGS : ADM_REQUIRED_CATALOGS;
+  const missingCatalogs = requiredCatalogs.filter((catalogCode) => !catalogs[catalogCode]?.length);
+  const catalogsReady = missingCatalogs.length === 0;
+  const scheduledFrequencyCode = followup.followUpType ?? null;
+  const agrFrequencyCode = scheduledFrequencyCode && catOpts("agr_followup_frequency").includes(scheduledFrequencyCode)
+    ? scheduledFrequencyCode
+    : null;
+  const admFrequencyCode = scheduledFrequencyCode && catOpts("adm_followup_frequency").includes(scheduledFrequencyCode)
+    ? scheduledFrequencyCode
+    : null;
 
   async function handleSubmit() {
     if (!permissions.canWrite) { toast.error("No tienes permiso para registrar seguimientos."); return; }
+    if (!catalogsReady) {
+      toast.error("Faltan catálogos del formulario. Recarga el módulo o valida db_human_talent.");
+      return;
+    }
 
     const agr = agrState;
     const adm = admState;
 
-    const selections: Array<{ selectionGroupCode: string; catalogCode: string; itemCode: string; displayOrder?: number }> = [];
-    decodeMultiSelectValue(agr.workDiffEncoded).forEach((c, i) => selections.push({ selectionGroupCode: "work_difficulty", catalogCode: "work_difficulty", itemCode: c, displayOrder: i }));
-    decodeMultiSelectValue(agr.workLikeMostEncoded).forEach((c, i) => selections.push({ selectionGroupCode: "work_like_most", catalogCode: "work_like_most", itemCode: c, displayOrder: i }));
-    decodeMultiSelectValue(agr.improvOppEncoded).forEach((c, i) => selections.push({ selectionGroupCode: "improvement_opportunity", catalogCode: "improvement_opportunity", itemCode: c, displayOrder: i }));
-    decodeMultiSelectValue(agr.shortRetentionEncoded).forEach((c, i) => selections.push({ selectionGroupCode: "short_retention_reason", catalogCode: "short_retention_reason", itemCode: c, displayOrder: i }));
+    const selections: Array<{ selectionGroupCode: string; catalogCode: string; itemCode: string; otherDetail?: string | null; displayOrder?: number }> = [];
+    const addSelections = (encoded: string, groupCode: string, catalogCode: string, otherDetail: string) => {
+      decodeMultiSelectValue(encoded).forEach((itemCode, displayOrder) => {
+        selections.push({
+          selectionGroupCode: groupCode,
+          catalogCode,
+          itemCode,
+          otherDetail: itemCode === "other" ? otherDetail || null : null,
+          displayOrder,
+        });
+      });
+    };
+    addSelections(agr.workDiffEncoded, "work_difficulty", "work_difficulty", agr.workDiffOther);
+    addSelections(agr.workLikeMostEncoded, "work_like_most", "work_like_most", agr.workLikeMostOther);
+    addSelections(agr.improvOppEncoded, "improvement_opportunity", "improvement_opportunity", agr.improvOppOther);
+    addSelections(agr.shortRetentionEncoded, "short_retention_reason", "short_retention_reason", agr.shortRetentionOther);
 
     const body = {
       uniqueFollowUpCode: followup.uniqueFollowUpCode,
@@ -101,7 +168,7 @@ export function FollowupRegistrationPanel({ followup, catalogs, permissions, asO
       followUpDate: followup.followUpDate,
       changeReason,
       ...(route === "AGR" && {
-        agrFollowupFrequencyCode: agr.agrFreq || null,
+        agrFollowupFrequencyCode: agrFrequencyCode,
         workDifficultyObservation: agr.workDifficultyObs || null,
         coworkerTreatmentRatingCode: agr.coworkerRating || null,
         supervisorTreatmentRatingCode: agr.supervisorRating || null,
@@ -125,7 +192,7 @@ export function FollowupRegistrationPanel({ followup, catalogs, permissions, asO
         inconvenienceTypeOtherDetail: agr.inconvenienceTypeOther || null,
       }),
       ...(route === "ADM" && {
-        admFollowupFrequencyCode: adm.admFreq || null,
+        admFollowupFrequencyCode: admFrequencyCode,
         inductionSufficientCode: adm.inductionSufficient || null,
         transportProblemCode: adm.transportProblem || null,
         teamWelcomeCode: adm.teamWelcome || null,
@@ -161,26 +228,67 @@ export function FollowupRegistrationPanel({ followup, catalogs, permissions, asO
     }
   }
 
-  const catOpts = (k: string) => toOpts(catalogs[k]);
-  const catDV = (k: string) => buildDV(catalogs[k]);
+  function catOpts(k: string) {
+    return toOpts(catalogs[k]);
+  }
+
+  function catDV(k: string) {
+    return buildDV(catalogs[k]);
+  }
 
   return (
-    <div className="rounded-lg border bg-card overflow-y-auto max-h-[80vh]">
-      <div className="flex items-center justify-between border-b px-4 py-3">
-        <div>
-          <p className="font-semibold text-sm">{followup.personName}</p>
-          <p className="text-xs text-muted-foreground">Ruta {route} · {followup.followUpDate}{followup.associatedWorkerName ? ` · ${followup.associatedWorkerName}` : ""}</p>
+    <Card className="starter-panel border-border/70 bg-card/84">
+      <CardHeader className="space-y-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex min-w-0 items-start gap-3">
+            <div className="rounded-full bg-slate-900/10 p-3 text-slate-700 dark:bg-slate-900/20 dark:text-white">
+              <UserCheck className="size-5" aria-hidden="true" />
+            </div>
+            <div className="min-w-0 space-y-2">
+              <div className="flex flex-wrap gap-2">
+                <Badge variant="outline">Clasificacion {route}</Badge>
+                <Badge variant={followup.status === "registered" ? "success" : "outline"}>
+                  {followup.status === "pending" ? "Pendiente" : "Registrado"}
+                </Badge>
+                {scheduledFrequencyCode ? <Badge variant="secondary">Frecuencia {scheduledFrequencyCode}</Badge> : null}
+              </div>
+              <div>
+                <CardTitle className="text-lg">{followup.personName}</CardTitle>
+                <CardDescription>
+                  Seguimiento {followup.followUpDate}
+                  {followup.associatedWorkerName ? ` · ${followup.associatedWorkerName}` : ""}
+                </CardDescription>
+              </div>
+            </div>
+          </div>
+          <Button variant="ghost" size="icon" onClick={onClose} aria-label="Cerrar seguimiento">
+            <X className="size-4" />
+          </Button>
         </div>
-        <Button variant="ghost" size="icon" onClick={onClose}><X className="h-4 w-4" /></Button>
-      </div>
 
-      <div className="p-4 space-y-6">
+        {!catalogsReady ? (
+          <div className="rounded-[20px] border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/35 dark:text-amber-200">
+            <div className="flex gap-2">
+              <AlertCircle className="mt-0.5 size-4 shrink-0" />
+              <div>
+                <p className="font-medium">Faltan opciones del formulario.</p>
+                <p className="mt-1 text-xs">
+                  Catálogos sin ítems: {missingCatalogs.map((catalogCode) => CATALOG_LABELS[catalogCode] ?? catalogCode).join(", ")}.
+                </p>
+              </div>
+            </div>
+          </div>
+        ) : null}
+      </CardHeader>
+
+      <CardContent>
+        <div className="max-h-[calc(100dvh-14rem)] space-y-6 overflow-y-auto pr-1">
         <PersonQuickCard personId={followup.personId} asOfDate={asOfDate} />
 
         {route === "AGR" && (
           <FollowupFormAgr
             state={agrState} setField={setAgrField}
-            agrFreqOpts={catOpts("agr_followup_frequency")} agrFreqDV={catDV("agr_followup_frequency")}
+            asOfDate={asOfDate}
             ratingOpts={catOpts("treatment_rating")} ratingDV={catDV("treatment_rating")}
             yesNoOpts={catOpts("yes_no")} yesNoDV={catDV("yes_no")}
             retentionOpts={retentionOpts} retentionDV={retentionDV}
@@ -198,8 +306,6 @@ export function FollowupRegistrationPanel({ followup, catalogs, permissions, asO
         {route === "ADM" && (
           <FollowupFormAdm
             state={admState} setField={setAdmField}
-            admFreqOpts={catOpts("adm_followup_frequency")} admFreqDV={catDV("adm_followup_frequency")}
-            yesNoOpts={catOpts("yes_no")} yesNoDV={catDV("yes_no")}
             adaptOpts={catOpts("adaptation_response")} adaptDV={catDV("adaptation_response")}
             satisfactionOpts={catOpts("satisfaction_level")} satisfactionDV={catDV("satisfaction_level")}
             retentionOpts={retentionOpts} retentionDV={retentionDV}
@@ -220,13 +326,15 @@ export function FollowupRegistrationPanel({ followup, catalogs, permissions, asO
         </FormSection>
 
         {permissions.canWrite ? (
-          <Button className="w-full" onClick={handleSubmit} disabled={submitting}>
+          <Button className="w-full rounded-full" onClick={handleSubmit} disabled={submitting || !catalogsReady}>
+            <Save className={cn("size-4", submitting && "animate-pulse")} />
             {submitting ? "Guardando..." : "Registrar seguimiento"}
           </Button>
         ) : (
           <p className="text-xs text-muted-foreground text-center">Solo lectura. No tienes permiso para registrar.</p>
         )}
       </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 }

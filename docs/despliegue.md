@@ -92,7 +92,7 @@ HUMAN_TALENT_DATABASE_URL=postgresql://user:pass@10.0.2.70:5432/db_human_talent 
 node scripts/apply-human-talent-sql.mjs
 ```
 
-El script aplica `sql/db_human_talent.sql` (idempotente). Despues del primer apply, correr el seed de `agr_followup_frequency` segun los valores reales de `gld.vw_tthh_asg_followup_scd2.follow_up_type` (ver `docs/datos.md`).
+El script aplica `sql/db_human_talent.sql` (idempotente), incluyendo el seed base de `agr_followup_frequency` con `T1..T5` segun los valores reales de `gld.mv_tthh_asgn_followup_scd2.follow_up_type` (ver `docs/datos.md`).
 
 ### Seguridad y sesion
 

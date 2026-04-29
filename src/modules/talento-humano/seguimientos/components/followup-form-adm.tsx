@@ -6,7 +6,6 @@ import { TextareaField } from "@/shared/forms/textarea-field";
 import { SingleSelectField } from "@/shared/filters/single-select-field";
 
 export type AdmFormState = {
-  admFreq: string;
   inductionSufficient: string;
   transportProblem: string;
   teamWelcome: string;
@@ -31,8 +30,6 @@ type DV = (v: string) => string;
 type Props = {
   state: AdmFormState;
   setField: SetField;
-  admFreqOpts: Opts; admFreqDV: DV;
-  yesNoOpts: Opts; yesNoDV: DV;
   adaptOpts: Opts; adaptDV: DV;
   satisfactionOpts: Opts; satisfactionDV: DV;
   retentionOpts: Opts; retentionDV: DV;
@@ -44,33 +41,30 @@ export function FollowupFormAdm({ state, setField, ...opts }: Props) {
   const sf = <K extends keyof AdmFormState>(k: K) => (v: AdmFormState[K]) => setField(k, v);
 
   return (
-    <>
-      <FormSection title="Seguimiento Administrativo">
-        <SingleSelectField id="adm-freq" label="Frecuencia de seguimiento *" value={s.admFreq} options={opts.admFreqOpts} displayValue={opts.admFreqDV} onChange={sf("admFreq")} />
-        <SingleSelectField id="induction-sufficient" label="¿Inducción suficiente?" value={s.inductionSufficient} options={opts.adaptOpts} displayValue={opts.adaptDV} onChange={sf("inductionSufficient")} />
-        <SingleSelectField id="transport-problem" label="¿Problema de transporte?" value={s.transportProblem} options={opts.yesNoOpts} displayValue={opts.yesNoDV} onChange={sf("transportProblem")} />
-        <SingleSelectField id="team-welcome" label="¿Bienvenida del equipo?" value={s.teamWelcome} options={opts.adaptOpts} displayValue={opts.adaptDV} onChange={sf("teamWelcome")} />
-        <TextareaField id="adaptation-neg-obs" label="Aspectos negativos de adaptación" value={s.adaptationNegObs} onChange={sf("adaptationNegObs")} rows={2} />
-        <TextareaField id="adaptation-suggestion" label="Sugerencia de adaptación" value={s.adaptationSuggestion} onChange={sf("adaptationSuggestion")} rows={2} />
+    <div className="grid gap-6 2xl:grid-cols-2">
+      <FormSection title="Primeros dias desde el ingreso">
+        <SingleSelectField id="induction-sufficient" label="Adaptacion inicial - ¿La induccion recibida fue suficiente? *" value={s.inductionSufficient} options={opts.adaptOpts} displayValue={opts.adaptDV} onChange={sf("inductionSufficient")} />
+        <SingleSelectField id="transport-problem" label="Adaptacion inicial - ¿Has tenido problemas para llegar al trabajo? *" value={s.transportProblem} options={opts.adaptOpts} displayValue={opts.adaptDV} onChange={sf("transportProblem")} />
+        <SingleSelectField id="team-welcome" label="Adaptacion inicial - ¿Te sentiste bien recibido por tu equipo? *" value={s.teamWelcome} options={opts.adaptOpts} displayValue={opts.adaptDV} onChange={sf("teamWelcome")} />
+        <TextareaField id="adaptation-neg-obs" label="Observaciones en que la respuesta sea no" value={s.adaptationNegObs} onChange={sf("adaptationNegObs")} rows={2} />
+        <TextareaField id="adaptation-suggestion" label="¿Tiene alguna sugerencia o requerimiento para poder mejorar su estadia dentro de la empresa?" value={s.adaptationSuggestion} onChange={sf("adaptationSuggestion")} rows={2} />
       </FormSection>
 
-      <FormSection title="Satisfacción">
-        <SingleSelectField id="role-clarity" label="Claridad del rol" value={s.roleClarity} options={opts.satisfactionOpts} displayValue={opts.satisfactionDV} onChange={sf("roleClarity")} />
-        <SingleSelectField id="work-environment" label="Ambiente de trabajo" value={s.workEnvironment} options={opts.satisfactionOpts} displayValue={opts.satisfactionDV} onChange={sf("workEnvironment")} />
-        <SingleSelectField id="equipment-satisfaction" label="Equipos y recursos" value={s.equipmentSatisfaction} options={opts.satisfactionOpts} displayValue={opts.satisfactionDV} onChange={sf("equipmentSatisfaction")} />
-        <TextareaField id="probation-suggestion" label="Sugerencia periodo prueba" value={s.probationSuggestion} onChange={sf("probationSuggestion")} rows={2} />
-        <SingleSelectField id="recent-work-satisfaction" label="Satisfacción últimos meses" value={s.recentWorkSatisfaction} options={opts.satisfactionOpts} displayValue={opts.satisfactionDV} onChange={sf("recentWorkSatisfaction")} />
+      <FormSection title="Final de mes - Periodo de prueba">
+        <SingleSelectField id="role-clarity" label="Nivel de satisfaccion - Claridad en funciones *" value={s.roleClarity} options={opts.satisfactionOpts} displayValue={opts.satisfactionDV} onChange={sf("roleClarity")} />
+        <SingleSelectField id="work-environment" label="Nivel de satisfaccion - Ambiente de trabajo *" value={s.workEnvironment} options={opts.satisfactionOpts} displayValue={opts.satisfactionDV} onChange={sf("workEnvironment")} />
+        <SingleSelectField id="equipment-satisfaction" label="Nivel de satisfaccion - Equipos e implementos *" value={s.equipmentSatisfaction} options={opts.satisfactionOpts} displayValue={opts.satisfactionDV} onChange={sf("equipmentSatisfaction")} />
+        <TextareaField id="probation-suggestion" label="¿Tiene alguna sugerencia o requerimiento para poder mejorar su estadia dentro de la empresa?" value={s.probationSuggestion} onChange={sf("probationSuggestion")} rows={2} />
       </FormSection>
 
-      <FormSection title="Mejora y permanencia">
-        <SingleSelectField id="work-aspect" label="Aspecto principal a mejorar" value={s.workAspectToImprove} options={opts.workAspectOpts} displayValue={opts.workAspectDV} onChange={sf("workAspectToImprove")} />
-        {s.workAspectToImprove === "other" && (
-          <TextInputField id="work-aspect-other" label="Especificar aspecto *" value={s.workAspectOther} onChange={sf("workAspectOther")} />
-        )}
-        <TextareaField id="dissatisfaction-detail" label="Detalle de insatisfacción" value={s.dissatisfactionDetail} onChange={sf("dissatisfactionDetail")} rows={2} />
-        <SingleSelectField id="final-retention" label="Intención de permanencia final" value={s.finalRetentionIntention} options={opts.retentionOpts} displayValue={opts.retentionDV} onChange={sf("finalRetentionIntention")} />
-        <TextareaField id="final-stay-suggestion" label="Sugerencia de permanencia" value={s.finalStaySuggestion} onChange={sf("finalStaySuggestion")} rows={2} />
+      <FormSection title="ADM seguimiento bimensual - trimestral">
+        <SingleSelectField id="recent-work-satisfaction" label="Nivel de satisfaccion con el trabajo en los ultimos meses *" value={s.recentWorkSatisfaction} options={opts.satisfactionOpts} displayValue={opts.satisfactionDV} onChange={sf("recentWorkSatisfaction")} />
+        <SingleSelectField id="work-aspect" label="¿Que aspectos de tu trabajo te gustaria que mejoraran? *" value={s.workAspectToImprove} options={opts.workAspectOpts} displayValue={opts.workAspectDV} onChange={sf("workAspectToImprove")} />
+        {s.workAspectToImprove === "other" ? <TextInputField id="work-aspect-other" label="Otros *" value={s.workAspectOther} onChange={sf("workAspectOther")} /> : null}
+        <TextareaField id="dissatisfaction-detail" label="Detalle el porque de su disgusto de la pregunta anterior" value={s.dissatisfactionDetail} onChange={sf("dissatisfactionDetail")} rows={2} />
+        <SingleSelectField id="final-retention" label="¿Por cuanto tiempo mas le gustaria seguir trabajando en la empresa? *" value={s.finalRetentionIntention} options={opts.retentionOpts} displayValue={opts.retentionDV} onChange={sf("finalRetentionIntention")} />
+        <TextareaField id="final-stay-suggestion" label="¿Tiene alguna sugerencia o requerimiento para poder mejorar su estadia dentro de la empresa?" value={s.finalStaySuggestion} onChange={sf("finalStaySuggestion")} rows={2} />
       </FormSection>
-    </>
+    </div>
   );
 }

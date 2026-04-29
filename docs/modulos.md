@@ -481,7 +481,7 @@ Vistas `gld.mv_camp_ind_bal_apertura_*` para cada nodo de balanza (BAL1→BAL1C,
 Permite a Trabajo Social consultar los seguimientos programados (AGR o ADM) y registrar las respuestas estructuradas directamente desde la interfaz.
 
 **Datos:**
-- Seguimientos programados: `gld.vw_tthh_asg_followup_scd2` (base principal DW).
+- Seguimientos programados: `gld.mv_tthh_asgn_followup_scd2` (base principal DW).
 - Perfil persona (punto en el tiempo): `slv.tthh_dim_person_profile_scd2` + `slv.tthh_asgn_person_area_event_scd2` (base principal).
 - Respuestas registradas: `db_human_talent.public.tthh_fact_employee_followup_response_cur` (cluster secundario).
 - Selecciones multiselect: `db_human_talent.public.tthh_asgn_employee_followup_catalog_selection_cur`.
@@ -493,7 +493,7 @@ La composición DW + db_human_talent se realiza **en la API** (no por SQL JOIN) 
 - `AGR` — Para colaboradores con `job_classification_code = 'AGRICOLA'` o `follow_up_type` agrícola.
 - `ADM` — Para colaboradores con `job_classification_code = 'ADMINISTRATIVO'`.
 
-**KPIs disponibles:** Programados, Pendientes, Registrados, Anulados.
+**KPIs disponibles:** Programados, Pendientes, Registrados.
 
 **Versionado de respuestas:** Cada respuesta tiene `correction_group_id` (identifica la cadena de correcciones), `response_version` (incrementa por corrección), `supersedes_event_id` (apunta a la versión anterior) e `is_latest_valid_version` (true solo en la última versión activa).
 
@@ -501,7 +501,7 @@ La composición DW + db_human_talent se realiza **en la API** (no por SQL JOIN) 
 - `panel:tthh.followups.view` — Ver seguimientos.
 - `panel:tthh.followups.write` — Registrar respuestas (POST).
 - `panel:tthh.followups.sensitive` — Ver campos sensibles (familia, embarazo, conflictos, RRHH).
-- `panel:tthh.followups.admin` — Corregir y anular (PATCH).
+- `panel:tthh.followups.admin` - Corregir (PATCH).
 
 **Archivos clave:**
 - `src/app/(dashboard)/dashboard/talento-humano/seguimientos/page.tsx`
