@@ -116,6 +116,12 @@ export async function loadScheduledFollowups(
     pIdx++;
   }
 
+  if (filters.area?.trim()) {
+    conditions.push(`a.area_name = $${pIdx}`);
+    params.push(filters.area.trim());
+    pIdx++;
+  }
+
   const whereClause = conditions.length > 0 ? `AND ${conditions.join(" AND ")}` : "";
 
   const dwResult = await query<ScheduledFollowupDwRow>(

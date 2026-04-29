@@ -182,3 +182,18 @@ export async function loadAssociatedWorkers(): Promise<string[]> {
 
   return result.rows.map((r) => r.associated_worker_name);
 }
+
+export async function loadAreaOptions(): Promise<string[]> {
+  const result = await query<{ area_name: string }>(
+    `
+    SELECT DISTINCT area_name
+    FROM slv.camp_dim_area_profile_scd2
+    WHERE is_current = true
+      AND is_valid = true
+      AND area_name IS NOT NULL
+    ORDER BY area_name
+    `,
+  );
+
+  return result.rows.map((r) => r.area_name);
+}

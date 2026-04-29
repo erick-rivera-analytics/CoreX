@@ -24,6 +24,7 @@ export type EmployeeFollowupBootPayload = {
   options: {
     routes: Array<{ value: string; label: string }>;
     associatedWorkers: string[];
+    areas: string[];
     years: string[];
     months: string[];
     statuses: Array<{ value: EmployeeFollowupStatus; label: string }>;
@@ -228,6 +229,7 @@ export type EmployeeFollowupFilters = {
   asOfDate: string;
   personSearch?: string;
   associatedWorker?: string;
+  area?: string;
   route?: EmployeeFollowupRouteCode | "";
   status?: EmployeeFollowupStatus | "all";
   year?: string;

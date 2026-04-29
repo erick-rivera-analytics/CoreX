@@ -1,18 +1,19 @@
 import { DashboardRouteError, loadProtectedPageData } from "@/modules/core/server-page";
 import { SeguimientosPage } from "@/modules/talento-humano/seguimientos/components/seguimientos-page";
 import { loadFollowupCatalogs } from "@/lib/talento-humano-seguimientos-catalogs";
-import { loadAssociatedWorkers } from "@/lib/talento-humano-seguimientos-person";
+import { loadAssociatedWorkers, loadAreaOptions } from "@/lib/talento-humano-seguimientos-person";
 import { loadFollowupDateOptions } from "@/lib/talento-humano-seguimientos-schedule";
 
 export const dynamic = "force-dynamic";
 
 async function loadBootData() {
-  const [catalogs, associatedWorkers, dateOptions] = await Promise.all([
+  const [catalogs, associatedWorkers, areas, dateOptions] = await Promise.all([
     loadFollowupCatalogs().catch(() => ({})),
     loadAssociatedWorkers().catch(() => []),
+    loadAreaOptions().catch(() => []),
     loadFollowupDateOptions().catch(() => ({ years: [], months: [] })),
   ]);
-  return { catalogs, associatedWorkers, dateOptions };
+  return { catalogs, associatedWorkers, areas, dateOptions };
 }
 
 export default async function SeguimientosTrabajadoraSocialPage() {
@@ -27,6 +28,7 @@ export default async function SeguimientosTrabajadoraSocialPage() {
     <SeguimientosPage
       initialCatalogs={data.catalogs}
       initialWorkers={data.associatedWorkers}
+      initialAreas={data.areas}
       initialDateOptions={data.dateOptions}
     />
   );

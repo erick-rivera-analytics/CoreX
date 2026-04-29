@@ -20,6 +20,7 @@ export async function GET(request: NextRequest) {
       asOfDate,
       personSearch: searchParams.get("q")?.trim() || undefined,
       associatedWorker: searchParams.get("associatedWorker")?.trim() || undefined,
+      area: searchParams.get("area")?.trim() || undefined,
       route: searchParams.get("route")?.trim() || undefined,
       status: searchParams.get("status")?.trim() || "all",
       year: searchParams.get("year")?.trim() || undefined,

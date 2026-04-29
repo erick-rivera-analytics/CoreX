@@ -29,6 +29,7 @@ import { FollowupWorkspace } from "@/modules/talento-humano/seguimientos/compone
 type Props = {
   initialCatalogs: EmployeeFollowupCatalogMap;
   initialWorkers: string[];
+  initialAreas: string[];
   initialDateOptions: { years: string[]; months: string[] };
 };
 
@@ -43,6 +44,7 @@ function buildFollowupQuery(filters: EmployeeFollowupFilters) {
   if (filters.asOfDate) params.set("asOfDate", filters.asOfDate);
   if (filters.personSearch) params.set("q", filters.personSearch);
   if (filters.associatedWorker) params.set("associatedWorker", filters.associatedWorker);
+  if (filters.area) params.set("area", filters.area);
   if (filters.route) params.set("route", filters.route);
   if (filters.status && filters.status !== "all") params.set("status", filters.status);
   if (filters.year && filters.year !== "all") params.set("year", filters.year);
@@ -63,7 +65,7 @@ const DEFAULT_FILTERS: EmployeeFollowupFilters = {
   month: currentMonth,
 };
 
-export function SeguimientosPage({ initialCatalogs, initialWorkers, initialDateOptions }: Props) {
+export function SeguimientosPage({ initialCatalogs, initialWorkers, initialAreas, initialDateOptions }: Props) {
   const [filters, setFilters] = useState<EmployeeFollowupFilters>(DEFAULT_FILTERS);
   const [selectedFollowup, setSelectedFollowup] = useState<EmployeeScheduledFollowupRow | null>(null);
 
@@ -78,6 +80,7 @@ export function SeguimientosPage({ initialCatalogs, initialWorkers, initialDateO
           { value: "ADM", label: "Administrativo" },
         ],
         associatedWorkers: initialWorkers,
+        areas: initialAreas,
         years: initialDateOptions.years,
         months: initialDateOptions.months,
         statuses: [
@@ -108,6 +111,7 @@ export function SeguimientosPage({ initialCatalogs, initialWorkers, initialDateO
   const catalogs = bootData?.catalogs ?? initialCatalogs;
   const permissions = bootData?.permissions ?? { canWrite: false, canSensitive: false, canAdmin: false };
   const workerOptions = bootData?.options.associatedWorkers ?? initialWorkers;
+  const areaOptions = bootData?.options.areas ?? initialAreas;
   const yearOptions = bootData?.options.years ?? initialDateOptions.years;
   const monthOptions = bootData?.options.months ?? initialDateOptions.months;
   const rows = followupsData?.rows ?? [];
@@ -139,7 +143,7 @@ export function SeguimientosPage({ initialCatalogs, initialWorkers, initialDateO
         icon={<UserSquare className="h-5 w-5" />}
       >
         <FilterPanel>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-9">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-10">
             <div className="min-w-0 space-y-2">
               <Label htmlFor="filter-person-search">Buscar</Label>
               <SearchInput
@@ -155,6 +159,14 @@ export function SeguimientosPage({ initialCatalogs, initialWorkers, initialDateO
               value={filters.associatedWorker ?? ""}
               options={workerOptions}
               onChange={(v) => setFilter("associatedWorker", v || undefined)}
+              emptyLabel="Todas"
+            />
+            <SingleSelectField
+              id="filter-area"
+              label="Área"
+              value={filters.area ?? ""}
+              options={areaOptions}
+              onChange={(v) => setFilter("area", v || undefined)}
               emptyLabel="Todas"
             />
             <SingleSelectField
@@ -226,6 +238,7 @@ export function SeguimientosPage({ initialCatalogs, initialWorkers, initialDateO
           onFollowupUpdated={handleFollowupUpdated}
           isLoading={isValidating}
           asOfDate={filters.asOfDate}
+          exportUrl={`/api/talento-humano/seguimientos/export-pdf?${qs}`}
         />
       )}
     </div>

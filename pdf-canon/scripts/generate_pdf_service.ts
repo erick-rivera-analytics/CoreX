@@ -34,7 +34,8 @@ export type CanonTemplateKey =
   | "acta_minuta"
   | "ficha_resumen"
   | "anexo_tecnico"
-  | "orden_trabajo_clasificacion";
+  | "orden_trabajo_clasificacion"
+  | "tthh_agenda_seguimientos";
 
 export type GeneratePdfPayload = {
   /**

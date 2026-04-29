@@ -293,6 +293,7 @@ export const followupFiltersSchema = z.object({
   asOfDate: isoDate().optional(),
   personSearch: trimmed.max(120).optional(),
   associatedWorker: trimmed.max(120).optional(),
+  area: trimmed.max(120).optional(),
   route: z.enum(["AGR", "ADM", ""]).optional(),
   status: z.enum(["pending", "registered", "all"]).optional(),
   year: selectList,

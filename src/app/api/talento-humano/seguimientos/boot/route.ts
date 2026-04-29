@@ -4,7 +4,7 @@ import { requireAuth, getCurrentUserAccess } from "@/lib/api-auth";
 import { handleApiError } from "@/lib/api-error";
 import { canAccessResource } from "@/lib/access-control";
 import { loadFollowupCatalogs } from "@/lib/talento-humano-seguimientos-catalogs";
-import { loadAssociatedWorkers } from "@/lib/talento-humano-seguimientos-person";
+import { loadAssociatedWorkers, loadAreaOptions } from "@/lib/talento-humano-seguimientos-person";
 import { loadFollowupDateOptions } from "@/lib/talento-humano-seguimientos-schedule";
 import type { EmployeeFollowupBootPayload } from "@/modules/talento-humano/seguimientos/server/types";
 
@@ -24,9 +24,10 @@ export async function GET(request: NextRequest) {
     const canSensitive = access.isSuperadmin || canAccessResource("panel:tthh.followups.sensitive", access.allowedResources, access.isSuperadmin);
     const canAdmin = access.isSuperadmin || canAccessResource("panel:tthh.followups.admin", access.allowedResources, access.isSuperadmin);
 
-    const [catalogs, associatedWorkers, dateOptions] = await Promise.all([
+    const [catalogs, associatedWorkers, areas, dateOptions] = await Promise.all([
       loadFollowupCatalogs(),
       loadAssociatedWorkers(),
+      loadAreaOptions(),
       loadFollowupDateOptions(),
     ]);
 
@@ -38,6 +39,7 @@ export async function GET(request: NextRequest) {
           { value: "ADM", label: "Administrativo" },
         ],
         associatedWorkers,
+        areas,
         years: dateOptions.years,
         months: dateOptions.months,
         statuses: [
