@@ -199,7 +199,7 @@ function isUnitDimension(value: string): value is BodegaUnitDimension {
 }
 
 function isCategoryLevel(value: string): value is BodegaCategoryLevel {
-  return value === "type" || value === "family" || value === "subfamily";
+  return value === "family" || value === "subfamily";
 }
 
 function isActiveComponentMode(value: string): value is BodegaActiveComponentMode {
@@ -975,15 +975,15 @@ async function validateCategoryParent(
   level: BodegaCategoryLevel,
   parentCategoryId: string | null,
 ) {
-  if (level === "type") {
+  if (level === "family") {
     if (parentCategoryId) {
-      throw new Error("Una categoria de tipo no puede tener categoria superior.");
+      throw new Error("Una familia raiz no puede tener categoria superior.");
     }
     return null;
   }
 
   if (!parentCategoryId) {
-    throw new Error("Debes seleccionar una categoria superior para esta rama.");
+    throw new Error("Debes seleccionar una familia superior para esta subfamilia.");
   }
 
   const parent = await getCurrentCategoryById(parentCategoryId);
@@ -991,11 +991,7 @@ async function validateCategoryParent(
     throw new Error("La categoria superior seleccionada no existe o ya no esta activa.");
   }
 
-  if (level === "family" && parent.level !== "type") {
-    throw new Error("Una familia solo puede colgar de un tipo.");
-  }
-
-  if (level === "subfamily" && parent.level !== "family") {
+  if (parent.level !== "family") {
     throw new Error("Una subfamilia solo puede colgar de una familia.");
   }
 

@@ -1,6 +1,5 @@
-﻿@import "tailwindcss";
-@source "../../src";
-@source not "../../borrar";
+@import "tailwindcss" source(none);
+@source "../**/*.{ts,tsx}";
 
 @custom-variant dark (&:is(.dark *));
 

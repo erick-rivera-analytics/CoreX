@@ -26,7 +26,7 @@ export type BodegaUnitInput = {
   changeReason?: string | null;
 };
 
-export type BodegaCategoryLevel = "type" | "family" | "subfamily";
+export type BodegaCategoryLevel = "family" | "subfamily";
 
 export type BodegaCategoryRecord = {
   categoryId: string;

@@ -34,7 +34,7 @@ type FormErrors = Partial<Record<keyof BodegaCategoryInput, string>>;
 const EMPTY_FORM_VALUES: BodegaCategoryInput = {
   code: "",
   name: "",
-  level: "type",
+  level: "family",
   parentCategoryId: null,
   sortOrder: 10,
   description: "",
@@ -43,7 +43,6 @@ const EMPTY_FORM_VALUES: BodegaCategoryInput = {
 };
 
 const LEVEL_OPTIONS: Array<{ value: BodegaCategoryLevel; label: string }> = [
-  { value: "type", label: "Tipo" },
   { value: "family", label: "Familia" },
   { value: "subfamily", label: "Subfamilia" },
 ];
@@ -69,7 +68,7 @@ function buildPayload(values: BodegaCategoryInput): BodegaCategoryInput {
     code: values.code.trim().toUpperCase(),
     name: values.name.trim(),
     level: values.level,
-    parentCategoryId: values.level === "type" ? null : (values.parentCategoryId?.trim() || null),
+    parentCategoryId: values.level === "family" ? null : (values.parentCategoryId?.trim() || null),
     sortOrder: Math.max(Math.round(Number(values.sortOrder) || 0), 0),
     description: values.description?.trim() || null,
     isActive: values.isActive,
@@ -83,7 +82,7 @@ function validateForm(values: BodegaCategoryInput): FormErrors {
 
   if (!payload.code) errors.code = "El codigo es obligatorio.";
   if (!payload.name) errors.name = "El nombre es obligatorio.";
-  if (payload.level !== "type" && !payload.parentCategoryId) {
+  if (payload.level === "subfamily" && !payload.parentCategoryId) {
     errors.parentCategoryId = "Debes seleccionar una categoria superior.";
   }
 
@@ -199,14 +198,13 @@ export function BodegaCategoriasPage({
 
     return {
       total: records.length,
-      types: records.filter((record) => record.level === "type").length,
+      families: records.filter((record) => record.level === "family").length,
       latest,
     };
   }, [records]);
 
   const availableParents = useMemo(() => {
-    if (formValues.level === "type") return [];
-    if (formValues.level === "family") return records.filter((record) => record.level === "type" && record.isActive);
+    if (formValues.level === "family") return [];
     return records.filter((record) => record.level === "family" && record.isActive);
   }, [formValues.level, records]);
 
@@ -222,7 +220,7 @@ export function BodegaCategoriasPage({
         return {
           ...current,
           level: nextLevel,
-          parentCategoryId: nextLevel === "type" ? null : current.parentCategoryId,
+          parentCategoryId: nextLevel === "family" ? null : current.parentCategoryId,
         };
       }
 
@@ -315,7 +313,7 @@ export function BodegaCategoriasPage({
       <SectionPageShell
         eyebrow="Gestion / Bodega / Administrar Maestros"
         title="Configurar catalogo"
-        subtitle="Arbol operativo del catalogo de Bodega. Cada guardado crea una nueva version vigente y conserva trazabilidad SCD2 en db_camp.public."
+        subtitle="Arbol operativo del catalogo de Bodega organizado en familias y subfamilias. Cada guardado crea una nueva version vigente y conserva trazabilidad SCD2 en db_camp.public."
         icon={<ClipboardList className="size-5" aria-hidden="true" />}
         actions={(
           <div className="flex flex-wrap gap-2">
@@ -332,8 +330,8 @@ export function BodegaCategoriasPage({
       >
         <FilterPanel>
           <KpiGrid>
-            <MetricTile label="Ramas activas" value={String(summary.total)} hint="Tipos, familias y subfamilias vigentes." />
-            <MetricTile label="Tipos raiz" value={String(summary.types)} hint="Ramas superiores del arbol." />
+            <MetricTile label="Ramas activas" value={String(summary.total)} hint="Familias y subfamilias vigentes." />
+            <MetricTile label="Familias raiz" value={String(summary.families)} hint="Ramas superiores del arbol." />
             <MetricTile label="Ultima carga" value={summary.latest?.loadedAt ? formatDateTime(summary.latest.loadedAt) : "-"} hint="Fecha de la ultima version guardada." />
           </KpiGrid>
 
@@ -430,9 +428,9 @@ export function BodegaCategoriasPage({
                     className="flex h-10 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm"
                     value={formValues.parentCategoryId ?? ""}
                     onChange={(event) => updateField("parentCategoryId", event.target.value || null)}
-                    disabled={formValues.level === "type"}
+                    disabled={formValues.level === "family"}
                   >
-                    <option value="">{formValues.level === "type" ? "No aplica" : "Selecciona una rama"}</option>
+                    <option value="">{formValues.level === "family" ? "No aplica" : "Selecciona una familia"}</option>
                     {availableParents.map((option) => (
                       <option key={option.categoryId} value={option.categoryId}>{option.pathLabel}</option>
                     ))}
@@ -510,7 +508,7 @@ export function BodegaCategoriasPage({
                     className="flex min-h-[96px] w-full rounded-xl border border-input bg-background px-3 py-2 text-sm"
                     value={formValues.changeReason ?? ""}
                     onChange={(event) => updateField("changeReason", event.target.value)}
-                    placeholder="Opcional. Ej. reorganizacion de taxonomia de empaque."
+                    placeholder="Opcional. Ej. reorganizacion de familias y subfamilias de bodega."
                   />
                 </div>
               </div>

@@ -168,6 +168,11 @@ const API_ACCESS_RULES_UNSORTED: ApiAccessRule[] = [
     requiredResources: ["/dashboard/mortality"],
   },
   {
+    pathnamePrefix: "/api/campo/administrar-maestros/programacion-drench",
+    policy: "resource-bound",
+    requiredResources: ["/dashboard/campo/administrar-maestros/programacion-drench"],
+  },
+  {
     pathnamePrefix: "/api/bodega/administrar-maestros/actividades-fuente",
     policy: "resource-bound",
     requiredResources: ["/dashboard/bodega/administrar-maestros/productos"],
