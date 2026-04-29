@@ -97,7 +97,7 @@ export function SeguimientosPage({ initialCatalogs, initialWorkers }: Props) {
   return (
     <div className="space-y-4">
       <SectionPageShell
-        eyebrow="Dashboard / Indicadores / Talento Humano"
+        eyebrow="Gestión / Talento Humano / Registros"
         title="Seguimientos Trabajo Social"
         subtitle="Consulta seguimientos programados y registra respuestas AGR/ADM."
         icon={<UserSquare className="h-5 w-5" />}

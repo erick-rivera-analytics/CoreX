@@ -19,7 +19,7 @@ Referencia por módulo activo: propósito, datos, KPIs, archivos clave y endpoin
 | [Composición Laboral](#composicion-laboral) | `/dashboard/talento-humano/composicion-laboral` | Dashboard |
 | [Demografía Personal](#demografia-personal) | `/dashboard/talento-humano/demografia-personal` | Dashboard |
 | [Rotación Laboral](#rotacion-laboral) | `/dashboard/talento-humano/rotacion-laboral` | Dashboard |
-| [Seguimientos Trabajo Social](#seguimientos-trabajo-social) | `/dashboard/talento-humano/seguimientos` | Dashboard |
+| [Seguimientos Trabajo Social](#seguimientos-trabajo-social) | `/dashboard/talento-humano/seguimientos` | Gestión |
 | [Programaciones](#programaciones) | `/dashboard/programaciones` | Gestión |
 | [Administrar SKUs](#administrar-skus) | `/dashboard/postcosecha/administrar-maestros/skus` | Gestión |
 | [Clasificación en Blanco](#clasificacion-en-blanco) | `/dashboard/postcosecha/planificacion/solver/clasificacion-en-blanco` | Gestión |
@@ -476,7 +476,7 @@ Vistas `gld.mv_camp_ind_bal_apertura_*` para cada nodo de balanza (BAL1→BAL1C,
 
 **Clave catálogo:** `talento-seguimientos`
 **Ruta:** `/dashboard/talento-humano/seguimientos`
-**Sección:** Dashboard / Indicadores / Talento Humano
+**Sección:** Gestión / Talento Humano / Registros
 
 Permite a Trabajo Social consultar los seguimientos programados (AGR o ADM) y registrar las respuestas estructuradas directamente desde la interfaz.
 
