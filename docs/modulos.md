@@ -514,6 +514,8 @@ La composición DW + db_human_talent se realiza **en la API** (no por SQL JOIN) 
 
 **API endpoints:** `GET /api/talento-humano/seguimientos/boot`, `GET /api/talento-humano/seguimientos/followup-search`, `POST /api/talento-humano/seguimientos/responses` (+ más — ver `docs/apis.md`).
 
+**Prerequisito de BD:** antes de registrar respuestas, aplicar `sql/db_human_talent.sql` contra `db_human_talent` (ver `docs/despliegue.md`). Si la BD no está lista, el módulo carga con selectores vacíos (degradación graceful) pero el POST falla. El catálogo `agr_followup_frequency` requiere seed manual post-descubrimiento (ver `docs/datos.md`).
+
 ---
 
 ## Módulos ocultos (no activos en nav)

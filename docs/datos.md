@@ -551,7 +551,32 @@ Implementado en `src/lib/talento-humano-seguimientos-person.ts`.
 ### Aplicar el SQL
 
 ```bash
+# Con URL completa:
+HUMAN_TALENT_DATABASE_URL=postgresql://user:pass@10.0.2.70:5432/db_human_talent \
+  node scripts/apply-human-talent-sql.mjs
+
+# O con variables split en .env.local y el script las lee automáticamente:
 node scripts/apply-human-talent-sql.mjs
-# Lee HUMAN_TALENT_DATABASE_URL o split config desde .env.local
-# Aplica sql/db_human_talent.sql (idempotente: CREATE TABLE IF NOT EXISTS, INSERT ... ON CONFLICT DO NOTHING)
 ```
+
+El script aplica `sql/db_human_talent.sql` (idempotente: `CREATE TABLE IF NOT EXISTS`, `INSERT ... WHERE NOT EXISTS`).
+
+### Seed pendiente: agr_followup_frequency
+
+El catálogo `agr_followup_frequency` **no se seedea automáticamente** porque sus valores dependen de `gld.vw_tthh_asg_followup_scd2.follow_up_type` en el DW real. Pasos:
+
+1. Consultar en DW: `SELECT DISTINCT follow_up_type FROM gld.vw_tthh_asg_followup_scd2 ORDER BY 1;`
+2. Mapear cada valor real a un `item_code` en inglés (`type_1`, `weekly`, etc.).
+3. Insertar en `db_human_talent`:
+
+```sql
+INSERT INTO public.common_dim_catalog_item_scd2
+  (catalog_code, item_code, item_label_es, display_order, run_id, change_reason)
+VALUES
+  ('agr_followup_frequency', '<item_code>', '<label_es>', <ord>, 'seed_agr_freq_v1', 'initial_load')
+ON CONFLICT DO NOTHING;
+```
+
+### Degradación graceful
+
+Si `db_human_talent` no está disponible o el SQL aún no se aplicó, `loadFollowupCatalogs()` captura la excepción y devuelve un mapa vacío. El módulo carga correctamente pero los selectores del formulario aparecen vacíos. Registrar una respuesta falla con error de validación hasta que la BD esté lista.

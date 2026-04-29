@@ -363,7 +363,8 @@ Referencia completa de todos los endpoints REST de CoreX v4. Reemplaza el archiv
 
 ### `GET /api/talento-humano/seguimientos/boot`
 Carga inicial: catálogos del módulo, lista de trabajadoras sociales y permisos del usuario.  
-**Response:** `EmployeeFollowupBootPayload` — `{ catalogs, associatedWorkers, permissions }`
+**Response:** `EmployeeFollowupBootPayload` — `{ catalogs, associatedWorkers, permissions }`  
+**Degradación graceful:** si `db_human_talent` no está disponible o el SQL no se ha aplicado, `catalogs` retorna `{}` (mapa vacío) y la respuesta sigue siendo 200. El módulo carga pero los selectores del formulario aparecen vacíos.
 
 ### `GET /api/talento-humano/seguimientos/followup-search`
 Lista seguimientos programados con filtros.  

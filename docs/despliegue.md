@@ -79,6 +79,21 @@ psql "$PERSONAL_WORKSPACE_DATABASE_URL" -f sql/db_personal_workspace.sql
 
 Si se usa configuracion separada por host/usuario en vez de URL, aplicar el SQL contra la base `db_personal_workspace` con las mismas credenciales configuradas para la app.
 
+`HUMAN_TALENT_DATABASE_URL` o `HUMAN_TALENT_DATABASE_NAME=db_human_talent` es requerido para `/dashboard/talento-humano/seguimientos` (Seguimientos Trabajo Social). El modulo carga con selectores vacios si la BD no esta disponible (degradacion graceful), pero registrar respuestas falla hasta que el SQL se aplique.
+
+Antes de habilitar ese modulo, aplicar manualmente en `db_human_talent`:
+
+```bash
+# Con URL:
+HUMAN_TALENT_DATABASE_URL=postgresql://user:pass@10.0.2.70:5432/db_human_talent \
+  node scripts/apply-human-talent-sql.mjs
+
+# O con variables split ya en .env (usa DATABASE_HOST/PORT/USER/PASSWORD + HUMAN_TALENT_DATABASE_NAME):
+node scripts/apply-human-talent-sql.mjs
+```
+
+El script aplica `sql/db_human_talent.sql` (idempotente). Despues del primer apply, correr el seed de `agr_followup_frequency` segun los valores reales de `gld.vw_tthh_asg_followup_scd2.follow_up_type` (ver `docs/datos.md`).
+
 ### Seguridad y sesion
 
 ```env
