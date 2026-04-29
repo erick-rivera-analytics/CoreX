@@ -409,6 +409,62 @@ Corrige, anula o reactiva una respuesta existente.
 
 ---
 
+## Talento Humano — Administrar Maestros
+
+**Política:** `resource-bound` → requiere acceso a `/dashboard/talento-humano/administrar-maestros/catalogos` o `/dominios`.  
+**Prefijo:** `/api/talento-humano/catalogos`  
+**BD:** `db_human_talent.public` (cluster secundario).
+
+### `GET /api/talento-humano/catalogos`
+Lista dominios, grupos y ítems de catálogos TTHH.  
+**Response:** `{ domains: TthhCatalogDomain[]; groups: TthhCatalogGroup[]; items: TthhCatalogItem[] }`
+
+### `POST /api/talento-humano/catalogos`
+Crea o actualiza dominios, grupos o ítems de catálogo.  
+**Body:** `{ entity: "domain" | "group" | "item", ...campos }`
+
+### `PATCH /api/talento-humano/catalogos`
+Activa/desactiva un dominio, grupo o ítem.  
+**Body:** `{ entity, code, isValid: boolean }`
+
+---
+
+## Campo — Programación Drench
+
+**Política:** `resource-bound` → requiere acceso a `/dashboard/campo/administrar-maestros/programacion-drench`.  
+**Prefijo:** `/api/campo/administrar-maestros/programacion-drench`  
+**BD:** `db_camp` (pool de Campo). Productos asignables filtrados por `activity_id = 'FM11'`.
+
+### `GET /api/campo/administrar-maestros/programacion-drench`
+Lista reglas activas de drench + productos asignables (FM11).  
+**Response:** `{ rules: DrenchProgramRuleRecord[]; assignableProducts: ... }`
+
+### `POST /api/campo/administrar-maestros/programacion-drench`
+Crea una nueva regla de drench con sus líneas de productos.  
+**Body:** `DrenchProgramRuleInput`  
+**Response:** `{ ruleId: string }` — status 201
+
+### `PATCH /api/campo/administrar-maestros/programacion-drench/[ruleId]`
+Actualiza o desactiva una regla existente.  
+**Body:** `Partial<DrenchProgramRuleInput>`
+
+---
+
+## Administración — Maestros Centrales
+
+**Política:** `resource-bound` → requiere acceso a `/dashboard/admin/administracion-maestros/metricas` o `/metas-objetivos`.  
+**Prefijo:** `/api/admin/administracion-maestros`
+
+### `GET /api/admin/administracion-maestros/goals`
+Lista métricas, objetivos, metas y dimensiones del sistema.  
+**Response:** `{ metrics: GoalRow[]; objectives: GoalRow[]; targets: GoalRow[]; dimensions: GoalRow[] }`
+
+### `POST /api/admin/administracion-maestros/goals`
+Crea métricas, objetivos, metas o dimensiones.  
+**Body:** `{ entity: "metric" | "objective" | "target" | "dimension", ...campos }`
+
+---
+
 ## Notas generales
 
 ### Encoding de path params

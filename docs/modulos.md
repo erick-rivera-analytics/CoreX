@@ -20,9 +20,14 @@ Referencia por módulo activo: propósito, datos, KPIs, archivos clave y endpoin
 | [Demografía Personal](#demografia-personal) | `/dashboard/talento-humano/demografia-personal` | Dashboard |
 | [Rotación Laboral](#rotacion-laboral) | `/dashboard/talento-humano/rotacion-laboral` | Dashboard |
 | [Seguimientos Trabajo Social](#seguimientos-trabajo-social) | `/dashboard/talento-humano/seguimientos` | Gestión |
+| [Dominios TTHH](#dominios-tthh) | `/dashboard/talento-humano/administrar-maestros/dominios` | Gestión |
+| [Catálogos TTHH](#catalogos-tthh) | `/dashboard/talento-humano/administrar-maestros/catalogos` | Gestión |
+| [Programación Drench](#programacion-drench) | `/dashboard/campo/administrar-maestros/programacion-drench` | Gestión |
 | [Programaciones](#programaciones) | `/dashboard/programaciones` | Gestión |
 | [Administrar SKUs](#administrar-skus) | `/dashboard/postcosecha/administrar-maestros/skus` | Gestión |
 | [Clasificación en Blanco](#clasificacion-en-blanco) | `/dashboard/postcosecha/planificacion/solver/clasificacion-en-blanco` | Gestión |
+| [Métricas](#metricas-admin) | `/dashboard/admin/administracion-maestros/metricas` | Administración |
+| [Metas & Objetivos](#metas-objetivos) | `/dashboard/admin/administracion-maestros/metas-objetivos` | Administración |
 | [Usuarios](#usuarios) | `/dashboard/admin/seguridad/usuarios` | Administración |
 | [Mi trabajo](#mi-trabajo) | `/dashboard/mi-trabajo` | Personal |
 | [Mi cuenta](#mi-cuenta) | `/dashboard/mi-cuenta` | Personal |
@@ -518,6 +523,104 @@ La composición DW + db_human_talent se realiza **en la API** (no por SQL JOIN) 
 
 ---
 
+## Dominios TTHH
+
+**Clave catálogo:** `talento-dominios`
+**Ruta:** `/dashboard/talento-humano/administrar-maestros/dominios`
+**Sección:** Gestión / Talento Humano / Administrar Maestros
+
+Administración de dominios que agrupan catálogos por formulario o proceso de Talento Humano (ej. `seguimientos_agr`, `seguimientos_adm`).
+
+**Datos:** `db_human_talent.public.common_dim_catalog_group_scd2` — grupos de catálogo agrupados por dominio.
+
+**Archivos clave:**
+- `src/app/(dashboard)/dashboard/talento-humano/administrar-maestros/dominios/page.tsx`
+- `src/modules/admin-masters/components/tthh-domains-admin-page.tsx`
+- `src/lib/admin-masters.ts`
+
+**API endpoints:** `GET/POST/PATCH /api/talento-humano/catalogos`
+
+---
+
+## Catálogos TTHH
+
+**Clave catálogo:** `talento-catalogos`
+**Ruta:** `/dashboard/talento-humano/administrar-maestros/catalogos`
+**Sección:** Gestión / Talento Humano / Administrar Maestros
+
+Administración de ítems de catálogo para los formularios de Seguimientos Trabajo Social (opciones de selección, etiquetas, orden de visualización).
+
+**Datos:** `db_human_talent.public.common_dim_catalog_item_scd2` — ítems dentro de cada grupo de catálogo.
+
+**Archivos clave:**
+- `src/app/(dashboard)/dashboard/talento-humano/administrar-maestros/catalogos/page.tsx`
+- `src/modules/admin-masters/components/tthh-catalogs-admin-page.tsx`
+- `src/lib/admin-masters.ts`
+
+**API endpoints:** `GET/POST/PATCH /api/talento-humano/catalogos`
+
+---
+
+## Programación Drench
+
+**Clave catálogo:** `campo-drench-program`
+**Ruta:** `/dashboard/campo/administrar-maestros/programacion-drench`
+**Sección:** Gestión / Campo / Administrar Maestros
+
+Reglas editables de drench por semana fenológica, tipo de ciclo (`S` = sencillo, `P` = programa) y variedad. Cada regla agrupa líneas de productos FM11 de Bodega con cantidad, método de aplicación y litros por cama.
+
+**Datos:**
+- Reglas y líneas: tablas en BD de Campo (`db_camp`) — `campo_drench_program_rule_cur` y `campo_drench_program_line_cur`.
+- Productos asignables: `bodega_product_master_cur` filtrado por `activity_id = 'FM11'`.
+
+**Lib:** `src/lib/campo-drench-program.ts`, tipos en `src/lib/campo-drench-program-types.ts` (`DrenchProgramCycleType = "S" | "P"`, `DRENCH_PROGRAM_ACTIVITY_ID = "FM11"`).
+
+**Archivos clave:**
+- `src/app/(dashboard)/dashboard/campo/administrar-maestros/programacion-drench/page.tsx`
+- `src/modules/campo/components/campo-drench-program-page.tsx`
+- `src/lib/campo-drench-program.ts`
+- `src/lib/campo-drench-program-types.ts`
+- `scripts/seed-drench-program-from-workbook.py`
+- `docs/drench_program_source.xlsx`
+
+**API endpoints:** `GET/POST /api/campo/administrar-maestros/programacion-drench`, `PATCH /api/campo/administrar-maestros/programacion-drench/[ruleId]`
+
+---
+
+## Métricas (Admin) {#metricas-admin}
+
+**Clave catálogo:** `admin-metrics`
+**Ruta:** `/dashboard/admin/administracion-maestros/metricas`
+**Sección:** Administración / Administración Maestros
+
+Maestro de métricas reutilizables para objetivos, metas y tableros del sistema.
+
+**Archivos clave:**
+- `src/app/(dashboard)/dashboard/admin/administracion-maestros/metricas/page.tsx`
+- `src/modules/admin-masters/components/admin-metrics-page.tsx`
+- `src/lib/admin-masters.ts`
+
+**API endpoints:** `GET/POST /api/admin/administracion-maestros/goals`
+
+---
+
+## Metas & Objetivos
+
+**Clave catálogo:** `admin-goals`
+**Ruta:** `/dashboard/admin/administracion-maestros/metas-objetivos`
+**Sección:** Administración / Administración Maestros
+
+Administración de objetivos, metas, dimensiones y su vinculación con métricas del sistema.
+
+**Archivos clave:**
+- `src/app/(dashboard)/dashboard/admin/administracion-maestros/metas-objetivos/page.tsx`
+- `src/modules/admin-masters/components/admin-masters-page.tsx`
+- `src/lib/admin-masters.ts`
+
+**API endpoints:** `GET/POST /api/admin/administracion-maestros/goals`
+
+---
+
 ## Módulos ocultos (no activos en nav)
 
 | Módulo | Ruta | Estado |
@@ -525,5 +628,6 @@ La composición DW + db_human_talent se realiza **en la API** (no por SQL JOIN) 
 | Postcosecha Registros | `/dashboard/postcosecha/registros` | `hidden` |
 | Postcosecha Programaciones | `/dashboard/postcosecha/planificacion/programaciones` | `hidden` |
 | Postcosecha Plan de Trabajo | `/dashboard/postcosecha/planificacion/plan-de-trabajo` | `hidden` |
+| Administración Maestros (overview) | `/dashboard/admin/administracion-maestros` | `hidden` |
 
 Accesibles con permisos explícitos pero no visibles en navegación.

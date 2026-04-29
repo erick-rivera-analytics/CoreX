@@ -17,7 +17,7 @@ La estructura correcta queda separada en 5 capas:
    - componente activo
 
 2. `Catalogo`
-   - clasifica el producto en un arbol `Tipo > Familia > Subfamilia`
+   - clasifica el producto en un arbol `Familia > Subfamilia`
 
 3. `Unidad`
    - define la unidad base homologada desde el maestro de Unidades
@@ -165,7 +165,7 @@ El workbook de propuesta debe servir para 2 cosas:
 Por eso el archivo incluye:
 
 - hoja de productos
-- hojas de tipos / familias / ramas
+- hojas de familias / subfamilias / ramas
 - hoja de actividades fuente para referencia
 - columnas editables para que negocio defina que `activity_id` aplica a cada producto
 

@@ -20,6 +20,8 @@ CATEGORY_DIM_TABLE = "public.bodega_dim_category_profile_scd2"
 PRODUCT_REF_TABLE = "public.bodega_ref_product_id_core_scd2"
 PRODUCT_DIM_TABLE = "public.bodega_dim_product_profile_scd2"
 PRODUCT_USAGE_TABLE = "public.bodega_bridge_product_usage_scd2"
+PRESENTATION_REF_TABLE = "public.bodega_ref_product_presentation_id_core_scd2"
+PRESENTATION_DIM_TABLE = "public.bodega_dim_product_presentation_profile_scd2"
 
 
 @dataclass
@@ -28,11 +30,13 @@ class PreparedProduct:
     product_code: str
     product_name: str
     unit_code: str
+    unit_name: str
+    unit_dimension: str
+    unit_precision: int
     active_component_mode: str
     active_component_name: str | None
-    tipo: str
-    familia: str
-    subfamilia: str
+    family: str
+    subfamily: str
     assignments: list[str]
 
 
@@ -49,7 +53,7 @@ def load_env(file_path: Path) -> dict[str, str]:
 
 def clean(value: object) -> str:
     if value is None:
-      return ""
+        return ""
     return re.sub(r"\s+", " ", str(value)).strip()
 
 
@@ -69,57 +73,8 @@ def record_id() -> str:
     return str(uuid.uuid4())
 
 
-def map_unit_name(unit_code: str) -> tuple[str, str, int]:
-    normalized = normalize_code(unit_code)
-    mapping = {
-        "UN": ("Unidad", "Unidad", 0),
-        "UND": ("Unidad", "Unidad", 0),
-        "PR": ("Par", "Unidad", 0),
-        "CJ": ("Caja", "Unidad", 0),
-        "PK": ("Paquete", "Unidad", 0),
-        "SA": ("Saco", "Unidad", 0),
-        "RO": ("Rollo", "Unidad", 0),
-        "RM": ("Rollo madre", "Unidad", 0),
-        "KG": ("Kilogramo", "Peso", 2),
-        "GR": ("Gramo", "Peso", 2),
-        "LT": ("Litro", "Volumen", 2),
-        "CC": ("Centimetro cubico", "Volumen", 2),
-        "GL": ("Galon", "Volumen", 2),
-        "GA": ("Galon", "Volumen", 2),
-        "M3": ("Metro cubico", "Volumen", 3),
-        "P3": ("Pie cubico", "Volumen", 3),
-        "PIE3": ("Pie cubico", "Volumen", 3),
-        "MT": ("Metro", "Longitud", 2),
-    }
-    if normalized in mapping:
-        name, dimension, precision = mapping[normalized]
-        return name, dimension, precision
-    return normalized or "Unidad", "Unidad", 0
-
-
-def normalize_unit_code(raw_unit: str) -> str:
-    normalized = normalize_code(raw_unit)
-    aliases = {
-        "UND": "UN",
-        "UNID": "UN",
-    }
-    return aliases.get(normalized, normalized)
-
-
-def is_valid_unit_code(unit_code: str) -> bool:
-    if not unit_code:
-        return False
-    if len(unit_code) > 12:
-        return False
-    return True
-
-
-def source_priority(source_sheet: str) -> int:
-    return 0 if source_sheet == "Presupuesto" else 1
-
-
 def load_products_from_workbook(path: Path) -> tuple[list[PreparedProduct], dict[str, int]]:
-    wb = load_workbook(path, read_only=True)
+    wb = load_workbook(path, read_only=True, data_only=True)
     ws = wb["Productos"]
     rows = ws.iter_rows(min_row=1, values_only=True)
     headers = [clean(value) for value in next(rows)]
@@ -129,7 +84,7 @@ def load_products_from_workbook(path: Path) -> tuple[list[PreparedProduct], dict
     summary = {
         "rows_seen": 0,
         "rows_skipped_invalid_code": 0,
-        "rows_skipped_invalid_unit": 0,
+        "rows_skipped_invalid_category": 0,
         "rows_grouped_duplicates": 0,
     }
 
@@ -140,10 +95,10 @@ def load_products_from_workbook(path: Path) -> tuple[list[PreparedProduct], dict
             summary["rows_skipped_invalid_code"] += 1
             continue
 
-        raw_unit = clean(row[idx["unidad"]])
-        unit_code = normalize_unit_code(raw_unit)
-        if not is_valid_unit_code(unit_code):
-            summary["rows_skipped_invalid_unit"] += 1
+        family = normalize_name(row[idx["familia_propuesta"]])
+        subfamily = normalize_name(row[idx["subfamilia_propuesta"]])
+        if not family or not subfamily:
+            summary["rows_skipped_invalid_category"] += 1
             continue
 
         grouped[product_code].append(
@@ -151,12 +106,14 @@ def load_products_from_workbook(path: Path) -> tuple[list[PreparedProduct], dict
                 "source_sheet": clean(row[idx["source_sheet"]]),
                 "product_code": product_code,
                 "product_name": normalize_name(row[idx["descripcion"]]),
-                "unit_code": unit_code,
+                "unit_code": normalize_code(row[idx["unidad_propuesta"]]),
+                "unit_name": normalize_name(row[idx["unidad_nombre_propuesta"]]),
+                "unit_dimension": normalize_name(row[idx["dimension_unidad_propuesta"]]),
+                "unit_precision": int(row[idx["precision_unidad_propuesta"]] or 0),
                 "active_component_mode": normalize_code(row[idx["active_component_mode_propuesto"]]).lower() or "na",
                 "active_component_name": normalize_name(row[idx["ingrd_activo"]]) or None,
-                "tipo": normalize_name(row[idx["tipo_propuesto"]]),
-                "familia": normalize_name(row[idx["familia_propuesta"]]),
-                "subfamilia": normalize_name(row[idx["subfamilia_propuesta"]]),
+                "family": family,
+                "subfamily": subfamily,
                 "assignments": [
                     normalize_code(row[idx["activity_id_1"]]),
                     normalize_code(row[idx["activity_id_2"]]),
@@ -169,30 +126,41 @@ def load_products_from_workbook(path: Path) -> tuple[list[PreparedProduct], dict
     for product_code, options in grouped.items():
         if len(options) > 1:
             summary["rows_grouped_duplicates"] += len(options) - 1
+
         selected = sorted(
             options,
             key=lambda item: (
-                source_priority(str(item["source_sheet"])),
-                len(str(item["product_name"])),
-                len(str(item["unit_code"])),
+                0 if str(item["source_sheet"]) == "Presupuesto" else 1,
+                0 if str(item["active_component_mode"]) == "applies" else 1,
+                0 if str(item["product_name"]).strip() else 1,
             ),
-            reverse=False,
         )[0]
+
+        product_name = str(selected["product_name"]).strip() or product_code
+        active_component_mode = str(selected["active_component_mode"])
+        active_component_name = selected["active_component_name"]
+        if active_component_mode != "applies":
+            active_component_mode = "na"
+            active_component_name = None
+
         products.append(
             PreparedProduct(
                 source_sheet=str(selected["source_sheet"]),
                 product_code=product_code,
-                product_name=str(selected["product_name"]),
-                unit_code=str(selected["unit_code"]),
-                active_component_mode=str(selected["active_component_mode"]) if str(selected["active_component_mode"]) in {"applies", "na"} else "na",
-                active_component_name=selected["active_component_name"],
-                tipo=str(selected["tipo"]),
-                familia=str(selected["familia"]),
-                subfamilia=str(selected["subfamilia"]),
+                product_name=product_name,
+                unit_code=str(selected["unit_code"]) or "UN",
+                unit_name=str(selected["unit_name"]) or "Unidad",
+                unit_dimension=str(selected["unit_dimension"]) or "Unidad",
+                unit_precision=int(selected["unit_precision"] or 0),
+                active_component_mode=active_component_mode,
+                active_component_name=active_component_name,
+                family=str(selected["family"]),
+                subfamily=str(selected["subfamily"]),
                 assignments=[activity_id for activity_id in selected["assignments"] if activity_id],
             )
         )
 
+    wb.close()
     return products, summary
 
 
@@ -207,6 +175,21 @@ def fetch_valid_activity_ids(cur) -> set[str]:
         """
     )
     return {normalize_code(row[0]) for row in cur.fetchall()}
+
+
+def clear_bodega_tables(cur) -> None:
+    for table in [
+        PRODUCT_USAGE_TABLE,
+        PRESENTATION_DIM_TABLE,
+        PRESENTATION_REF_TABLE,
+        PRODUCT_DIM_TABLE,
+        PRODUCT_REF_TABLE,
+        CATEGORY_DIM_TABLE,
+        CATEGORY_REF_TABLE,
+        UNIT_DIM_TABLE,
+        UNIT_REF_TABLE,
+    ]:
+        cur.execute(f"delete from {table}")
 
 
 def main() -> None:
@@ -231,24 +214,20 @@ def main() -> None:
         sslmode="require" if env.get("DATABASE_SSL") == "true" else "prefer",
     )
 
-    now = "2026-04-27T12:00:00"
-    run_id = "bodega_seed_workbook_v1"
+    now = "2026-04-29T10:30:00"
+    run_id = "bodega_seed_workbook_v2"
     actor_id = "corex_bodega_seed"
-    change_reason = "SEED_FROM_BODEGA_WORKBOOK"
+    change_reason = "RESET_AND_SEED_FROM_BODEGA_WORKBOOK_V2"
 
     with conn, conn.cursor() as cur, source_conn, source_conn.cursor() as source_cur:
-        for table in [UNIT_DIM_TABLE, CATEGORY_DIM_TABLE, PRODUCT_DIM_TABLE, PRODUCT_USAGE_TABLE]:
-            cur.execute(f"select count(*) from {table} where is_current = true")
-            total = int(cur.fetchone()[0] or 0)
-            if total > 0:
-                raise RuntimeError(f"El seed inicial requiere tablas vacias. {table} ya tiene {total} registros vigentes.")
-
         valid_activity_ids = fetch_valid_activity_ids(source_cur)
+        clear_bodega_tables(cur)
 
         invalid_assignment_count = 0
         for product in products:
+            original_count = len(product.assignments)
             product.assignments = [activity_id for activity_id in product.assignments if activity_id in valid_activity_ids]
-            invalid_assignment_count += 3 - len(product.assignments) if len(product.assignments) < 3 else 0
+            invalid_assignment_count += max(original_count - len(product.assignments), 0)
 
         products_by_name: dict[str, list[PreparedProduct]] = defaultdict(list)
         for product in products:
@@ -258,12 +237,17 @@ def main() -> None:
                 for product in same_name_products:
                     product.product_name = f"{product.product_name} ({product.product_code})"
 
-        used_units = sorted({product.unit_code for product in products})
+        used_units = sorted(
+            {
+                (product.unit_code, product.unit_name, product.unit_dimension, product.unit_precision)
+                for product in products
+            },
+            key=lambda item: item[0],
+        )
         unit_id_by_code: dict[str, str] = {}
-        for unit_code in used_units:
+        for unit_code, unit_name, unit_dimension, unit_precision in used_units:
             unit_id = entity_id("bunit", f"bodega-unit:{unit_code}")
             unit_id_by_code[unit_code] = unit_id
-            unit_name, unit_dimension, unit_precision = map_unit_name(unit_code)
 
             cur.execute(
                 f"""
@@ -283,14 +267,13 @@ def main() -> None:
                 (record_id(), unit_id, now, unit_code, unit_name, unit_code, unit_dimension, unit_precision, now, run_id, actor_id, change_reason),
             )
 
-        type_names = sorted({product.tipo for product in products})
-        category_id_by_path: dict[tuple[str, str, str], str] = {}
-        type_id_by_name: dict[str, str] = {}
-        family_id_by_name: dict[tuple[str, str], str] = {}
+        family_names = sorted({product.family for product in products})
+        family_id_by_name: dict[str, str] = {}
+        category_id_by_path: dict[tuple[str, str], str] = {}
 
-        for type_index, tipo in enumerate(type_names, start=1):
-            category_id = entity_id("bcat", f"bodega-category:type:{tipo}")
-            type_id_by_name[tipo] = category_id
+        for family_index, family in enumerate(family_names, start=1):
+            category_id = entity_id("bcat", f"bodega-category:family:{family}")
+            family_id_by_name[family] = category_id
             cur.execute(
                 f"""
                 insert into {CATEGORY_REF_TABLE} (
@@ -304,47 +287,21 @@ def main() -> None:
                 insert into {CATEGORY_DIM_TABLE} (
                   record_id, category_id, valid_from, valid_to, is_current, category_code, category_name, category_level,
                   parent_category_id, sort_order, category_description, is_active, is_valid, loaded_at, run_id, actor_id, change_reason
-                ) values (%s, %s, %s, null, true, %s, %s, 'type', null, %s, null, true, true, %s, %s, %s, %s)
+                ) values (%s, %s, %s, null, true, %s, %s, 'family', null, %s, null, true, true, %s, %s, %s, %s)
                 """,
-                (record_id(), category_id, now, normalize_code(tipo)[:50], tipo, type_index, now, run_id, actor_id, change_reason),
+                (record_id(), category_id, now, normalize_code(family)[:50], family, family_index, now, run_id, actor_id, change_reason),
             )
 
-        families_by_type: dict[str, list[str]] = defaultdict(list)
-        subfamilies_by_family: dict[tuple[str, str], list[str]] = defaultdict(list)
+        subfamilies_by_family: dict[str, list[str]] = defaultdict(list)
         for product in products:
-            if product.familia not in families_by_type[product.tipo]:
-                families_by_type[product.tipo].append(product.familia)
-            if product.subfamilia not in subfamilies_by_family[(product.tipo, product.familia)]:
-                subfamilies_by_family[(product.tipo, product.familia)].append(product.subfamilia)
+            if product.subfamily not in subfamilies_by_family[product.family]:
+                subfamilies_by_family[product.family].append(product.subfamily)
 
-        for tipo, families in sorted(families_by_type.items()):
-            for family_index, familia in enumerate(sorted(families), start=1):
-                category_id = entity_id("bcat", f"bodega-category:family:{tipo}:{familia}")
-                family_id_by_name[(tipo, familia)] = category_id
-                parent_category_id = type_id_by_name[tipo]
-                cur.execute(
-                    f"""
-                    insert into {CATEGORY_REF_TABLE} (
-                      record_id, category_id, valid_from, valid_to, is_current, is_valid, loaded_at, run_id, actor_id, change_reason
-                    ) values (%s, %s, %s, null, true, true, %s, %s, %s, %s)
-                    """,
-                    (record_id(), category_id, now, now, run_id, actor_id, change_reason),
-                )
-                cur.execute(
-                    f"""
-                    insert into {CATEGORY_DIM_TABLE} (
-                      record_id, category_id, valid_from, valid_to, is_current, category_code, category_name, category_level,
-                      parent_category_id, sort_order, category_description, is_active, is_valid, loaded_at, run_id, actor_id, change_reason
-                    ) values (%s, %s, %s, null, true, %s, %s, 'family', %s, %s, null, true, true, %s, %s, %s, %s)
-                    """,
-                    (record_id(), category_id, now, normalize_code(familia)[:50], familia, parent_category_id, family_index, now, run_id, actor_id, change_reason),
-                )
-
-        for (tipo, familia), subfamilies in sorted(subfamilies_by_family.items()):
-            for subfamily_index, subfamilia in enumerate(sorted(subfamilies), start=1):
-                category_id = entity_id("bcat", f"bodega-category:subfamily:{tipo}:{familia}:{subfamilia}")
-                category_id_by_path[(tipo, familia, subfamilia)] = category_id
-                parent_category_id = family_id_by_name[(tipo, familia)]
+        for family, subfamilies in sorted(subfamilies_by_family.items()):
+            for subfamily_index, subfamily in enumerate(sorted(subfamilies), start=1):
+                category_id = entity_id("bcat", f"bodega-category:subfamily:{family}:{subfamily}")
+                category_id_by_path[(family, subfamily)] = category_id
+                parent_category_id = family_id_by_name[family]
                 cur.execute(
                     f"""
                     insert into {CATEGORY_REF_TABLE} (
@@ -360,12 +317,12 @@ def main() -> None:
                       parent_category_id, sort_order, category_description, is_active, is_valid, loaded_at, run_id, actor_id, change_reason
                     ) values (%s, %s, %s, null, true, %s, %s, 'subfamily', %s, %s, null, true, true, %s, %s, %s, %s)
                     """,
-                    (record_id(), category_id, now, normalize_code(subfamilia)[:50], subfamilia, parent_category_id, subfamily_index, now, run_id, actor_id, change_reason),
+                    (record_id(), category_id, now, normalize_code(subfamily)[:50], subfamily, parent_category_id, subfamily_index, now, run_id, actor_id, change_reason),
                 )
 
         for product in products:
             product_id = entity_id("bprod", f"bodega-product:{product.product_code}")
-            category_id = category_id_by_path[(product.tipo, product.familia, product.subfamilia)]
+            category_id = category_id_by_path[(product.family, product.subfamily)]
             unit_id = unit_id_by_code[product.unit_code]
 
             cur.execute(
@@ -413,17 +370,20 @@ def main() -> None:
                     (record_id(), product_id, now, branch_order, activity_id, now, run_id, actor_id, change_reason),
                 )
 
-        print({
-            "units_seeded": len(used_units),
-            "categories_seeded": len(type_id_by_name) + len(family_id_by_name) + len(category_id_by_path),
-            "products_seeded": len(products),
-            "products_with_assignments": sum(1 for product in products if product.assignments),
-            "products_without_assignments": sum(1 for product in products if not product.assignments),
-            "rows_seen": workbook_summary["rows_seen"],
-            "rows_skipped_invalid_code": workbook_summary["rows_skipped_invalid_code"],
-            "rows_skipped_invalid_unit": workbook_summary["rows_skipped_invalid_unit"],
-            "rows_collapsed_as_duplicates": workbook_summary["rows_grouped_duplicates"],
-        })
+        print(
+            {
+                "units_seeded": len(used_units),
+                "categories_seeded": len(family_id_by_name) + len(category_id_by_path),
+                "products_seeded": len(products),
+                "products_with_assignments": sum(1 for product in products if product.assignments),
+                "products_without_assignments": sum(1 for product in products if not product.assignments),
+                "rows_seen": workbook_summary["rows_seen"],
+                "rows_skipped_invalid_code": workbook_summary["rows_skipped_invalid_code"],
+                "rows_skipped_invalid_category": workbook_summary["rows_skipped_invalid_category"],
+                "rows_collapsed_as_duplicates": workbook_summary["rows_grouped_duplicates"],
+                "invalid_assignments_removed": invalid_assignment_count,
+            }
+        )
 
     conn.close()
     source_conn.close()
