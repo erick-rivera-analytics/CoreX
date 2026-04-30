@@ -72,6 +72,7 @@ function buildDetailUrl(nodeKey: string, filters: BalanzasFilters, local: LocalF
 
   if (filters.dateFrom) params.set("dateFrom", filters.dateFrom);
   if (filters.dateTo) params.set("dateTo", filters.dateTo);
+  if (filters.farm && filters.farm !== "xl") params.set("farm", filters.farm);
 
   params.set("destinations", local.destinations);
   params.set("grades", local.grades);

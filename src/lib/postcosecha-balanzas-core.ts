@@ -14,6 +14,7 @@ export type BalanzasFilters = {
   year: string;       // comma-sep año "2025,2026"; "all" = sin filtro
   dateFrom: string;   // "YYYY-MM-DD" o ""
   dateTo: string;     // "YYYY-MM-DD" o ""
+  farm: string;       // "xl" | "cl" | "zn"
 };
 
 export type SelectOption = { value: string; label: string };
@@ -1389,6 +1390,24 @@ const BALANZAS_NODES: BalanzasNodeDef[] = [
   },
 ];
 
+// ─── Farm-aware node selection ───────────────────────────────────────────────
+
+const FARM_NAMES: Record<string, string> = { xl: "XLENCE", cl: "CLOUD", zn: "ZINZI" };
+
+function getNodesForFarm(farm: string): BalanzasNodeDef[] {
+  if (farm === "cl" || farm === "zn") {
+    const farmName = FARM_NAMES[farm] ?? farm.toUpperCase();
+    return BALANZAS_NODES
+      .filter((n) => n.branch === "apertura")
+      .map((n) => ({
+        ...n,
+        viewName: n.viewName.replace("_xl_", `_${farm}_`),
+        dialogTitle: n.dialogTitle.replace("XLENCE", farmName),
+      }));
+  }
+  return BALANZAS_NODES;
+}
+
 // ─── SQL helpers ──────────────────────────────────────────────────────────────
 
 function buildTemporalConditions(
@@ -1441,17 +1460,17 @@ const OPTIONS_CACHE_TTL = 3 * 60 * 1000;
  * único anterior, asegurando que las opciones de Semana / Mes / Año reflejen
  * todas las vistas activas y no sólo `gv_b1_vs_b1c_weight_xl_np_cur`.
  */
-function buildActiveNodeDateUnionSql() {
-  return BALANZAS_NODES
+function buildActiveNodeDateUnionSql(farm: string) {
+  return getNodesForFarm(farm)
     .filter((node) => node.active)
     .map((node) => `SELECT ${node.dateCol}::date AS d FROM ${node.viewName}`)
     .join("\n      UNION\n      ");
 }
 
-async function loadFilterOptionsImpl(): Promise<BalanzasFilterOptions> {
+async function loadFilterOptionsImpl(farm: string): Promise<BalanzasFilterOptions> {
   const sql = `
     WITH all_dates AS (
-      ${buildActiveNodeDateUnionSql()}
+      ${buildActiveNodeDateUnionSql(farm)}
     ),
     distinct_dates AS (
       SELECT DISTINCT d FROM all_dates WHERE d IS NOT NULL
@@ -1495,8 +1514,8 @@ async function loadFilterOptionsImpl(): Promise<BalanzasFilterOptions> {
   };
 }
 
-function loadFilterOptions(): Promise<BalanzasFilterOptions> {
-  return cachedAsync("balanzas:options:v4", OPTIONS_CACHE_TTL, loadFilterOptionsImpl);
+function loadFilterOptions(farm: string): Promise<BalanzasFilterOptions> {
+  return cachedAsync(`balanzas:options:v4:${farm}`, OPTIONS_CACHE_TTL, () => loadFilterOptionsImpl(farm));
 }
 
 // ─── Node summary ─────────────────────────────────────────────────────────────
@@ -1569,7 +1588,7 @@ export async function loadNodeDetail(
   filters: BalanzasFilters,
   localFilters: BalanzasDetailLocalFilters,
 ): Promise<BalanzasNodeDetail> {
-  const nodeDef = BALANZAS_NODES.find((n) => n.key === nodeKey);
+  const nodeDef = getNodesForFarm(filters.farm).find((n) => n.key === nodeKey);
   if (!nodeDef) throw new Error(`Nodo balanzas no encontrado: ${nodeKey}`);
 
   const { conditions, values } = buildTemporalConditions(nodeDef.dateCol, filters);
@@ -1740,8 +1759,11 @@ function buildDefaultBalanzasFilters(): BalanzasFilters {
     year: "all",
     dateFrom: "",
     dateTo: "",
+    farm: "xl",
   };
 }
+
+const VALID_FARMS = new Set(["xl", "cl", "zn"]);
 
 export function normalizeBalanzasFilters(raw: {
   weekValue?: string;
@@ -1749,21 +1771,25 @@ export function normalizeBalanzasFilters(raw: {
   year?: string;
   dateFrom?: string;
   dateTo?: string;
+  farm?: string;
 }): BalanzasFilters {
   const defaults = buildDefaultBalanzasFilters();
+  const farm = (raw.farm ?? "xl").toLowerCase();
   return {
     weekValue: raw.weekValue ?? defaults.weekValue,
     month: raw.month ?? "all",
     year: raw.year ?? "all",
     dateFrom: raw.dateFrom ?? "",
     dateTo: raw.dateTo ?? "",
+    farm: VALID_FARMS.has(farm) ? farm : "xl",
   };
 }
 
 export async function getBalanzasDashboardData(filters: BalanzasFilters): Promise<BalanzasDashboardData> {
+  const nodes = getNodesForFarm(filters.farm);
   const [options, ...nodeSummaries] = await Promise.all([
-    loadFilterOptions(),
-    ...BALANZAS_NODES.map((n) => loadNodeSummary(n, filters)),
+    loadFilterOptions(filters.farm),
+    ...nodes.map((n) => loadNodeSummary(n, filters)),
   ]);
   return { filters, options, nodes: nodeSummaries };
 }

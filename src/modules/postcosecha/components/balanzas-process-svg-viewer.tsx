@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { Maximize2, Minus, Plus } from "lucide-react";
+import { useMemo, useRef, useState } from "react";
+import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Maximize2, Minus, Plus } from "lucide-react";
 
 import { Button } from "@/shared/ui/button";
 import { cn } from "@/lib/utils";
@@ -49,8 +49,15 @@ const C = {
   selected:   "var(--bal-selected)",
 };
 
+const PAN_STEP = 160;
+
 export function BalanzasProcessSvgViewer({ nodes, selectedNodeKey, onNodeSelect }: Props) {
   const [zoom, setZoom] = useState(1);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  function pan(dx: number, dy: number) {
+    scrollRef.current?.scrollBy({ left: dx, top: dy, behavior: "smooth" });
+  }
 
   const elementToNode = useMemo(() => {
     const m = new Map<string, BalanzasProcessNodeView>();
@@ -77,23 +84,44 @@ export function BalanzasProcessSvgViewer({ nodes, selectedNodeKey, onNodeSelect 
         <div className="min-w-0 text-sm text-muted-foreground">
           Haz clic en cualquier nodo balanza para ver el detalle completo.
         </div>
-        <div className="flex items-center gap-1 rounded-full border border-border/70 bg-background/88 p-1 shadow-sm">
-          <Button variant="ghost" size="icon" className="size-8 rounded-full" onClick={() => setZoom((z) => Math.max(0.4, z - 0.1))}>
-            <Minus className="size-4" aria-hidden="true" />
-            <span className="sr-only">Reducir zoom</span>
-          </Button>
-          <Button variant="ghost" size="icon" className="size-8 rounded-full" onClick={() => setZoom(1)}>
-            <Maximize2 className="size-4" aria-hidden="true" />
-            <span className="sr-only">Ajustar</span>
-          </Button>
-          <Button variant="ghost" size="icon" className="size-8 rounded-full" onClick={() => setZoom((z) => Math.min(2.5, z + 0.1))}>
-            <Plus className="size-4" aria-hidden="true" />
-            <span className="sr-only">Aumentar zoom</span>
-          </Button>
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 rounded-full border border-border/70 bg-background/88 p-1 shadow-sm">
+            <Button variant="ghost" size="icon" className="size-8 rounded-full" onClick={() => pan(-PAN_STEP, 0)}>
+              <ChevronLeft className="size-4" aria-hidden="true" />
+              <span className="sr-only">Desplazar izquierda</span>
+            </Button>
+            <Button variant="ghost" size="icon" className="size-8 rounded-full" onClick={() => pan(0, -PAN_STEP)}>
+              <ChevronUp className="size-4" aria-hidden="true" />
+              <span className="sr-only">Desplazar arriba</span>
+            </Button>
+            <Button variant="ghost" size="icon" className="size-8 rounded-full" onClick={() => pan(0, PAN_STEP)}>
+              <ChevronDown className="size-4" aria-hidden="true" />
+              <span className="sr-only">Desplazar abajo</span>
+            </Button>
+            <Button variant="ghost" size="icon" className="size-8 rounded-full" onClick={() => pan(PAN_STEP, 0)}>
+              <ChevronRight className="size-4" aria-hidden="true" />
+              <span className="sr-only">Desplazar derecha</span>
+            </Button>
+          </div>
+          <div className="flex items-center gap-1 rounded-full border border-border/70 bg-background/88 p-1 shadow-sm">
+            <Button variant="ghost" size="icon" className="size-8 rounded-full" onClick={() => setZoom((z) => Math.max(0.4, z - 0.1))}>
+              <Minus className="size-4" aria-hidden="true" />
+              <span className="sr-only">Reducir zoom</span>
+            </Button>
+            <Button variant="ghost" size="icon" className="size-8 rounded-full" onClick={() => setZoom(1)}>
+              <Maximize2 className="size-4" aria-hidden="true" />
+              <span className="sr-only">Ajustar</span>
+            </Button>
+            <Button variant="ghost" size="icon" className="size-8 rounded-full" onClick={() => setZoom((z) => Math.min(2.5, z + 0.1))}>
+              <Plus className="size-4" aria-hidden="true" />
+              <span className="sr-only">Aumentar zoom</span>
+            </Button>
+          </div>
         </div>
       </div>
 
       <div
+        ref={scrollRef}
         className="balanzas-process relative overflow-auto rounded-[24px] border border-border/70 bg-white/95 dark:bg-slate-900/70"
         style={{ height: 1080 }}
       >

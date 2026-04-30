@@ -11,6 +11,7 @@ import { fetchJson } from "@/lib/fetch-json";
 import { SectionPageShell } from "@/shared/layout/section-page-shell";
 import { FilterPanel } from "@/shared/layout/filter-panel";
 import { MultiSelectField } from "@/shared/filters/multi-select-field";
+import { SingleSelectField } from "@/shared/filters/single-select-field";
 import { DateField } from "@/shared/filters/date-field";
 import { EmptyState } from "@/shared/data-display/empty-state";
 import type { BalanzasDashboardData, BalanzasFilters, BalanzasNodeSummary } from "@/lib/postcosecha-balanzas";
@@ -140,6 +141,9 @@ function toProcessNodes(nodes: BalanzasNodeSummary[], mode: BalanzasMetricMode) 
   return out;
 }
 
+const FARM_OPTIONS = ["xl", "cl", "zn"];
+const FARM_LABELS: Record<string, string> = { xl: "XLENCE", cl: "CLOUD", zn: "ZINZI" };
+
 function buildQueryString(filters: BalanzasFilters) {
   const params = new URLSearchParams();
   params.set("weekValue", filters.weekValue);
@@ -147,6 +151,7 @@ function buildQueryString(filters: BalanzasFilters) {
   params.set("year", filters.year);
   if (filters.dateFrom) params.set("dateFrom", filters.dateFrom);
   if (filters.dateTo) params.set("dateTo", filters.dateTo);
+  if (filters.farm && filters.farm !== "xl") params.set("farm", filters.farm);
   return params.toString();
 }
 
@@ -231,7 +236,16 @@ export function BalanzasExplorer({ initialData, initialError }: BalanzasExplorer
         actions={<BalanzasMetricSelector value={metricMode} onChange={setMetricMode} />}
       >
         <FilterPanel>
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-7">
+            <SingleSelectField
+              id="balanzas-farm"
+              label="Finca"
+              value={filters.farm}
+              options={FARM_OPTIONS}
+              displayValue={(v) => FARM_LABELS[v] ?? v.toUpperCase()}
+              omitEmpty
+              onChange={(v) => update("farm", v)}
+            />
             <MultiSelectField
               id="balanzas-week"
               label="Semana"

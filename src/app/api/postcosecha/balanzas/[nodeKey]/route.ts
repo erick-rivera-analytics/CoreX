@@ -23,6 +23,7 @@ export async function GET(
       year: p.get("year") ?? undefined,
       dateFrom: p.get("dateFrom") ?? undefined,
       dateTo: p.get("dateTo") ?? undefined,
+      farm: p.get("farm") ?? undefined,
     });
     const localFilters = {
       destinations: decodeMultiSelectValue(p.get("destinations")),
