@@ -72,8 +72,8 @@ function ComparisonSlotCard({
       className={cn(
         "rounded-[26px] border px-5 py-5",
         tone === "left"
-          ? "border-slate-700/25 bg-slate-900/8 dark:bg-slate-900/12"
-          : "border-accent/25 bg-accent/8",
+          ? "border-blue-500/25 bg-blue-500/8"
+          : "border-amber-500/25 bg-amber-500/8",
       )}
     >
       <p className="text-xs uppercase tracking-[0.28em] text-muted-foreground">{label}</p>
@@ -133,8 +133,12 @@ function MetricBattleRow({
           </p>
         </div>
         <Badge
-          variant={winner === "tie" || winner === "neutral" ? "outline" : "secondary"}
-          className="rounded-full px-3 py-1"
+          variant="outline"
+          className={cn(
+            "rounded-full px-3 py-1",
+            winner === "left" && "border-blue-500/40 bg-blue-500/10 text-blue-600 dark:text-blue-400",
+            winner === "right" && "border-amber-500/40 bg-amber-500/10 text-amber-600 dark:text-amber-400",
+          )}
         >
           {winner === "neutral" ? "Sin criterio" : winner === "tie" ? "Empate" : winner === "left" ? "Gana A" : "Gana B"}
         </Badge>
@@ -142,7 +146,7 @@ function MetricBattleRow({
 
       <div className="mt-4 grid items-center gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(260px,420px)_minmax(0,1fr)]">
         <div className="text-left lg:text-right">
-          <p className={cn("text-2xl font-semibold", winner === "left" && "text-slate-700 dark:text-white")}>
+          <p className={cn("text-2xl font-semibold", winner === "left" && "text-blue-600 dark:text-blue-400")}>
             {leftDisplay}
           </p>
         </div>
@@ -150,17 +154,17 @@ function MetricBattleRow({
         <div className="relative h-12 overflow-hidden rounded-full border border-border/70 bg-card/95">
           <div className="absolute inset-y-0 left-1/2 w-px bg-foreground/14" />
           <div
-            className="absolute inset-y-2 right-1/2 rounded-l-full bg-slate-900/8 dark:bg-slate-900/125 transition-all"
+            className="absolute inset-y-2 right-1/2 rounded-l-full bg-blue-500/30 transition-all"
             style={{ width: `${Math.max((leftShare / 100) * 50, leftValue === null ? 0 : 6)}%` }}
           />
           <div
-            className="absolute inset-y-2 left-1/2 rounded-r-full bg-accent transition-all"
+            className="absolute inset-y-2 left-1/2 rounded-r-full bg-amber-500/40 transition-all"
             style={{ width: `${Math.max((rightShare / 100) * 50, rightValue === null ? 0 : 6)}%` }}
           />
         </div>
 
         <div className="text-left">
-          <p className={cn("text-2xl font-semibold", winner === "right" && "text-accent-foreground")}>
+          <p className={cn("text-2xl font-semibold", winner === "right" && "text-amber-600 dark:text-amber-400")}>
             {rightDisplay}
           </p>
         </div>
@@ -213,7 +217,7 @@ function CycleSelectorPanel({
       <p
         className={cn(
           "text-xs font-bold uppercase tracking-[0.28em]",
-          tone === "left" ? "text-slate-700 dark:text-white" : "text-accent-foreground",
+          tone === "left" ? "text-blue-600 dark:text-blue-400" : "text-amber-600 dark:text-amber-400",
         )}
       >
         {label}
@@ -271,8 +275,8 @@ function CycleSelectorPanel({
                   onClick={() => onSelect(opt)}
                   className={cn(
                     "w-full rounded-[18px] border border-border/70 bg-background/72 px-3 py-2.5 text-left transition-colors hover:bg-background/95",
-                    isSelected && tone === "left" && "border-slate-700/40 bg-slate-900/8 dark:bg-slate-900/14",
-                    isSelected && tone === "right" && "border-accent/40 bg-accent/8",
+                    isSelected && tone === "left" && "border-blue-500/40 bg-blue-500/8",
+                    isSelected && tone === "right" && "border-amber-500/40 bg-amber-500/8",
                   )}
                 >
                   <div className="mb-1 flex flex-wrap items-center gap-1">
@@ -287,7 +291,7 @@ function CycleSelectorPanel({
                         variant="secondary"
                         className={cn(
                           "rounded-full px-2 py-0.5 text-[10px]",
-                          tone === "left" ? "bg-slate-700/15 text-slate-700 dark:text-white" : "bg-accent/20 text-accent-foreground",
+                          tone === "left" ? "bg-blue-500/15 text-blue-600 dark:text-blue-400" : "bg-amber-500/15 text-amber-600 dark:text-amber-400",
                         )}
                       >
                         ✓ Seleccionado
@@ -508,7 +512,7 @@ export function ComparisonExplorer({ initialData }: { initialData: ComparisonDas
                   <div className="grid grid-cols-3 divide-x divide-border/70 rounded-[20px] border border-border/70 bg-background/72 text-center">
                     <div className="px-4 py-5">
                       <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Ciclo A gana</p>
-                      <p className="mt-2 text-4xl font-bold text-slate-700 dark:text-white">{leftWins}</p>
+                      <p className="mt-2 text-4xl font-bold text-blue-600 dark:text-blue-400">{leftWins}</p>
                     </div>
                     <div className="px-4 py-5">
                       <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Empates</p>
@@ -516,14 +520,14 @@ export function ComparisonExplorer({ initialData }: { initialData: ComparisonDas
                     </div>
                     <div className="px-4 py-5">
                       <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Ciclo B gana</p>
-                      <p className="mt-2 text-4xl font-bold text-accent-foreground">{rightWins}</p>
+                      <p className="mt-2 text-4xl font-bold text-amber-600 dark:text-amber-400">{rightWins}</p>
                     </div>
                   </div>
 
                   {/* Cycle summaries */}
                   <div className="grid gap-3 sm:grid-cols-2">
-                    <div className="rounded-[20px] border border-slate-700/20 bg-slate-900/7 dark:bg-slate-900/10 p-4">
-                      <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Ciclo A</p>
+                    <div className="rounded-[20px] border border-blue-500/20 bg-blue-500/8 p-4">
+                      <p className="text-xs uppercase tracking-[0.24em] text-blue-600/70 dark:text-blue-400/70">Ciclo A</p>
                       <p className="mt-2 text-lg font-semibold">{comparison.left.cycleKey}</p>
                       <p className="mt-1 text-sm text-muted-foreground">
                         {comparison.left.area || "Sin área"} · Bloque {comparison.left.block || "—"}
@@ -532,8 +536,8 @@ export function ComparisonExplorer({ initialData }: { initialData: ComparisonDas
                         {comparison.left.variety || "Sin variedad"} / {comparison.left.spType || "—"}
                       </p>
                     </div>
-                    <div className="rounded-[20px] border border-accent/20 bg-accent/8 p-4">
-                      <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Ciclo B</p>
+                    <div className="rounded-[20px] border border-amber-500/20 bg-amber-500/8 p-4">
+                      <p className="text-xs uppercase tracking-[0.24em] text-amber-600/70 dark:text-amber-400/70">Ciclo B</p>
                       <p className="mt-2 text-lg font-semibold">{comparison.right.cycleKey}</p>
                       <p className="mt-1 text-sm text-muted-foreground">
                         {comparison.right.area || "Sin área"} · Bloque {comparison.right.block || "—"}

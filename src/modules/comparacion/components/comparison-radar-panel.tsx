@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 
 type RadarPoint = {
   label: string;
+  maxLabel?: string;
   left: number;
   right: number;
   leftDisplay?: string;

@@ -14,6 +14,7 @@ import { RechartsTooltipAdapter } from "@/shared/charts/chart-tooltip";
 
 type RadarPoint = {
   label: string;
+  maxLabel?: string;
   left: number;
   right: number;
   leftDisplay?: string;
@@ -25,6 +26,51 @@ type ComparisonRadarChartProps = {
   leftLabel: string;
   rightLabel: string;
 };
+
+const COLOR_A = "var(--comp-a, #3b82f6)";
+const COLOR_B = "var(--comp-b, #f59e0b)";
+
+function AxisTick({
+  x,
+  y,
+  payload,
+  data,
+}: {
+  x: number;
+  y: number;
+  payload: { value: string };
+  data: RadarPoint[];
+}) {
+  const point = data.find((d) => d.label === payload.value);
+  return (
+    <g>
+      <text
+        x={x}
+        y={y - 4}
+        textAnchor="middle"
+        fill="var(--color-muted-foreground)"
+        fontFamily="var(--font-app), Inter, sans-serif"
+        fontSize={11}
+        fontWeight={600}
+      >
+        {payload.value}
+      </text>
+      {point?.maxLabel ? (
+        <text
+          x={x}
+          y={y + 10}
+          textAnchor="middle"
+          fill="var(--color-muted-foreground)"
+          fontFamily="var(--font-app), Inter, sans-serif"
+          fontSize={9}
+          opacity={0.55}
+        >
+          máx {point.maxLabel}
+        </text>
+      ) : null}
+    </g>
+  );
+}
 
 export const ComparisonRadarChart = memo(function ComparisonRadarChart({
   data,
@@ -38,7 +84,12 @@ export const ComparisonRadarChart = memo(function ComparisonRadarChart({
           <PolarGrid stroke="var(--color-border)" />
           <PolarAngleAxis
             dataKey="label"
-            tick={{ fill: "var(--color-muted-foreground)", fontSize: 12 }}
+            tick={
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              ((props: any) => (
+                <AxisTick x={props.x} y={props.y} payload={props.payload} data={data} />
+              )) as unknown as React.SVGProps<SVGTextElement>
+            }
           />
           <Tooltip
             content={
@@ -62,19 +113,19 @@ export const ComparisonRadarChart = memo(function ComparisonRadarChart({
           />
           <Radar
             dataKey="left"
-            fill="var(--color-primary)"
-            fillOpacity={0.18}
+            fill={COLOR_A}
+            fillOpacity={0.22}
             name={leftLabel}
-            stroke="var(--color-primary)"
-            strokeWidth={2}
+            stroke={COLOR_A}
+            strokeWidth={2.2}
           />
           <Radar
             dataKey="right"
-            fill="var(--color-accent)"
-            fillOpacity={0.12}
+            fill={COLOR_B}
+            fillOpacity={0.18}
             name={rightLabel}
-            stroke="var(--color-accent)"
-            strokeWidth={2}
+            stroke={COLOR_B}
+            strokeWidth={2.2}
           />
         </RadarChart>
       </ResponsiveContainer>

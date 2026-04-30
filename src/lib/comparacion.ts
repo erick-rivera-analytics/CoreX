@@ -113,6 +113,7 @@ export type ComparisonMetric = {
 
 export type ComparisonRadarPoint = {
   label: string;
+  maxLabel: string;
   left: number;
   right: number;
   leftDisplay: string;
@@ -157,6 +158,7 @@ const CYCLE_PLANTS_SOURCE = "gld.mv_camp_kardex_cycle_plants_cur";
 const PROD_GREEN_SOURCE   = "gld.mv_prod_productivity_green_cur";
 const PROD_POST_SOURCE    = "gld.mv_prod_productivity_post_cur";
 const PROD_HOURS_SOURCE   = "gld.mv_prod_hours_cycle_person_cur";
+const CYCLE_PROFILE_SOURCE = "slv.camp_dim_cycle_profile_scd2";
 
 const COMPARISON_OPTIONS_TTL_MS = 5 * 60 * 1000;
 const COMPARISON_SEARCH_TTL_MS  = 30 * 1000;
@@ -170,6 +172,15 @@ const RADAR_METRIC_KEYS = new Set([
   "mortalityPct",
   "availabilityVsScheduledPct",
 ]);
+
+const RADAR_MAX_LABELS: Record<string, string> = {
+  totalStems: "300K",
+  cajasVerde: "1,100",
+  pesoTalloG: "50 g",
+  cajasCama: "20",
+  mortalityPct: "100%",
+  availabilityVsScheduledPct: "100%",
+};
 
 export const defaultComparisonFilters: ComparisonSearchFilters = {
   q: "",
@@ -260,7 +271,8 @@ async function loadComparisonFilterOptions(): Promise<ComparisonFilterOptions> {
           select distinct area_value
           from (
             select ${AREA_SQL} as area_value
-            from ${FENOGRAMA_SOURCE}
+            from ${CYCLE_PROFILE_SOURCE}
+            where cycle_key is not null and cycle_key != ''
           ) areas
           where area_value is not null
           order by area_value
@@ -269,7 +281,7 @@ async function loadComparisonFilterOptions(): Promise<ComparisonFilterOptions> {
           select distinct block_value
           from (
             select nullif(parent_block, '') as block_value
-            from ${FENOGRAMA_SOURCE}
+            from ${CYCLE_PROFILE_SOURCE}
           ) blocks
           where block_value is not null
           order by block_value
@@ -278,7 +290,7 @@ async function loadComparisonFilterOptions(): Promise<ComparisonFilterOptions> {
           select distinct variety_value
           from (
             select nullif(variety, '') as variety_value
-            from ${FENOGRAMA_SOURCE}
+            from ${CYCLE_PROFILE_SOURCE}
           ) varieties
           where variety_value is not null
           order by variety_value
@@ -342,7 +354,26 @@ export async function searchComparisonCycles(
 
     const result = await query<ComparisonOptionQueryRow>(
       `
-        with cycles as (
+        with base as (
+          select distinct on (cp.cycle_key)
+            cp.cycle_key,
+            cp.parent_block,
+            cp.variety,
+            cp.sp_type,
+            cp.sp_date,
+            cp.harvest_start_date,
+            cp.harvest_end_date,
+            coalesce(feno.total_stems, 0) as total_stems
+          from ${CYCLE_PROFILE_SOURCE} cp
+          left join lateral (
+            select sum(coalesce(stems_count, 0)) as total_stems
+            from ${FENOGRAMA_SOURCE}
+            where cycle_key = cp.cycle_key
+          ) feno on true
+          where cp.cycle_key is not null and cp.cycle_key != ''
+          order by cp.cycle_key, cp.is_current desc, cp.valid_from desc nulls last
+        ),
+        cycles as (
           select
             nullif(cycle_key, '') as cycle_key,
             nullif(parent_block, '') as parent_block,
@@ -352,9 +383,8 @@ export async function searchComparisonCycles(
             to_char(sp_date, 'YYYY-MM-DD') as sp_date,
             to_char(harvest_start_date, 'YYYY-MM-DD') as harvest_start_date,
             to_char(harvest_end_date, 'YYYY-MM-DD') as harvest_end_date,
-            sum(coalesce(stems_count, 0)) as total_stems
-          from ${FENOGRAMA_SOURCE}
-          group by 1, 2, 3, 4, 5, 6, 7, 8
+            total_stems
+          from base
         )
         select
           cycle_key,
@@ -609,37 +639,38 @@ export async function getComparisonPair(
       const metrics: ComparisonMetric[] = [
         buildMetric("totalStems", "Tallos",
           left?.totalStems ?? null, right?.totalStems ?? null,
-          formatNumber, { range: { min: 0, max: 289160 }, preference: "higher" }),
+          formatNumber, { range: { min: 0, max: 300000 }, preference: "higher" }),
         buildMetric("cajasVerde", "Cajas Verde",
           left?.cajasVerde ?? null, right?.cajasVerde ?? null,
-          formatNumber, { range: { min: 0, max: 50000 }, preference: "higher" }),
+          formatNumber, { range: { min: 0, max: 1100 }, preference: "higher" }),
         buildMetric("cajasBlanco", "Cajas Blanco",
           left?.cajasBlanco ?? null, right?.cajasBlanco ?? null,
-          formatNumber, { range: { min: 0, max: 50000 }, preference: "higher" }),
+          formatNumber, { range: { min: 0, max: 1100 }, preference: "higher" }),
         buildMetric("pesoTalloG", "Peso Tallo",
           left?.pesoTalloG ?? null, right?.pesoTalloG ?? null,
-          formatGrams, { range: { min: 0, max: 250 }, preference: "higher" }),
+          formatGrams, { range: { min: 0, max: 50 }, preference: "higher" }),
         buildMetric("horasCaja", "Horas / Caja",
           left?.horasCaja ?? null, right?.horasCaja ?? null,
           formatNumber, { range: { min: 0, max: 5 }, preference: "lower" }),
         buildMetric("cajasCama", "Cajas / Cama",
           left?.cajasCama ?? null, right?.cajasCama ?? null,
-          formatNumber, { range: { min: 0, max: 500 }, preference: "higher" }),
+          formatNumber, { range: { min: 0, max: 20 }, preference: "higher" }),
         buildMetric("horasCama", "Horas / Cama",
           left?.horasCama ?? null, right?.horasCama ?? null,
           formatNumber, { range: { min: 0, max: 100 }, preference: "lower" }),
         buildMetric("mortalityPct", "Mortandad",
           left?.mortalityPct ?? null, right?.mortalityPct ?? null,
-          formatPercent, { range: { min: -0.53, max: 0.35 }, preference: "lower" }),
+          formatPercent, { range: { min: 0, max: 1.0 }, preference: "lower" }),
         buildMetric("availabilityVsScheduledPct", "Disp. vs Programadas",
           left?.availabilityVsScheduledPct ?? null, right?.availabilityVsScheduledPct ?? null,
-          formatPercent, { range: { min: 0, max: 1.2 }, preference: "higher" }),
+          formatPercent, { range: { min: 0, max: 1.0 }, preference: "higher" }),
       ];
 
       const radar: ComparisonRadarPoint[] = metrics
         .filter((m) => RADAR_METRIC_KEYS.has(m.key))
         .map((m) => ({
           label: m.label,
+          maxLabel: RADAR_MAX_LABELS[m.key] ?? "",
           left: m.leftShare,
           right: m.rightShare,
           leftDisplay: m.leftDisplay,
