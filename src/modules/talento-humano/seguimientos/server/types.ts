@@ -230,8 +230,8 @@ export type EmployeeFollowupFilters = {
   personSearch?: string;
   associatedWorker?: string;
   area?: string;
-  route?: EmployeeFollowupRouteCode | "";
-  status?: EmployeeFollowupStatus | "all";
+  route?: string;
+  status?: string;
   year?: string;
   month?: string;
   dateFrom?: string;

@@ -110,7 +110,7 @@ export async function GET(request: NextRequest) {
       associatedWorker: sp.get("associatedWorker")?.trim() || undefined,
       area: sp.get("area")?.trim() || undefined,
       route: sp.get("route")?.trim() || undefined,
-      status: sp.get("status")?.trim() || "all",
+      status: sp.get("status")?.trim() || undefined,
       year: sp.get("year")?.trim() || undefined,
       month: sp.get("month")?.trim() || undefined,
       dateFrom: sp.get("dateFrom")?.trim() || undefined,

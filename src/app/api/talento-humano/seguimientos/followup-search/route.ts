@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
       associatedWorker: searchParams.get("associatedWorker")?.trim() || undefined,
       area: searchParams.get("area")?.trim() || undefined,
       route: searchParams.get("route")?.trim() || undefined,
-      status: searchParams.get("status")?.trim() || "all",
+      status: searchParams.get("status")?.trim() || undefined,
       year: searchParams.get("year")?.trim() || undefined,
       month: searchParams.get("month")?.trim() || undefined,
       dateFrom: searchParams.get("dateFrom")?.trim() || undefined,

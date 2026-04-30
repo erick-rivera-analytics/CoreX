@@ -5,6 +5,7 @@ import useSWR from "swr";
 import { BriefcaseBusiness, IdCard, MapPin, UserRound } from "lucide-react";
 
 import { fetchJson } from "@/lib/fetch-json";
+import { formatDate } from "@/shared/lib/format";
 import { Badge } from "@/shared/ui/badge";
 import type { EmployeeFollowupPersonDetail } from "@/modules/talento-humano/seguimientos/server/types";
 
@@ -52,9 +53,8 @@ export function PersonQuickCard({ personId, asOfDate }: Props) {
       <div className="mt-4 grid gap-3 text-xs sm:grid-cols-2">
         <InfoRow icon={<MapPin className="size-3.5" />} label="Área" value={data.areaName ?? data.areaGeneral} />
         <InfoRow icon={<BriefcaseBusiness className="size-3.5" />} label="Cargo" value={data.jobTitle} />
-        <InfoRow label="T. social" value={data.associatedWorkerName} />
-        <InfoRow label="Empresa" value={data.employerName} />
-        <InfoRow label="Último ingreso" value={data.lastEntryDate} />
+        <InfoRow icon={<UserRound className="size-3.5" />} label="T. social" value={data.associatedWorkerName} />
+        <InfoRow label="Último ingreso" value={data.lastEntryDate ? formatDate(data.lastEntryDate.slice(0, 10)) : null} />
       </div>
     </div>
   );

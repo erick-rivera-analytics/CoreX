@@ -10,7 +10,6 @@ import { SectionPageShell } from "@/shared/layout/section-page-shell";
 import { FilterPanel, KpiGrid } from "@/shared/layout/filter-panel";
 import { MetricTile } from "@/shared/data-display/metric-tile";
 import { EmptyState } from "@/shared/data-display/empty-state";
-import { SingleSelectField } from "@/shared/filters/single-select-field";
 import { DateField } from "@/shared/filters/date-field";
 import { MultiSelectField } from "@/shared/filters/multi-select-field";
 import { SearchInput } from "@/shared/forms/search-input";
@@ -46,7 +45,7 @@ function buildFollowupQuery(filters: EmployeeFollowupFilters) {
   if (filters.associatedWorker) params.set("associatedWorker", filters.associatedWorker);
   if (filters.area) params.set("area", filters.area);
   if (filters.route) params.set("route", filters.route);
-  if (filters.status && filters.status !== "all") params.set("status", filters.status);
+  if (filters.status) params.set("status", filters.status);
   if (filters.year && filters.year !== "all") params.set("year", filters.year);
   if (filters.month && filters.month !== "all") params.set("month", filters.month);
   if (filters.dateFrom) params.set("dateFrom", filters.dateFrom);
@@ -60,7 +59,6 @@ const currentMonth = String(new Date().getMonth() + 1);
 
 const DEFAULT_FILTERS: EmployeeFollowupFilters = {
   asOfDate: today,
-  status: "all",
   year: currentYear,
   month: currentMonth,
 };
@@ -143,79 +141,79 @@ export function SeguimientosPage({ initialCatalogs, initialWorkers, initialAreas
         icon={<UserSquare className="h-5 w-5" />}
       >
         <FilterPanel>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-10">
-            <div className="min-w-0 space-y-2">
-              <Label htmlFor="filter-person-search">Buscar</Label>
-              <SearchInput
-                id="filter-person-search"
-                placeholder="Nombre o codigo..."
-                value={filters.personSearch ?? ""}
-                onChange={(v) => setFilter("personSearch", v || undefined)}
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
+              <div className="min-w-0 space-y-2">
+                <Label htmlFor="filter-person-search">Buscar</Label>
+                <SearchInput
+                  id="filter-person-search"
+                  placeholder="Nombre o codigo..."
+                  value={filters.personSearch ?? ""}
+                  onChange={(v) => setFilter("personSearch", v || undefined)}
+                />
+              </div>
+              <MultiSelectField
+                id="filter-worker"
+                label="Trabajadora social"
+                value={filters.associatedWorker ?? ""}
+                options={workerOptions}
+                onChange={(value) => setFilter("associatedWorker", value || undefined)}
+              />
+              <MultiSelectField
+                id="filter-area"
+                label="Área"
+                value={filters.area ?? ""}
+                options={areaOptions}
+                onChange={(value) => setFilter("area", value || undefined)}
+              />
+              <MultiSelectField
+                id="filter-route"
+                label="Clasificación"
+                value={filters.route ?? ""}
+                options={["AGR", "ADM"]}
+                displayValue={(v) => (v === "AGR" ? "Agrícola" : "Administrativo")}
+                onChange={(value) => setFilter("route", value || undefined)}
+              />
+              <MultiSelectField
+                id="filter-status"
+                label="Estado"
+                value={filters.status ?? ""}
+                options={["pending", "registered"]}
+                displayValue={(v) => ({ pending: "Pendiente", registered: "Registrado" }[v] ?? v)}
+                onChange={(value) => setFilter("status", value || undefined)}
               />
             </div>
-            <SingleSelectField
-              id="filter-worker"
-              label="Trabajadora social"
-              value={filters.associatedWorker ?? ""}
-              options={workerOptions}
-              onChange={(v) => setFilter("associatedWorker", v || undefined)}
-              emptyLabel="Todas"
-            />
-            <SingleSelectField
-              id="filter-area"
-              label="Área"
-              value={filters.area ?? ""}
-              options={areaOptions}
-              onChange={(v) => setFilter("area", v || undefined)}
-              emptyLabel="Todas"
-            />
-            <SingleSelectField
-              id="filter-route"
-              label="Clasificacion"
-              value={filters.route ?? ""}
-              options={["AGR", "ADM"]}
-              displayValue={(v) => (v === "AGR" ? "Agrícola" : "Administrativo")}
-              onChange={(v) => setFilter("route", (v as "AGR" | "ADM") || undefined)}
-              emptyLabel="Todas"
-            />
-            <SingleSelectField
-              id="filter-status"
-              label="Estado"
-              value={filters.status ?? "all"}
-              options={["all", "pending", "registered"]}
-              displayValue={(v) => ({ all: "Todos", pending: "Pendiente", registered: "Registrado" }[v] ?? v)}
-              onChange={(v) => setFilter("status", (v as EmployeeFollowupFilters["status"]) || "all")}
-              omitEmpty
-            />
-            <MultiSelectField
-              id="filter-year"
-              label="Año"
-              value={filters.year ?? "all"}
-              options={yearOptions}
-              onChange={(value) => setFilter("year", value)}
-            />
-            <MultiSelectField
-              id="filter-month"
-              label="Mes"
-              value={filters.month ?? "all"}
-              options={monthOptions}
-              onChange={(value) => setFilter("month", value)}
-              displayValue={formatMonthNumeric}
-            />
-            <DateField
-              label="Desde"
-              value={filters.dateFrom ?? ""}
-              onChange={(v) => setFilter("dateFrom", v || undefined)}
-            />
-            <DateField
-              label="Hasta"
-              value={filters.dateTo ?? ""}
-              onChange={(v) => setFilter("dateTo", v || undefined)}
-            />
-            <div className="flex items-end">
-              <Button type="button" variant="outline" className="h-11 w-full rounded-[16px]" onClick={resetFilters}>
-                Reestablecer filtros
-              </Button>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
+              <MultiSelectField
+                id="filter-year"
+                label="Año"
+                value={filters.year ?? ""}
+                options={yearOptions}
+                onChange={(value) => setFilter("year", value)}
+              />
+              <MultiSelectField
+                id="filter-month"
+                label="Mes"
+                value={filters.month ?? ""}
+                options={monthOptions}
+                onChange={(value) => setFilter("month", value)}
+                displayValue={formatMonthNumeric}
+              />
+              <DateField
+                label="Desde"
+                value={filters.dateFrom ?? ""}
+                onChange={(v) => setFilter("dateFrom", v || undefined)}
+              />
+              <DateField
+                label="Hasta"
+                value={filters.dateTo ?? ""}
+                onChange={(v) => setFilter("dateTo", v || undefined)}
+              />
+              <div className="flex items-end">
+                <Button type="button" variant="outline" className="h-11 w-full rounded-[16px]" onClick={resetFilters}>
+                  Reestablecer filtros
+                </Button>
+              </div>
             </div>
           </div>
           <KpiGrid columns={3}>

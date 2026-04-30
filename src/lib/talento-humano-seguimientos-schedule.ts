@@ -78,9 +78,10 @@ export async function loadScheduledFollowups(
     pIdx++;
   }
 
-  if (filters.associatedWorker?.trim()) {
-    conditions.push(`p.associated_worker_name = $${pIdx}`);
-    params.push(filters.associatedWorker.trim());
+  const workers = decodeMultiSelectValue(filters.associatedWorker);
+  if (workers.length > 0) {
+    conditions.push(`p.associated_worker_name = ANY($${pIdx}::text[])`);
+    params.push(workers);
     pIdx++;
   }
 
@@ -116,9 +117,10 @@ export async function loadScheduledFollowups(
     pIdx++;
   }
 
-  if (filters.area?.trim()) {
-    conditions.push(`a.area_name = $${pIdx}`);
-    params.push(filters.area.trim());
+  const areas = decodeMultiSelectValue(filters.area);
+  if (areas.length > 0) {
+    conditions.push(`a.area_name = ANY($${pIdx}::text[])`);
+    params.push(areas);
     pIdx++;
   }
 
@@ -206,9 +208,8 @@ export async function loadScheduledFollowups(
     .map((row) => {
       const derivedRoute = deriveFollowupRoute(row.follow_up_type, row.job_classification_code);
 
-      // Filtrar por ruta si se especificó (string vacío o undefined = sin filtro)
-      const routeFilter = filters.route;
-      if (routeFilter && derivedRoute !== routeFilter) {
+      const routeCodes = decodeMultiSelectValue(filters.route);
+      if (routeCodes.length > 0 && !routeCodes.includes(derivedRoute)) {
         return null;
       }
 
@@ -216,8 +217,8 @@ export async function loadScheduledFollowups(
       let status: EmployeeFollowupStatus = "pending";
       if (statusRow) status = "registered";
 
-      // Filtrar por status
-      if (filters.status && filters.status !== "all" && status !== filters.status) {
+      const statusCodes = decodeMultiSelectValue(filters.status);
+      if (statusCodes.length > 0 && !statusCodes.includes(status)) {
         return null;
       }
 
