@@ -90,8 +90,9 @@ function toStr(value: unknown): string | null {
 
 function toIsoDate(value: DateValue): string | null {
   if (!value) return null;
-  if (value instanceof Date) return value.toISOString();
-  return String(value);
+  if (value instanceof Date) return value.toISOString().slice(0, 10);
+  const s = String(value);
+  return s.includes("T") ? s.slice(0, 10) : s;
 }
 
 function normalizeDate(value: string | undefined, fallback: string) {
@@ -186,7 +187,9 @@ function buildActivosQuery(filters: TalentoFilters): { text: string; values: unk
         p.job_title, p.employee_type, p.contract_type,
         p.associated_worker_name, p.job_classification_code,
         p.employer_name, p.address, p.city, p.parish,
-        p.birth_date, p.last_entry_date, p.farm_code, p.nationality, p.education_title,
+        to_char(p.birth_date, 'YYYY-MM-DD') AS birth_date,
+        to_char(p.last_entry_date, 'YYYY-MM-DD') AS last_entry_date,
+        p.farm_code, p.nationality, p.education_title,
         p.children_count, p.dependents_count, p.performance_pay_applicable, p.disabled_flag
       FROM assignments a
       JOIN profiles p ON p.person_id = a.person_id AND p.employer_name = $2
@@ -585,12 +588,14 @@ export async function getPersonProfile(personId: string): Promise<TalentoPersonP
     const result = await query<ProfileRow>(
       `SELECT DISTINCT ON (person_id)
          person_id, person_name, national_id, gender, marital_status,
-         birth_date, birth_place, job_title, employee_type, contract_type,
+         to_char(birth_date, 'YYYY-MM-DD') AS birth_date,
+         birth_place, job_title, employee_type, contract_type,
          farm_code, associated_worker_name, email, phone_number,
          address, city, parish, nationality, education_title,
          job_classification_code, children_count, dependents_count,
-         last_entry_date, last_exit_date, employer_name,
-         performance_pay_applicable, disabled_flag
+         to_char(last_entry_date, 'YYYY-MM-DD') AS last_entry_date,
+         to_char(last_exit_date, 'YYYY-MM-DD') AS last_exit_date,
+         employer_name, performance_pay_applicable, disabled_flag
        FROM slv.tthh_dim_person_profile_scd2
        WHERE person_id = $1
          AND employer_name = $2
