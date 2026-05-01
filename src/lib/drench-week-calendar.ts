@@ -1,6 +1,7 @@
 import "server-only";
 
 import { query } from "@/lib/db";
+import { listCurrentDrenchProgramRules } from "@/lib/campo-drench-program";
 import { cachedAsync } from "@/lib/server-cache";
 
 const DRENCH_WEEK_CALENDAR_TTL_MS = 5 * 60 * 1000;
@@ -12,6 +13,8 @@ type DrenchWeekCalendarQueryRow = {
   area_id: string | null;
   variety: string | null;
   sp_type: string | null;
+  greenhouse: string | null;
+  bed_count: number | string | null;
   cycle_type_code: string | null;
   cycle_type_label: string | null;
   drench_group_key: string | null;
@@ -47,12 +50,15 @@ export type DrenchWeekCalendarRow = {
   blockId: string;
   parentBlock: string | null;
   areaId: string | null;
+  greenhouse: string | null;
+  bedCount: number | null;
   variety: string;
   spType: string | null;
   cycleTypeCode: string;
   cycleTypeLabel: string;
   drenchGroupKey: string;
   drenchGroupLabel: string;
+  recipeRuleCode: string;
   spDate: string;
   isoWeekId: string;
   publicationIsoWeekId: string | null;
@@ -64,12 +70,41 @@ export type DrenchWeekCalendarRow = {
   phenologicalWeek: number;
   phenologicalStartDate: string;
   phenologicalEndDate: string;
+  recipeLines: DrenchWeekCalendarRecipeLine[];
+};
+
+export type DrenchWeekCalendarRecipeLine = {
+  lineId: string;
+  lineOrder: number;
+  applicationMethod: string | null;
+  dosageBasis: "PER_LITER" | "PER_BED" | "PER_1000_LITERS";
+  litersPerBed: number | null;
+  litersPerBlock: number | null;
+  productOrigin: "BODEGA" | "LABORATORIO";
+  productCode: string | null;
+  productName: string | null;
+  unitCode: string | null;
+  productQuantityDose: number | null;
+  productQuantityTotal: number | null;
+  productQuantityReference: string | null;
+  notes: string | null;
 };
 
 export type DrenchWeekCalendarWeekOption = {
   isoWeekId: string;
   weekStartDate: string;
   weekEndDate: string;
+};
+
+export type DrenchWeekCalendarProductBlockRow = {
+  productCode: string;
+  productName: string;
+  blockId: string;
+  quantityTotal: number;
+  unitCode: string | null;
+  drenchGroupKey: string;
+  drenchGroupLabel: string;
+  cycleKeys: string[];
 };
 
 export type DrenchWeekCalendarOptions = {
@@ -112,17 +147,24 @@ function mapCalendarRow(row: DrenchWeekCalendarQueryRow): DrenchWeekCalendarRow 
     return null;
   }
 
+  const normalizedVariety = normalizeRecipeVarietyCode(row.variety);
+  const normalizedCycleTypeLabel =
+    row.cycle_type_code === "S" ? "Siembra" : row.cycle_type_code === "P" ? "Poda" : row.cycle_type_label;
+
   return {
     cycleKey: row.cycle_key,
     blockId: row.block_id,
     parentBlock: row.parent_block ?? null,
     areaId: row.area_id ?? null,
-    variety: row.variety,
+    greenhouse: row.greenhouse ?? null,
+    bedCount: row.bed_count === null ? null : Number(row.bed_count),
+    variety: normalizedVariety,
     spType: row.sp_type ?? null,
     cycleTypeCode: row.cycle_type_code,
-    cycleTypeLabel: row.cycle_type_label,
-    drenchGroupKey: row.drench_group_key,
-    drenchGroupLabel: row.drench_group_label,
+    cycleTypeLabel: normalizedCycleTypeLabel,
+    drenchGroupKey: `${row.cycle_type_code} ${normalizedVariety}`,
+    drenchGroupLabel: `${normalizedVariety} / ${normalizedCycleTypeLabel}`,
+    recipeRuleCode: `${row.phenological_week} ${row.cycle_type_code} ${normalizedVariety}`,
     spDate: row.sp_date,
     isoWeekId: row.iso_week_id,
     publicationIsoWeekId: row.publication_iso_week_id ?? null,
@@ -134,7 +176,51 @@ function mapCalendarRow(row: DrenchWeekCalendarQueryRow): DrenchWeekCalendarRow 
     phenologicalWeek: row.phenological_week,
     phenologicalStartDate: row.phenological_start_date,
     phenologicalEndDate: row.phenological_end_date,
+    recipeLines: [],
   };
+}
+
+function normalizeRecipeVarietyCode(value: string) {
+  const normalized = value.trim().toUpperCase();
+  if (normalized === "XLE") return "XL";
+  return normalized;
+}
+
+function buildRecipeKey(phenologicalWeek: number, cycleTypeCode: string, variety: string) {
+  return `${phenologicalWeek}|${cycleTypeCode.trim().toUpperCase()}|${variety.trim().toUpperCase()}`;
+}
+
+function roundToNearestTen(value: number) {
+  return Math.round(value / 10) * 10;
+}
+
+function resolveProductTotal(
+  productQuantityDose: number | null,
+  dosageBasis: "PER_LITER" | "PER_BED" | "PER_1000_LITERS",
+  litersPerBlock: number | null,
+  bedCount: number | null,
+) {
+  if (productQuantityDose === null) return null;
+  if (dosageBasis === "PER_BED" && bedCount !== null) {
+    return productQuantityDose * bedCount;
+  }
+  if (dosageBasis === "PER_1000_LITERS" && litersPerBlock !== null) {
+    return productQuantityDose * (litersPerBlock / 1000);
+  }
+  if (litersPerBlock !== null) {
+    return productQuantityDose * litersPerBlock;
+  }
+  return null;
+}
+
+async function buildRecipeMap() {
+  const rules = await listCurrentDrenchProgramRules();
+  return new Map(
+    rules.map((rule) => [
+      buildRecipeKey(rule.phenologicalWeek, rule.cycleType, rule.varietyCode),
+      rule,
+    ]),
+  );
 }
 
 export async function getDefaultDrenchTargetIsoWeekId() {
@@ -221,7 +307,8 @@ export async function listDrenchWeekCalendar(
   ].join(":");
 
   return cachedAsync(cacheKey, DRENCH_WEEK_CALENDAR_TTL_MS, async () => {
-    const result = await query<DrenchWeekCalendarQueryRow>(
+    const [result, recipeMap] = await Promise.all([
+      query<DrenchWeekCalendarQueryRow>(
       `
         select
           cycle_key,
@@ -230,6 +317,8 @@ export async function listDrenchWeekCalendar(
           area_id,
           variety,
           sp_type,
+          greenhouse,
+          bed_count,
           cycle_type_code,
           cycle_type_label,
           drench_group_key,
@@ -253,11 +342,101 @@ export async function listDrenchWeekCalendar(
         order by cycle_type_code asc, variety asc, block_id asc, cycle_key asc
       `,
       [resolvedIsoWeekId, filters.cycleType, filters.variety, filters.areaId],
-    );
+      ),
+      buildRecipeMap(),
+    ]);
 
     return result.rows.flatMap((row) => {
       const mapped = mapCalendarRow(row);
-      return mapped ? [mapped] : [];
+      if (!mapped) return [];
+
+      const matchedRule = recipeMap.get(
+        buildRecipeKey(mapped.phenologicalWeek, mapped.cycleTypeCode, mapped.variety),
+      );
+
+      if (!matchedRule) {
+        return [mapped];
+      }
+
+      const recipeLines = matchedRule.lines
+        .filter((line) => line.isActive)
+        .sort((left, right) => left.lineOrder - right.lineOrder)
+        .map<DrenchWeekCalendarRecipeLine>((line) => {
+          const litersPerBlock = line.dosageBasis !== "PER_BED" && line.litersPerBed !== null && mapped.bedCount !== null
+            ? roundToNearestTen(line.litersPerBed * mapped.bedCount)
+            : null;
+
+          return {
+            lineId: line.lineId,
+            lineOrder: line.lineOrder,
+            applicationMethod: line.applicationMethod,
+            dosageBasis: line.dosageBasis,
+            litersPerBed: line.litersPerBed,
+            litersPerBlock,
+            productOrigin: line.productOrigin,
+            productCode: line.productCode ?? line.laboratoryProductCode ?? line.sourceProductCode,
+            productName: line.productName ?? line.laboratoryProductName ?? line.sourceProductName,
+            unitCode: line.sourceUnitCode,
+            productQuantityDose: line.productQuantityValue,
+            productQuantityTotal: resolveProductTotal(
+              line.productQuantityValue,
+              line.dosageBasis,
+              litersPerBlock,
+              mapped.bedCount,
+            ),
+            productQuantityReference: line.productQuantityReference,
+            notes: line.notes,
+          };
+        });
+
+      return [{
+        ...mapped,
+        recipeRuleCode: matchedRule.ruleCode,
+        recipeLines,
+      }];
     });
+  });
+}
+
+export function buildDrenchProductBlockRows(rows: DrenchWeekCalendarRow[]): DrenchWeekCalendarProductBlockRow[] {
+  const grouped = new Map<string, DrenchWeekCalendarProductBlockRow>();
+
+  for (const row of rows) {
+    for (const line of row.recipeLines) {
+      if (!line.productCode || !line.productName) continue;
+      if (line.productQuantityTotal === null || Number.isNaN(line.productQuantityTotal)) continue;
+
+      const key = [
+        row.drenchGroupKey,
+        line.productCode,
+        row.blockId,
+        line.unitCode ?? "",
+      ].join("|");
+
+      const current = grouped.get(key) ?? {
+        productCode: line.productCode,
+        productName: line.productName,
+        blockId: row.blockId,
+        quantityTotal: 0,
+        unitCode: line.unitCode ?? null,
+        drenchGroupKey: row.drenchGroupKey,
+        drenchGroupLabel: row.drenchGroupLabel,
+        cycleKeys: [],
+      };
+
+      current.quantityTotal += line.productQuantityTotal;
+      if (!current.cycleKeys.includes(row.cycleKey)) {
+        current.cycleKeys.push(row.cycleKey);
+      }
+      grouped.set(key, current);
+    }
+  }
+
+  return Array.from(grouped.values()).sort((left, right) => {
+    const codeCompare = left.productCode.localeCompare(right.productCode, "es");
+    if (codeCompare !== 0) return codeCompare;
+    const blockCompare = left.blockId.localeCompare(right.blockId, "es", { numeric: true });
+    if (blockCompare !== 0) return blockCompare;
+    return left.productName.localeCompare(right.productName, "es");
   });
 }

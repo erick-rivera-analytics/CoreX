@@ -27,7 +27,9 @@ load_env_file(ENV_PATH)
 VIEW_SQL = """
 create schema if not exists slv;
 
-create or replace view slv.camp_v_drench_week_calendar_cur as
+drop view if exists slv.camp_v_drench_week_calendar_cur;
+
+create view slv.camp_v_drench_week_calendar_cur as
 with iso_weeks as (
   select
     iso_week_id,
@@ -48,7 +50,7 @@ current_cycles as (
     cp.sp_date,
     cp.harvest_end_date,
     cp.greenhouse,
-    cp.bed_count,
+    cp.bed_area,
     case
       when upper(coalesce(cp.sp_type, '')) like 'S%' then 'S'
       when upper(coalesce(cp.sp_type, '')) like 'P%' then 'P'
@@ -70,7 +72,7 @@ projected as (
     cc.sp_date,
     cc.harvest_end_date,
     cc.greenhouse,
-    cc.bed_count,
+    cc.bed_area,
     cc.cycle_type_code,
     iw.iso_week_id,
     iw.week_start_date,
@@ -95,7 +97,7 @@ select
   p.sp_date,
   p.harvest_end_date,
   p.greenhouse,
-  p.bed_count,
+  (p.bed_area / 30.0)::numeric(18,6) as bed_count,
   p.cycle_type_code,
   case
     when p.cycle_type_code = 'S' then 'Siembra'

@@ -82,6 +82,7 @@ type FormErrors = Partial<Record<Exclude<keyof DrenchProgramRuleInput, "lines">,
 const EMPTY_LINE: DrenchProgramLineInput = {
   applicationMethod: "",
   litersPerBed: 50,
+  dosageBasis: "PER_LITER",
   productOrigin: "BODEGA",
   productId: null,
   laboratoryProductId: null,
@@ -247,6 +248,7 @@ function mapRecordToFormValues(record: DrenchProgramRuleRecord): DrenchProgramRu
       lineOrder: line.lineOrder,
       applicationMethod: line.applicationMethod ?? "",
       litersPerBed: line.litersPerBed,
+      dosageBasis: line.dosageBasis ?? "PER_LITER",
       productOrigin: line.productOrigin ?? "BODEGA",
       productId: line.productId,
       laboratoryProductId: line.laboratoryProductId,
@@ -273,7 +275,10 @@ function buildPayload(values: DrenchProgramRuleInput): DrenchProgramRuleInput {
     lines: values.lines.map((line, index) => ({
       lineOrder: index + 1,
       applicationMethod: line.applicationMethod?.trim() || null,
-      litersPerBed: line.litersPerBed === null || line.litersPerBed === undefined ? null : Number(line.litersPerBed),
+      litersPerBed: (line.dosageBasis ?? "PER_LITER") === "PER_BED"
+        ? null
+        : line.litersPerBed === null || line.litersPerBed === undefined ? null : Number(line.litersPerBed),
+      dosageBasis: (line.dosageBasis ?? "PER_LITER"),
       productOrigin: (line.productOrigin ?? "BODEGA") as DrenchProductOrigin,
       productId: (line.productOrigin ?? "BODEGA") === "BODEGA" ? line.productId?.trim() || null : null,
       laboratoryProductId: (line.productOrigin ?? "BODEGA") === "LABORATORIO" ? line.laboratoryProductId?.trim() || null : null,
@@ -697,6 +702,7 @@ export function CampoDrenchProgramPage({
           ...EMPTY_LINE,
           lineOrder: current.lines.length + 1,
           litersPerBed: current.lines[0]?.litersPerBed ?? 50,
+          dosageBasis: current.lines[0]?.dosageBasis ?? "PER_LITER",
           applicationMethod: current.lines[0]?.applicationMethod ?? "",
         },
       ],
@@ -1327,15 +1333,43 @@ export function CampoDrenchProgramPage({
                           </div>
 
                           <div className="space-y-2">
+                            <Label htmlFor={`line-basis-${index}`}>Base de calculo</Label>
+                            <select
+                              id={`line-basis-${index}`}
+                              className="flex h-10 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm"
+                              value={line.dosageBasis ?? "PER_LITER"}
+                              onChange={(event) =>
+                                updateLine(index, {
+              dosageBasis: event.target.value as "PER_LITER" | "PER_BED" | "PER_1000_LITERS",
+              litersPerBed: event.target.value === "PER_BED" ? null : (line.litersPerBed ?? 50),
+            })
+          }
+        >
+          <option value="PER_LITER">Por litro</option>
+          <option value="PER_1000_LITERS">Por tanque 1000L</option>
+          <option value="PER_BED">Por cama / unidad</option>
+        </select>
+      </div>
+
+                          <div className="space-y-2">
                             <Label htmlFor={`line-liters-${index}`}>Litros por cama</Label>
-                            <Input
-                              id={`line-liters-${index}`}
-                              type="number"
-                              step="0.01"
-                              className="rounded-xl"
-                              value={line.litersPerBed ?? ""}
-                              onChange={(event) => updateLine(index, { litersPerBed: event.target.value === "" ? null : Number(event.target.value) })}
-                            />
+        {(line.dosageBasis ?? "PER_LITER") === "PER_BED" ? (
+          <div
+            id={`line-liters-${index}`}
+            className="rounded-[18px] border border-border/70 bg-muted/30 px-4 py-3 text-sm font-medium text-muted-foreground"
+          >
+            N/A para recetas por cama o unidad
+                              </div>
+                            ) : (
+                              <Input
+                                id={`line-liters-${index}`}
+                                type="number"
+                                step="0.01"
+                                className="rounded-xl"
+                                value={line.litersPerBed ?? ""}
+                                onChange={(event) => updateLine(index, { litersPerBed: event.target.value === "" ? null : Number(event.target.value) })}
+                              />
+                            )}
                           </div>
 
                           <div className="space-y-2">
