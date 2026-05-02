@@ -114,9 +114,10 @@ export const FenogramaPivotTable = memo(function FenogramaPivotTable({
         return current.filter((item) => item !== dimension);
       }
 
-      return dimensionOptions
-        .map((option) => option.key)
-        .filter((key) => current.includes(key) || key === dimension);
+      return dimensionOptions.reduce<PivotDimensionKey[]>((acc, option) => {
+        if (current.includes(option.key) || option.key === dimension) acc.push(option.key);
+        return acc;
+      }, []);
     });
   }
 

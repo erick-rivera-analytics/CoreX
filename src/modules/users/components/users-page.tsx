@@ -60,14 +60,14 @@ function getEffectiveAllowedResources(roleCode: RoleCode, overrides: PermissionO
   const baseAllowed = getBaseAllowedResources(roleCode);
   const overrideMap = new Map(overrides.map((override) => [override.resourceKey, override.canView]));
 
-  return Object.values(ACCESS_RESOURCES_BY_SECTION)
-    .flat()
-    .map((resource) => resource.resourceKey)
-    .filter((resourceKey) => {
-      if (roleCode === "superadmin") return true;
-      if (overrideMap.has(resourceKey)) return overrideMap.get(resourceKey) === true;
-      return baseAllowed.includes(resourceKey);
-    });
+  return Object.values(ACCESS_RESOURCES_BY_SECTION).flatMap((section) =>
+    section.flatMap((resource) => {
+      const { resourceKey } = resource;
+      if (roleCode === "superadmin") return [resourceKey];
+      if (overrideMap.has(resourceKey)) return overrideMap.get(resourceKey) === true ? [resourceKey] : [];
+      return baseAllowed.includes(resourceKey) ? [resourceKey] : [];
+    })
+  );
 }
 
 function upsertPermissionOverride(

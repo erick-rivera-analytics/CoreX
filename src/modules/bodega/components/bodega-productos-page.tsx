@@ -373,9 +373,10 @@ export function BodegaProductosPage({
     setFormValues((current) => {
       return {
         ...current,
-        assignments: current.assignments
-          .filter((_, assignmentIndex) => assignmentIndex !== index)
-          .map((assignment, assignmentIndex) => ({ ...assignment, branchOrder: assignmentIndex + 1 })),
+        assignments: current.assignments.reduce<(typeof current.assignments)[number][]>((acc, assignment, assignmentIndex) => {
+          if (assignmentIndex !== index) acc.push({ ...assignment, branchOrder: acc.length + 1 });
+          return acc;
+        }, []),
       };
     });
     setActivitySearchValues((current) => current.filter((_, assignmentIndex) => assignmentIndex !== index));
