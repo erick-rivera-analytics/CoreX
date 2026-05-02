@@ -299,6 +299,11 @@ const API_ACCESS_RULES_UNSORTED: ApiAccessRule[] = [
     policy: "resource-bound",
     requiredResources: ["/dashboard/talento-humano/rotacion-laboral"],
   },
+  {
+    pathnamePrefix: "/api/talento-humano/seguimientos-indicador",
+    policy: "resource-bound",
+    requiredResources: ["/dashboard/talento-humano/indicador-seguimientos"],
+  },
 ];
 
 export const API_ACCESS_RULES = [...API_ACCESS_RULES_UNSORTED].sort(
