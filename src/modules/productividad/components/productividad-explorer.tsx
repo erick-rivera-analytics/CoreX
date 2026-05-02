@@ -2,15 +2,6 @@
 
 import React, { useDeferredValue, useMemo, useState } from "react";
 import { Clock, ChevronDown, ChevronRight, LoaderCircle, RefreshCcw } from "lucide-react";
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
 import useSWR from "swr";
 import { toast } from "sonner";
 
@@ -24,14 +15,11 @@ import { ScrollFadeTable } from "@/shared/tables/scroll-fade-table";
 import { Card, CardContent } from "@/shared/ui/card";
 import { fetchJson } from "@/lib/fetch-json";
 import { MultiSelectField } from "@/shared/filters/multi-select-field";
-import { ChartSection, DetailSection, FilterPanel, KpiGrid } from "@/shared/layout/filter-panel";
+import { DetailSection, FilterPanel, KpiGrid } from "@/shared/layout/filter-panel";
 import { SectionPageShell } from "@/shared/layout/section-page-shell";
 import { formatDecimal, formatHours, formatInteger, formatMonthNumeric, formatPercent } from "@/shared/lib/format";
-import { ChartSurface } from "@/shared/data-display/chart-surface";
 import { MetricTile } from "@/shared/data-display/metric-tile";
 import { EmptyState } from "@/shared/data-display/empty-state";
-import { RechartsTooltipAdapter } from "@/shared/charts/chart-tooltip";
-import { axisConfig, axisTickStyleCompact, gridConfig, tooltipCursorStyle } from "@/shared/charts/chart-axis-config";
 import type { BlockModalRow } from "@/lib/fenograma";
 import type {
   CycleLaborHoursPayload,
@@ -114,6 +102,7 @@ type CycleGroup = {
   initialPlantsCycle: number | null;
   reseedPlantsCycle: number | null;
   deadPlantsCycle: number | null;
+  greenWeightKg: number | null;
   horaCaja: number | null;
   cajaCama: number | null;
   horaCama: number | null;
@@ -136,9 +125,9 @@ type YearGroup = {
   // Tallos/Planta: solo ciclos con plants_current > 0 (igual que ficha del bloque)
   totalStemsForRatio: number;
   totalPlantsForRatio: number;
-  // Meta ponderada año: Σ(camas30 * cajaCamaMeta) / Σ(camas30) — solo ciclos con meta
-  totalMetaWeightedByCamas: number;
-  totalCamasForMeta: number;
+  // Meta ponderada año: Σ(greenKg_j * cajaCamaMeta_j) / Σ(greenKg_j) — solo ciclos con meta
+  totalMetaWeightedByGreenKg: number;
+  totalGreenKgForMeta: number;
 };
 
 const esEcCollator = new Intl.Collator("es-EC", { numeric: true });
@@ -165,6 +154,7 @@ function groupRows(rows: ProductividadRow[]): YearGroup[] {
         initialPlantsCycle: row.initialPlantsCycle,
         reseedPlantsCycle: row.reseedPlantsCycle,
         deadPlantsCycle: row.deadPlantsCycle,
+        greenWeightKg: row.greenWeightKg,
         horaCaja: null,
         cajaCama: row.cajaCama,
         horaCama: null,
@@ -201,8 +191,8 @@ function groupRows(rows: ProductividadRow[]): YearGroup[] {
         totalDeadPlants: 0,
         totalStemsForRatio: 0,
         totalPlantsForRatio: 0,
-        totalMetaWeightedByCamas: 0,
-        totalCamasForMeta: 0,
+        totalMetaWeightedByGreenKg: 0,
+        totalGreenKgForMeta: 0,
       });
     }
     const yg = yearMap.get(year)!;
@@ -222,10 +212,10 @@ function groupRows(rows: ProductividadRow[]): YearGroup[] {
       yg.totalPlantsForRatio += cycle.plantsCurrentOrInitial!;
     }
 
-    // Meta ponderada año: ponderar por camas30, solo ciclos con meta calculada
-    if (cycle.cajaCamaMeta !== null && (cycle.camas30 ?? 0) > 0) {
-      yg.totalMetaWeightedByCamas += cycle.camas30! * cycle.cajaCamaMeta;
-      yg.totalCamasForMeta += cycle.camas30!;
+    // Meta ponderada año: Σ(greenKg_j × cajaCamaMeta_j) / Σ(greenKg_j)
+    if (cycle.cajaCamaMeta !== null && (cycle.greenWeightKg ?? 0) > 0) {
+      yg.totalMetaWeightedByGreenKg += cycle.greenWeightKg! * cycle.cajaCamaMeta;
+      yg.totalGreenKgForMeta += cycle.greenWeightKg!;
     }
   }
 
@@ -332,118 +322,6 @@ function cumplimientoClass(ratio: number | null): string {
   if (ratio >= 1.0) return "text-emerald-600 dark:text-emerald-400";
   if (ratio >= 0.80) return "text-amber-600 dark:text-amber-400";
   return "text-rose-600 dark:text-rose-400";
-}
-
-// ── Caja/Cama vs Meta chart ───────────────────────────────────────────────────
-type CajaCamaChartPoint = {
-  label: string;
-  actual: number | null;
-  meta: number | null;
-};
-
-function CajaCamaChart({ yearGroups }: { yearGroups: YearGroup[] }) {
-  const data = useMemo<CajaCamaChartPoint[]>(() => {
-    const points: CajaCamaChartPoint[] = [];
-    for (const yg of yearGroups) {
-      for (const cycle of yg.cycles) {
-        if (cycle.cajaCama === null && cycle.cajaCamaMeta === null) continue;
-        points.push({
-          label: cycle.block || cycle.cycleKey,
-          actual: cycle.cajaCama,
-          meta: cycle.cajaCamaMeta,
-        });
-      }
-    }
-    return points;
-  }, [yearGroups]);
-
-  if (data.length === 0) return null;
-
-  // Ancho dinámico: mínimo 600px, 80px por ciclo para que los bars respiren
-  const dynamicWidth = Math.max(600, data.length * 80);
-  const hasScroll = data.length > 12;
-
-  return (
-    <ChartSection>
-      <ChartSurface
-        title="Caja / Cama — Real vs. Meta"
-        subtitle="Barras agrupadas por ciclo. Azul = real, gris = meta ponderada por origen."
-      >
-        <div className={hasScroll ? "overflow-x-auto" : undefined}>
-          <div style={{ width: hasScroll ? dynamicWidth : "100%", minHeight: 260 }}>
-            <ResponsiveContainer width="100%" height={260}>
-              <BarChart
-                data={data}
-                margin={{ top: 4, right: 16, left: 0, bottom: 48 }}
-                barCategoryGap="28%"
-                barGap={3}
-              >
-                <CartesianGrid {...gridConfig} />
-                <XAxis
-                  {...axisConfig}
-                  dataKey="label"
-                  tick={{ ...axisTickStyleCompact, fontSize: 10 }}
-                  angle={-38}
-                  textAnchor="end"
-                  interval={0}
-                />
-                <YAxis
-                  {...axisConfig}
-                  tick={axisTickStyleCompact}
-                  tickFormatter={(v: number) => formatDecimal(v) ?? ""}
-                  width={48}
-                />
-                <Tooltip
-                  cursor={tooltipCursorStyle}
-                  content={(
-                    <RechartsTooltipAdapter
-                      title={(label) => String(label)}
-                      mapPayload={(payload, label) => {
-                        const point = data.find((d) => d.label === label);
-                        return [
-                          {
-                            label: "Real",
-                            value: formatDecimal(point?.actual ?? null) ?? "-",
-                          },
-                          {
-                            label: "Meta",
-                            value: formatDecimal(point?.meta ?? null) ?? "-",
-                          },
-                          {
-                            label: "Cumplimiento",
-                            value:
-                              point?.actual != null && point?.meta != null && point.meta !== 0
-                                ? formatPercent(point.actual / point.meta, { input: "ratio" })
-                                : "-",
-                          },
-                        ];
-                      }}
-                    />
-                  )}
-                />
-                <Bar
-                  dataKey="actual"
-                  name="Real"
-                  fill="var(--color-primary)"
-                  fillOpacity={0.88}
-                  radius={[5, 5, 0, 0]}
-                  maxBarSize={28}
-                />
-                <Bar
-                  dataKey="meta"
-                  name="Meta"
-                  fill="var(--color-muted-foreground)"
-                  fillOpacity={0.35}
-                  radius={[5, 5, 0, 0]}
-                  maxBarSize={28}
-                />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-      </ChartSurface>
-    </ChartSection>
-  );
 }
 
 type PersonSelection = { personId: string; cycleKey: string; camas30: number | null };
@@ -691,9 +569,9 @@ function ProductividadTable({
             const yearMortality = yg.totalInitialPlusReseeds > 0
               ? (yg.totalDeadPlants / yg.totalInitialPlusReseeds) * 100
               : null;
-            // Meta ponderada año: ponderada por camas30 (solo ciclos con meta)
-            const yearCajaCamaMeta = yg.totalCamasForMeta > 0
-              ? yg.totalMetaWeightedByCamas / yg.totalCamasForMeta
+            // Meta ponderada año: Σ(greenKg_j × cajaCamaMeta_j) / Σ(greenKg_j)
+            const yearCajaCamaMeta = yg.totalGreenKgForMeta > 0
+              ? yg.totalMetaWeightedByGreenKg / yg.totalGreenKgForMeta
               : null;
             const yearCumplimiento = yearCajaCama !== null && yearCajaCamaMeta !== null && yearCajaCamaMeta !== 0
               ? yearCajaCama / yearCajaCamaMeta
@@ -859,8 +737,6 @@ export function ProductividadExplorer({ initialData }: { initialData: Productivi
           ) : null}
         </FilterPanel>
       </SectionPageShell>
-
-      {yearGroups.length > 0 && <CajaCamaChart yearGroups={yearGroups} />}
 
       <DetailSection>
         <Card className="starter-panel border-border/70 bg-card/86">
