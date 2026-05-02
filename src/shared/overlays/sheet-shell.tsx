@@ -33,10 +33,10 @@ export function SheetShell({
     const previousPaddingRight = document.body.style.paddingRight;
     const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
 
-    document.body.style.overflow = "hidden";
-    if (scrollbarWidth > 0) {
-      document.body.style.paddingRight = `${scrollbarWidth}px`;
-    }
+    Object.assign(document.body.style, {
+      overflow: "hidden",
+      ...(scrollbarWidth > 0 && { paddingRight: `${scrollbarWidth}px` }),
+    });
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") onClose();
@@ -45,8 +45,10 @@ export function SheetShell({
     document.addEventListener("keydown", handleKeyDown);
 
     return () => {
-      document.body.style.overflow = previousOverflow;
-      document.body.style.paddingRight = previousPaddingRight;
+      Object.assign(document.body.style, {
+        overflow: previousOverflow,
+        paddingRight: previousPaddingRight,
+      });
       document.removeEventListener("keydown", handleKeyDown);
     };
   }, [open, onClose]);

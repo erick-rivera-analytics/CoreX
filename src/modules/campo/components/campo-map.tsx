@@ -532,9 +532,11 @@ export function CampoRasterOverlay({
       return;
     }
 
-    image.style.filter = visualState.filter;
-    image.style.willChange = "filter, opacity";
-    image.style.transformOrigin = "center center";
+    Object.assign(image.style, {
+      filter: visualState.filter,
+      willChange: "filter, opacity",
+      transformOrigin: "center center",
+    });
   }, [visualState]);
 
   if (activeLayer === "none" || !rasterImageBounds) {
