@@ -18,7 +18,7 @@ import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
 
 export default function LoginPage() {
-  const router = useRouter();
+  const { push: routerPush } = useRouter();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -42,7 +42,7 @@ export default function LoginPage() {
         return;
       }
 
-      router.push("/dashboard");
+      routerPush("/dashboard");
     } catch {
       setError("Error de conexion");
     } finally {

@@ -12,7 +12,7 @@ type SidebarFooterProps = {
 };
 
 export function SidebarFooter({ collapsed }: SidebarFooterProps) {
-  const router = useRouter();
+  const { push: routerPush } = useRouter();
   const pathname = usePathname();
   const { data: access } = useCurrentUserAccess();
   const canViewDatabaseHealth = Boolean(access?.isSuperadmin);
@@ -22,7 +22,7 @@ export function SidebarFooter({ collapsed }: SidebarFooterProps) {
 
   async function handleLogout() {
     await fetch("/api/auth/logout", { method: "POST" });
-    router.push("/login");
+    routerPush("/login");
   }
 
   return (

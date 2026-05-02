@@ -90,7 +90,7 @@ export function InteractiveCell({
   decorative = false,
   className,
 }: InteractiveCellProps) {
-  const handleClick = (event: MouseEvent<HTMLButtonElement | HTMLAnchorElement>) => {
+  const activateCell = (event: MouseEvent<HTMLButtonElement | HTMLAnchorElement>) => {
     if (disabled) {
       event.preventDefault();
       return;
@@ -169,7 +169,7 @@ export function InteractiveCell({
   return (
     <button
       type="button"
-      onClick={handleClick}
+      onClick={activateCell}
       onKeyDown={handleKeyDown}
       disabled={disabled}
       title={tooltip}
