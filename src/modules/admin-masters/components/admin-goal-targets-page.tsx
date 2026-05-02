@@ -175,7 +175,7 @@ function buildScopeJsonb(grainCode: string, variantValues: MetaEditorForm["varia
 }
 
 function buildTargetName(metricName: string | null | undefined, variantValues: MetaEditorForm["variantValues"]): string {
-  const labels = variantValues.map((v) => v.value_label.trim()).filter(Boolean).join(" ");
+  const labels = variantValues.flatMap((v) => v.value_label.trim() ? [v.value_label.trim()] : []).join(" ");
   return [metricName, labels].filter(Boolean).join(" ");
 }
 

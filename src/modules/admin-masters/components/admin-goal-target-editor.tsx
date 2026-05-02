@@ -214,7 +214,7 @@ export function AdminGoalTargetEditor({
                 Define los ejes de segmentación de esta meta (variedad, semana, origen, etc.) y los valores de la primera variante.
               </p>
               {form.variantValues.map((v, idx) => (
-                <div key={idx} className="rounded-lg border border-border/50 bg-background/60 p-3">
+                <div key={v.level_key} className="rounded-lg border border-border/50 bg-background/60 p-3">
                   <div className="mb-2 flex items-center justify-between">
                     <span className="text-xs font-semibold text-muted-foreground">Dimensión {idx + 1}</span>
                     <button
@@ -308,7 +308,7 @@ export function AdminGoalTargetEditor({
                 </p>
               )}
               {form.variantValues.map((v, idx) => (
-                <div key={idx} className="space-y-2 rounded-lg border border-border/50 bg-background/60 p-3">
+                <div key={v.level_key} className="space-y-2 rounded-lg border border-border/50 bg-background/60 p-3">
                   <p className="text-xs font-semibold text-muted-foreground">{v.level_label}</p>
                   <div className="grid grid-cols-2 gap-2">
                     <div className="space-y-1">
@@ -348,8 +348,8 @@ export function AdminGoalTargetEditor({
                 Alcance — solo lectura
               </Label>
               <div className="flex flex-wrap gap-1.5 pt-1">
-                {form.variantValues.map((l, i) => (
-                  <Badge key={i} variant="outline" className="rounded-full px-2 py-0.5 text-[11px] font-normal">
+                {form.variantValues.map((l) => (
+                  <Badge key={l.level_key} variant="outline" className="rounded-full px-2 py-0.5 text-[11px] font-normal">
                     <span className="font-medium">{l.level_label}:</span>&nbsp;{l.value_label}
                   </Badge>
                 ))}
