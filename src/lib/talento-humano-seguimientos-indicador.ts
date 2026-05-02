@@ -1,5 +1,6 @@
 import { query } from "@/lib/db";
 import { queryHumanTalent } from "@/lib/human-talent-db";
+import { decodeMultiSelectValue } from "@/lib/multi-select";
 import { deriveFollowupRoute } from "@/lib/talento-humano-seguimientos-person";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -10,6 +11,8 @@ export type FollowupIndicatorFilters = {
   area: string;
   worker: string;
   route: string;
+  dateFrom: string;
+  dateTo: string;
 };
 
 export type FollowupWorkerStat = {
@@ -143,30 +146,44 @@ async function queryDwRows(filters: FollowupIndicatorFilters, overrides?: { year
   const conditions: string[] = [];
   let pIdx = 2;
 
-  const effectiveYear = overrides?.year ?? filters.year;
-  const effectiveMonth = overrides?.month ?? filters.month;
+  const effectiveYears = overrides?.year ? [overrides.year] : decodeMultiSelectValue(filters.year);
+  const effectiveMonths = overrides?.month ? [overrides.month] : decodeMultiSelectValue(filters.month);
 
-  if (effectiveYear) {
-    conditions.push(`EXTRACT(YEAR FROM f.follow_up_date::date)::text = $${pIdx}`);
-    params.push(effectiveYear);
+  if (effectiveYears.length > 0) {
+    conditions.push(`EXTRACT(YEAR FROM f.follow_up_date::date)::int::text = ANY($${pIdx}::text[])`);
+    params.push(effectiveYears);
     pIdx++;
   }
 
-  if (effectiveMonth) {
-    conditions.push(`EXTRACT(MONTH FROM f.follow_up_date::date)::int::text = $${pIdx}`);
-    params.push(effectiveMonth);
+  if (effectiveMonths.length > 0) {
+    conditions.push(`EXTRACT(MONTH FROM f.follow_up_date::date)::int::text = ANY($${pIdx}::text[])`);
+    params.push(effectiveMonths);
     pIdx++;
   }
 
-  if (filters.area) {
-    conditions.push(`a.area_name = $${pIdx}`);
-    params.push(filters.area);
+  const areas = decodeMultiSelectValue(filters.area);
+  if (areas.length > 0) {
+    conditions.push(`a.area_name = ANY($${pIdx}::text[])`);
+    params.push(areas);
     pIdx++;
   }
 
-  if (filters.worker) {
-    conditions.push(`p.associated_worker_name = $${pIdx}`);
-    params.push(filters.worker);
+  const workers = decodeMultiSelectValue(filters.worker);
+  if (workers.length > 0) {
+    conditions.push(`p.associated_worker_name = ANY($${pIdx}::text[])`);
+    params.push(workers);
+    pIdx++;
+  }
+
+  if (filters.dateFrom && !overrides) {
+    conditions.push(`f.follow_up_date::date >= $${pIdx}::date`);
+    params.push(filters.dateFrom);
+    pIdx++;
+  }
+
+  if (filters.dateTo && !overrides) {
+    conditions.push(`f.follow_up_date::date <= $${pIdx}::date`);
+    params.push(filters.dateTo);
     pIdx++;
   }
 
@@ -231,6 +248,7 @@ async function queryRegisteredCodes(uniqueCodes: string[]): Promise<Set<string>>
 // ── Aggregation ────────────────────────────────────────────────────────────────
 
 function aggregateRows(rows: DwRow[], registeredCodes: Set<string>, routeFilter: string) {
+  const routeValues = decodeMultiSelectValue(routeFilter);
   const byWorkerMap = new Map<string, { scheduled: number; registered: number }>();
   const byAreaMap = new Map<string, { scheduled: number; registered: number }>();
   const byMonthMap = new Map<string, { year: string; monthNum: number; scheduled: number; registered: number }>();
@@ -240,7 +258,7 @@ function aggregateRows(rows: DwRow[], registeredCodes: Set<string>, routeFilter:
 
   for (const row of rows) {
     const derivedRoute = deriveFollowupRoute(row.follow_up_type, row.job_classification_code);
-    if (routeFilter && routeFilter !== derivedRoute) continue;
+    if (routeValues.length > 0 && !routeValues.includes(derivedRoute ?? "")) continue;
 
     const isRegistered = registeredCodes.has(row.unique_follow_up_code);
     totalScheduled++;
@@ -306,6 +324,8 @@ export const defaultFollowupIndicatorFilters: FollowupIndicatorFilters = {
   area: "",
   worker: "",
   route: "",
+  dateFrom: "",
+  dateTo: "",
 };
 
 export async function loadFollowupIndicatorData(
@@ -325,10 +345,12 @@ export async function loadFollowupIndicatorData(
   const totalPending = totalScheduled - totalRegistered;
   const complianceRate = totalScheduled > 0 ? (totalRegistered / totalScheduled) * 100 : 0;
 
-  // Previous period comparison (only when both year+month are selected)
+  // Previous period comparison (only when exactly one year+month are selected)
+  const selectedYears = decodeMultiSelectValue(filters.year);
+  const selectedMonths = decodeMultiSelectValue(filters.month);
   let prevPeriod: { label: string; complianceRate: number } | null = null;
-  if (filters.year && filters.month) {
-    const prev = prevMonthKey(filters.year, filters.month);
+  if (selectedYears.length === 1 && selectedMonths.length === 1) {
+    const prev = prevMonthKey(selectedYears[0]!, selectedMonths[0]!);
     try {
       const prevRows = await queryDwRows(filters, prev);
       if (prevRows.length > 0) {

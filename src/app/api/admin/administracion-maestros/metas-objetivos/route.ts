@@ -67,8 +67,8 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    if (!body.targetCode || !body.targetName || !body.validFromDate) {
-      return apiJsonError("targetCode, targetName y validFromDate son obligatorios.", 400, requestId);
+    if (!body.targetCode || !body.validFromDate) {
+      return apiJsonError("targetCode y validFromDate son obligatorios.", 400, requestId);
     }
     if (!ISO_DATE_RE.test(String(body.validFromDate))) {
       return apiJsonError("validFromDate debe ser YYYY-MM-DD.", 400, requestId);
@@ -76,11 +76,8 @@ export async function POST(request: NextRequest) {
 
     await createGoalTarget({
       targetCode: String(body.targetCode),
-      targetName: String(body.targetName),
+      targetName: String(body.targetName ?? body.targetCode),
       targetDescription: body.targetDescription ?? null,
-      parentTargetCode: body.parentTargetCode ?? null,
-      levelIndex: Number(body.levelIndex ?? 1),
-      levelLabel: body.levelLabel ?? null,
       metricCode: body.metricCode ?? null,
       operatorCode: body.operatorCode ?? null,
       valueMin: asNumberOrNull(body.valueMin),
@@ -92,6 +89,7 @@ export async function POST(request: NextRequest) {
       validFromDate: String(body.validFromDate),
       actorId: access.username,
       changeReason: body.changeReason ? String(body.changeReason) : "manual_create",
+      targetScopeJsonb: body.targetScopeJsonb ?? null,
     });
 
     const targets = await listActiveGoalTargets();
@@ -123,19 +121,16 @@ export async function PATCH(request: NextRequest) {
         body.changeReason ? String(body.changeReason) : "manual_update",
       );
     } else if (action === "update") {
-      if (!body.targetCode || !body.targetName || !body.validFromDate) {
-        return apiJsonError("targetCode, targetName y validFromDate son obligatorios.", 400, requestId);
+      if (!body.targetCode || !body.validFromDate) {
+        return apiJsonError("targetCode y validFromDate son obligatorios.", 400, requestId);
       }
       if (!ISO_DATE_RE.test(String(body.validFromDate))) {
         return apiJsonError("validFromDate debe ser YYYY-MM-DD.", 400, requestId);
       }
       await updateGoalTarget({
         targetCode: String(body.targetCode),
-        targetName: String(body.targetName),
+        targetName: String(body.targetName ?? body.targetCode),
         targetDescription: body.targetDescription ?? null,
-        parentTargetCode: body.parentTargetCode ?? null,
-        levelIndex: Number(body.levelIndex ?? 1),
-        levelLabel: body.levelLabel ?? null,
         metricCode: body.metricCode ?? null,
         operatorCode: body.operatorCode ?? null,
         valueMin: asNumberOrNull(body.valueMin),
@@ -147,6 +142,7 @@ export async function PATCH(request: NextRequest) {
         validFromDate: String(body.validFromDate),
         actorId: access.username,
         changeReason: body.changeReason ? String(body.changeReason) : "manual_update",
+        targetScopeJsonb: body.targetScopeJsonb ?? null,
       });
     } else {
       return apiJsonError("action debe ser 'update' o 'set-validity'.", 400, requestId);

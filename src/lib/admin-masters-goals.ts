@@ -2,14 +2,26 @@ import crypto from "node:crypto";
 import type { PoolClient } from "pg";
 
 import { queryAdmin, withAdminTransaction } from "@/lib/admin-db";
+import { cachedAsync } from "@/lib/server-cache";
+
+export type TargetScopeLevel = {
+  level_index: number;
+  level_key: string;
+  level_label: string;
+  value_code: string;
+  value_label: string;
+};
+
+export type TargetScopeJsonb = {
+  grain_code?: string;
+  levels?: TargetScopeLevel[];
+  filters?: Record<string, string>;
+};
 
 export type AdminGoalTarget = {
   targetCode: string;
   targetName: string;
   targetDescription: string | null;
-  parentTargetCode: string | null;
-  levelIndex: number;
-  levelLabel: string | null;
   metricCode: string | null;
   metricName: string | null;
   unitCode: string | null;
@@ -26,6 +38,8 @@ export type AdminGoalTarget = {
   validTo: string | null;
   actorId: string | null;
   changeReason: string;
+  targetGrainCode: string | null;
+  targetScopeJsonb: TargetScopeJsonb | null;
 };
 
 export type AdminGoalTargetHistoryEntry = AdminGoalTarget & {
@@ -39,9 +53,6 @@ type TargetRow = {
   target_code: string;
   target_name: string;
   target_description: string | null;
-  parent_target_code: string | null;
-  level_index: number | string;
-  level_label: string | null;
   metric_code: string | null;
   metric_name: string | null;
   unit_code: string | null;
@@ -57,6 +68,8 @@ type TargetRow = {
   actor_id: string | null;
   change_reason: string;
   domain_code?: string | null;
+  target_grain_code: string | null;
+  target_scope_jsonb: unknown;
 };
 
 type DomainBridgeRow = { target_code: string; domain_code: string };
@@ -92,9 +105,6 @@ function mapRow(
     targetCode: r.target_code,
     targetName: r.target_name,
     targetDescription: r.target_description,
-    parentTargetCode: r.parent_target_code,
-    levelIndex: Number(r.level_index),
-    levelLabel: r.level_label,
     metricCode: r.metric_code,
     metricName: r.metric_name,
     unitCode: r.unit_code,
@@ -115,6 +125,10 @@ function mapRow(
     validTo: toIsoOrNull(r.valid_to),
     actorId: r.actor_id,
     changeReason: r.change_reason,
+    targetGrainCode: r.target_grain_code ?? null,
+    targetScopeJsonb: r.target_scope_jsonb != null && typeof r.target_scope_jsonb === "object"
+      ? (r.target_scope_jsonb as TargetScopeJsonb)
+      : null,
   };
 }
 
@@ -122,7 +136,25 @@ export async function listActiveGoalTargets(): Promise<AdminGoalTarget[]> {
   try {
     const [targets, domains, types] = await Promise.all([
       queryAdmin<TargetRow>(
-        `SELECT * FROM public.vw_adm_goal_target_active ORDER BY level_index, target_code`,
+        `SELECT t.target_code, t.target_name, t.target_description,
+                t.metric_code,
+                m.metric_name, m.unit_code, u.unit_symbol,
+                t.operator_code, op.item_label_es AS operator_label,
+                t.value_min, t.value_max, t.value_text, t.notes_text,
+                t.valid_from, t.valid_to, t.actor_id, t.change_reason,
+                COALESCE(t.target_grain_code, NULLIF(t.target_scope_jsonb ->> 'grain_code', '')) AS target_grain_code,
+                t.target_scope_jsonb
+         FROM ${PROFILE_TABLE} t
+         LEFT JOIN ${METRIC_PROFILE_TABLE} m
+           ON m.metric_code = t.metric_code AND m.is_current AND m.is_valid
+         LEFT JOIN ${UNIT_PROFILE_TABLE} u
+           ON u.unit_code = m.unit_code AND u.is_current AND u.is_valid
+         LEFT JOIN ${ITEM_PROFILE_TABLE} op
+           ON op.catalog_code = 'comparison_operators' AND op.item_code = t.operator_code
+           AND op.is_current AND op.is_valid
+         WHERE t.is_current = true AND t.is_valid = true
+         ORDER BY COALESCE(t.target_grain_code, t.target_scope_jsonb ->> 'grain_code') NULLS LAST,
+                  COALESCE(t.display_order, 0), t.target_code`,
       ),
       queryAdmin<DomainBridgeRow>(
         `SELECT target_code, domain_code FROM public.adm_asgn_goal_target_domain_scd2
@@ -156,8 +188,8 @@ export async function listActiveGoalTargets(): Promise<AdminGoalTarget[]> {
 
 export async function listGoalTargetHistory(targetCode: string): Promise<AdminGoalTargetHistoryEntry[]> {
   const result = await queryAdmin<TargetRow & { record_id: string; is_current: boolean; is_valid: boolean; loaded_at: Date | string }>(
-    `SELECT t.target_code, t.target_name, t.target_description, t.parent_target_code,
-            t.level_index, t.level_label, t.metric_code,
+    `SELECT t.target_code, t.target_name, t.target_description,
+            t.metric_code,
             m.metric_name, m.unit_code, u.unit_symbol,
             t.operator_code, op.item_label_es AS operator_label,
             t.value_min, t.value_max, t.value_text, t.notes_text,
@@ -189,9 +221,6 @@ export type UpsertGoalTargetInput = {
   targetCode: string;
   targetName: string;
   targetDescription?: string | null;
-  parentTargetCode?: string | null;
-  levelIndex: number;
-  levelLabel?: string | null;
   metricCode?: string | null;
   operatorCode?: string | null;
   valueMin?: number | null;
@@ -203,6 +232,7 @@ export type UpsertGoalTargetInput = {
   validFromDate: string;
   actorId?: string;
   changeReason?: string;
+  targetScopeJsonb?: TargetScopeJsonb | null;
 };
 
 async function insertBridges(
@@ -267,22 +297,26 @@ export async function createGoalTarget(input: UpsertGoalTargetInput): Promise<vo
        VALUES ($1, $2, $3::timestamptz, true, true, $4, $5, $6)`,
       [crypto.randomUUID(), input.targetCode, validFromIso, RUN_ID, actor, reason],
     );
+    const scopeJsonb = input.targetScopeJsonb ?? null;
+    const grainCode = scopeJsonb?.grain_code ?? null;
+
     await client.query(
       `INSERT INTO ${PROFILE_TABLE}
-        (record_id, target_code, target_name, target_description, parent_target_code,
-         level_index, level_label, metric_code, operator_code,
+        (record_id, target_code, target_name, target_description,
+         metric_code, operator_code,
          value_min, value_max, value_text, notes_text, domain_code,
+         target_scope_jsonb, target_grain_code,
          valid_from, is_current, is_valid, run_id, actor_id, change_reason)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14,
-               $15::timestamptz, true, true, $16, $17, $18)`,
+       VALUES ($1, $2, $3, $4,
+               $5, $6,
+               $7, $8, $9, $10, $11,
+               $12::jsonb, $13,
+               $14::timestamptz, true, true, $15, $16, $17)`,
       [
         crypto.randomUUID(),
         input.targetCode,
         input.targetName,
         input.targetDescription ?? null,
-        input.parentTargetCode ?? null,
-        input.levelIndex,
-        input.levelLabel ?? null,
         input.metricCode ?? null,
         input.operatorCode ?? null,
         input.valueMin ?? null,
@@ -290,6 +324,8 @@ export async function createGoalTarget(input: UpsertGoalTargetInput): Promise<vo
         input.valueText ?? null,
         input.notesText ?? null,
         (input.domainCodes ?? [])[0] ?? null,
+        scopeJsonb !== null ? JSON.stringify(scopeJsonb) : null,
+        grainCode,
         validFromIso,
         RUN_ID,
         actor,
@@ -348,22 +384,26 @@ export async function updateGoalTarget(input: UpsertGoalTargetInput): Promise<vo
        VALUES ($1, $2, $3::timestamptz, true, true, $4, $5, $6)`,
       [crypto.randomUUID(), input.targetCode, newValidFromIso, RUN_ID, actor, reason],
     );
+    const scopeJsonb = input.targetScopeJsonb ?? null;
+    const grainCode = scopeJsonb?.grain_code ?? null;
+
     await client.query(
       `INSERT INTO ${PROFILE_TABLE}
-        (record_id, target_code, target_name, target_description, parent_target_code,
-         level_index, level_label, metric_code, operator_code,
+        (record_id, target_code, target_name, target_description,
+         metric_code, operator_code,
          value_min, value_max, value_text, notes_text, domain_code,
+         target_scope_jsonb, target_grain_code,
          valid_from, is_current, is_valid, run_id, actor_id, change_reason)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14,
-               $15::timestamptz, true, true, $16, $17, $18)`,
+       VALUES ($1, $2, $3, $4,
+               $5, $6,
+               $7, $8, $9, $10, $11,
+               $12::jsonb, $13,
+               $14::timestamptz, true, true, $15, $16, $17)`,
       [
         crypto.randomUUID(),
         input.targetCode,
         input.targetName,
         input.targetDescription ?? null,
-        input.parentTargetCode ?? null,
-        input.levelIndex,
-        input.levelLabel ?? null,
         input.metricCode ?? null,
         input.operatorCode ?? null,
         input.valueMin ?? null,
@@ -371,6 +411,8 @@ export async function updateGoalTarget(input: UpsertGoalTargetInput): Promise<vo
         input.valueText ?? null,
         input.notesText ?? null,
         (input.domainCodes ?? [])[0] ?? null,
+        scopeJsonb !== null ? JSON.stringify(scopeJsonb) : null,
+        grainCode,
         newValidFromIso,
         RUN_ID,
         actor,
@@ -401,5 +443,62 @@ export async function setGoalTargetValidity(
        WHERE target_code = $1 AND is_current = true`,
       [targetCode, isValid, actorId, changeReason],
     );
+  });
+}
+
+// ── boxes_per_bed scope-indexed reader (consumed by Productividad) ───────────
+// key = `${origin_code}|${variety_code}|${sp_type_code}|${iso_week}`
+// (subdomain_code = 'balances' está fijo por filtro en la query).
+export type BoxesPerBedTargetIndex = Map<string, number>;
+
+const BOXES_PER_BED_INDEX_TTL_MS = 5 * 60 * 1000;
+
+export async function loadBoxesPerBedTargetIndex(): Promise<BoxesPerBedTargetIndex> {
+  return cachedAsync("admin:goals:boxes-per-bed:idx", BOXES_PER_BED_INDEX_TTL_MS, async () => {
+    try {
+      const { rows } = await queryAdmin<{
+        origin_code: string | null;
+        variety_code: string | null;
+        sp_type_code: string | null;
+        iso_week: string | null;
+        value_min: string | number | null;
+      }>(
+        // domain_code: el bridge (adm_asgn_goal_target_domain_scd2) no siempre se popula
+        // en seeds históricos; los seeds de boxes_per_bed escriben directo en
+        // adm_dim_goal_target_profile_scd2.domain_code. Usamos LEFT JOIN + COALESCE
+        // para soportar ambos patrones.
+        `SELECT
+           t.target_scope_jsonb #>> '{filters,origin_code}'   AS origin_code,
+           t.target_scope_jsonb #>> '{filters,variety_code}'  AS variety_code,
+           t.target_scope_jsonb #>> '{filters,sp_type_code}'  AS sp_type_code,
+           NULLIF(
+             COALESCE(
+               t.target_scope_jsonb #>> '{filters,iso_week}',
+               SPLIT_PART(t.target_scope_jsonb #>> '{filters,iso_week_id}', '-', 2)
+             ),
+             ''
+           )::int::text AS iso_week,
+           t.value_min
+         FROM ${PROFILE_TABLE} t
+         LEFT JOIN public.adm_asgn_goal_target_domain_scd2 d
+           ON d.target_code = t.target_code AND d.is_current = true AND d.is_valid = true
+         WHERE t.is_current = true AND t.is_valid = true
+           AND t.metric_code = 'boxes_per_bed'
+           AND COALESCE(d.domain_code, t.domain_code) = 'postharvest'
+           AND t.target_scope_jsonb #>> '{filters,subdomain_code}' = 'balances'`,
+      );
+
+      const idx: BoxesPerBedTargetIndex = new Map();
+      for (const r of rows) {
+        if (!r.origin_code || !r.variety_code || !r.sp_type_code || !r.iso_week) continue;
+        const v = toNumberOrNull(r.value_min);
+        if (v === null) continue;
+        idx.set(`${r.origin_code}|${r.variety_code}|${r.sp_type_code}|${r.iso_week}`, v);
+      }
+      return idx;
+    } catch {
+      // db_admin no disponible o tabla sin datos → degradar elegante (sin metas).
+      return new Map();
+    }
   });
 }

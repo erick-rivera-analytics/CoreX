@@ -293,9 +293,6 @@ CREATE TABLE IF NOT EXISTS public.adm_dim_goal_target_profile_scd2 (
   target_code          text NOT NULL,
   target_name          text NOT NULL,
   target_description   text,
-  parent_target_code   text,
-  level_index          int NOT NULL DEFAULT 1,
-  level_label          text,
   metric_code          text,
   operator_code        text,
   value_min            numeric,
@@ -310,19 +307,25 @@ CREATE TABLE IF NOT EXISTS public.adm_dim_goal_target_profile_scd2 (
   run_id               text NOT NULL,
   actor_id             text,
   change_reason        text NOT NULL DEFAULT 'manual_update',
+  -- Scope JSONB (K-level dynamic scope)
+  domain_code          text,
+  target_kind_code     text NOT NULL DEFAULT 'TARGET',
+  target_scope_jsonb   jsonb NOT NULL DEFAULT '{}'::jsonb,
+  target_scope_hash    text,
+  target_grain_code    text,
+  display_order        integer NOT NULL DEFAULT 0,
+  attributes_jsonb     jsonb NOT NULL DEFAULT '{}'::jsonb,
 
-  CONSTRAINT chk_adm_goal_target_profile_level CHECK (level_index >= 1),
   CONSTRAINT chk_adm_goal_target_profile_value_range CHECK (
     value_min IS NULL OR value_max IS NULL OR value_min <= value_max
+  ),
+  CONSTRAINT chk_adm_goal_target_scope_is_object CHECK (
+    jsonb_typeof(target_scope_jsonb) = 'object'
   )
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS uq_adm_goal_target_profile_active
   ON public.adm_dim_goal_target_profile_scd2 (target_code)
-  WHERE is_current = true AND is_valid = true;
-
-CREATE INDEX IF NOT EXISTS ix_adm_goal_target_profile_parent
-  ON public.adm_dim_goal_target_profile_scd2 (parent_target_code)
   WHERE is_current = true AND is_valid = true;
 
 CREATE INDEX IF NOT EXISTS ix_adm_goal_target_profile_metric
@@ -391,13 +394,9 @@ SELECT
   t.target_code,
   t.target_name,
   t.target_description,
-  t.parent_target_code,
-  t.level_index,
-  t.level_label,
   t.metric_code,
   m.metric_name,
   m.unit_code,
-  u.unit_name,
   u.unit_symbol,
   t.operator_code,
   op.item_label_es AS operator_label,
@@ -409,7 +408,14 @@ SELECT
   t.valid_to,
   t.actor_id,
   t.loaded_at,
-  t.change_reason
+  t.change_reason,
+  COALESCE(t.domain_code, d.domain_code)                                      AS domain_code,
+  COALESCE(t.target_kind_code, ty.target_kind_code, 'TARGET')                 AS target_kind_code,
+  COALESCE(t.target_grain_code, NULLIF(t.target_scope_jsonb ->> 'grain_code', '')) AS target_grain_code,
+  t.target_scope_jsonb,
+  t.target_scope_hash,
+  t.attributes_jsonb,
+  t.display_order
 FROM public.adm_dim_goal_target_profile_scd2 t
 LEFT JOIN public.adm_dim_metric_profile_scd2 m
   ON m.metric_code = t.metric_code AND m.is_current AND m.is_valid
@@ -418,6 +424,22 @@ LEFT JOIN public.adm_dim_unit_of_measure_profile_scd2 u
 LEFT JOIN public.adm_dim_catalog_item_profile_scd2 op
   ON op.catalog_code = 'comparison_operators' AND op.item_code = t.operator_code
   AND op.is_current AND op.is_valid
+LEFT JOIN LATERAL (
+  SELECT domain_code
+  FROM public.adm_asgn_goal_target_domain_scd2 d0
+  WHERE d0.target_code = t.target_code
+    AND d0.is_current = true AND d0.is_valid = true
+  ORDER BY d0.valid_from DESC, d0.loaded_at DESC, d0.domain_code
+  LIMIT 1
+) d ON true
+LEFT JOIN LATERAL (
+  SELECT upper(regexp_replace(type_item_code, '[^a-zA-Z0-9]+', '_', 'g')) AS target_kind_code
+  FROM public.adm_asgn_goal_target_type_scd2 ty0
+  WHERE ty0.target_code = t.target_code
+    AND ty0.is_current = true AND ty0.is_valid = true
+  ORDER BY ty0.valid_from DESC, ty0.loaded_at DESC, ty0.type_item_code
+  LIMIT 1
+) ty ON true
 WHERE t.is_current AND t.is_valid;
 
 CREATE OR REPLACE VIEW public.vw_adm_goal_target_history AS
@@ -425,8 +447,6 @@ SELECT
   t.target_code,
   t.record_id,
   t.target_name,
-  t.parent_target_code,
-  t.level_index,
   t.metric_code,
   t.operator_code,
   t.value_min,
@@ -438,7 +458,10 @@ SELECT
   t.is_valid,
   t.loaded_at,
   t.actor_id,
-  t.change_reason
+  t.change_reason,
+  COALESCE(t.target_grain_code, NULLIF(t.target_scope_jsonb ->> 'grain_code', '')) AS target_grain_code,
+  t.target_scope_jsonb,
+  t.target_scope_hash
 FROM public.adm_dim_goal_target_profile_scd2 t
 ORDER BY t.target_code, t.valid_from DESC, t.loaded_at DESC;
 

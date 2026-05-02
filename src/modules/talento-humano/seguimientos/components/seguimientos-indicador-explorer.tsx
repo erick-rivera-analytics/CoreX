@@ -1,7 +1,7 @@
 "use client";
 
 import { useDeferredValue, useMemo, useState } from "react";
-import { ClipboardCheck, TrendingDown, TrendingUp } from "lucide-react";
+import { ClipboardCheck, TrendingDown, TrendingUp, X } from "lucide-react";
 import {
   Area,
   AreaChart,
@@ -23,12 +23,15 @@ import useSWR from "swr";
 import { toast } from "sonner";
 
 import { fetchJson } from "@/lib/fetch-json";
+import { decodeMultiSelectValue } from "@/lib/multi-select";
 import { FilterPanel, KpiGrid, ChartSection, DetailSection } from "@/shared/layout/filter-panel";
 import { SectionPageShell } from "@/shared/layout/section-page-shell";
 import { MetricTile } from "@/shared/data-display/metric-tile";
 import { ChartSurface } from "@/shared/data-display/chart-surface";
 import { EmptyState } from "@/shared/data-display/empty-state";
-import { SingleSelectField } from "@/shared/filters/single-select-field";
+import { MultiSelectField } from "@/shared/filters/multi-select-field";
+import { DateField } from "@/shared/filters/date-field";
+import { Button } from "@/shared/ui/button";
 import { RechartsTooltipAdapter } from "@/shared/charts/chart-tooltip";
 import { axisConfig, axisTickStyle, axisTickStyleCompact, gridConfig, tooltipCursorStyle } from "@/shared/charts/chart-axis-config";
 import { formatPercent, formatInteger } from "@/shared/lib/format";
@@ -53,8 +56,20 @@ function buildQuery(f: FollowupIndicatorFilters) {
   if (f.area) params.set("area", f.area);
   if (f.worker) params.set("worker", f.worker);
   if (f.route) params.set("route", f.route);
+  if (f.dateFrom) params.set("dateFrom", f.dateFrom);
+  if (f.dateTo) params.set("dateTo", f.dateTo);
   return params.toString();
 }
+
+function hasActiveFilters(f: FollowupIndicatorFilters) {
+  return !!(f.year || f.month || f.area || f.worker || f.route || f.dateFrom || f.dateTo);
+}
+
+// ── Default filters (duplicated here to avoid importing server-only lib) ──────
+
+const DEFAULT_FILTERS: FollowupIndicatorFilters = {
+  year: "", month: "", area: "", worker: "", route: "", dateFrom: "", dateTo: "",
+};
 
 // ── Month labels ───────────────────────────────────────────────────────────────
 
@@ -94,6 +109,7 @@ export function SeguimientosIndicadorExplorer({ initialData }: { initialData: Fo
   const isEmpty = summary.totalScheduled === 0;
   const complianceStr = formatPercent(summary.complianceRate);
   const meetsGoal = summary.complianceRate >= summary.goal;
+  const filtersActive = hasActiveFilters(filters);
 
   return (
     <div className="space-y-4">
@@ -105,8 +121,8 @@ export function SeguimientosIndicadorExplorer({ initialData }: { initialData: Fo
       >
         <FilterPanel>
           {/* Filters row */}
-          <div className="flex flex-wrap gap-3">
-            <SingleSelectField
+          <div className="flex flex-wrap items-end gap-3">
+            <MultiSelectField
               id="ind-seg-year"
               label="Año"
               value={filters.year}
@@ -115,7 +131,7 @@ export function SeguimientosIndicadorExplorer({ initialData }: { initialData: Fo
               emptyLabel="Todos los años"
               onChange={(v) => setFilter("year", v)}
             />
-            <SingleSelectField
+            <MultiSelectField
               id="ind-seg-month"
               label="Mes"
               value={filters.month}
@@ -124,7 +140,7 @@ export function SeguimientosIndicadorExplorer({ initialData }: { initialData: Fo
               emptyLabel="Todos los meses"
               onChange={(v) => setFilter("month", v)}
             />
-            <SingleSelectField
+            <MultiSelectField
               id="ind-seg-area"
               label="Área"
               value={filters.area}
@@ -133,7 +149,7 @@ export function SeguimientosIndicadorExplorer({ initialData }: { initialData: Fo
               emptyLabel="Todas las áreas"
               onChange={(v) => setFilter("area", v)}
             />
-            <SingleSelectField
+            <MultiSelectField
               id="ind-seg-worker"
               label="Trabajadora Social"
               value={filters.worker}
@@ -142,7 +158,7 @@ export function SeguimientosIndicadorExplorer({ initialData }: { initialData: Fo
               emptyLabel="Todas"
               onChange={(v) => setFilter("worker", v)}
             />
-            <SingleSelectField
+            <MultiSelectField
               id="ind-seg-route"
               label="Clasificación"
               value={filters.route}
@@ -151,6 +167,31 @@ export function SeguimientosIndicadorExplorer({ initialData }: { initialData: Fo
               emptyLabel="Todas"
               onChange={(v) => setFilter("route", v)}
             />
+            <DateField
+              id="ind-seg-date-from"
+              label="Desde"
+              value={filters.dateFrom}
+              onChange={(v) => setFilter("dateFrom", v)}
+            />
+            <DateField
+              id="ind-seg-date-to"
+              label="Hasta"
+              value={filters.dateTo}
+              onChange={(v) => setFilter("dateTo", v)}
+            />
+            {filtersActive && (
+              <div className="flex items-end pb-0.5">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setFilters(DEFAULT_FILTERS)}
+                  className="h-9 gap-1.5 text-muted-foreground"
+                >
+                  <X className="size-3.5" />
+                  Limpiar filtros
+                </Button>
+              </div>
+            )}
           </div>
 
           <KpiGrid>
@@ -222,16 +263,24 @@ export function SeguimientosIndicadorExplorer({ initialData }: { initialData: Fo
                 <WorkerDetailTable data={byWorker} goal={summary.goal} />
               </div>
               <div className="lg:col-span-1">
-                <PeriodComparison
-                  current={summary.complianceRate}
-                  prevPeriod={summary.prevPeriod}
-                  currentLabel={
-                    filters.year && filters.month
-                      ? `${MONTHS_ES[Number(filters.month) - 1]} ${filters.year}`
-                      : filters.year || "Período actual"
-                  }
-                  byMonth={byMonth}
-                />
+                {(() => {
+                  const selectedYears = decodeMultiSelectValue(filters.year);
+                  const selectedMonths = decodeMultiSelectValue(filters.month);
+                  const currentLabel =
+                    selectedYears.length === 1 && selectedMonths.length === 1
+                      ? `${MONTHS_ES[Number(selectedMonths[0]) - 1]} ${selectedYears[0]}`
+                      : selectedYears.length === 1
+                        ? selectedYears[0]!
+                        : "Período actual";
+                  return (
+                    <PeriodComparison
+                      current={summary.complianceRate}
+                      prevPeriod={summary.prevPeriod}
+                      currentLabel={currentLabel}
+                      byMonth={byMonth}
+                    />
+                  );
+                })()}
               </div>
             </div>
           </DetailSection>

@@ -2,6 +2,15 @@
 
 import React, { useDeferredValue, useMemo, useState } from "react";
 import { Clock, ChevronDown, ChevronRight, LoaderCircle, RefreshCcw } from "lucide-react";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import useSWR from "swr";
 import { toast } from "sonner";
 
@@ -15,11 +24,14 @@ import { ScrollFadeTable } from "@/shared/tables/scroll-fade-table";
 import { Card, CardContent } from "@/shared/ui/card";
 import { fetchJson } from "@/lib/fetch-json";
 import { MultiSelectField } from "@/shared/filters/multi-select-field";
-import { DetailSection, FilterPanel, KpiGrid } from "@/shared/layout/filter-panel";
+import { ChartSection, DetailSection, FilterPanel, KpiGrid } from "@/shared/layout/filter-panel";
 import { SectionPageShell } from "@/shared/layout/section-page-shell";
 import { formatDecimal, formatHours, formatInteger, formatMonthNumeric, formatPercent } from "@/shared/lib/format";
+import { ChartSurface } from "@/shared/data-display/chart-surface";
 import { MetricTile } from "@/shared/data-display/metric-tile";
 import { EmptyState } from "@/shared/data-display/empty-state";
+import { RechartsTooltipAdapter } from "@/shared/charts/chart-tooltip";
+import { axisConfig, axisTickStyleCompact, gridConfig, tooltipCursorStyle } from "@/shared/charts/chart-axis-config";
 import type { BlockModalRow } from "@/lib/fenograma";
 import type {
   CycleLaborHoursPayload,
@@ -107,6 +119,8 @@ type CycleGroup = {
   horaCama: number | null;
   tallosPlanta: number | null;
   pesoTalloGramos: number | null;
+  cajaCamaMeta: number | null;
+  cumplimiento: number | null;
 };
 
 type YearGroup = {
@@ -122,6 +136,9 @@ type YearGroup = {
   // Tallos/Planta: solo ciclos con plants_current > 0 (igual que ficha del bloque)
   totalStemsForRatio: number;
   totalPlantsForRatio: number;
+  // Meta ponderada año: Σ(camas30 * cajaCamaMeta) / Σ(camas30) — solo ciclos con meta
+  totalMetaWeightedByCamas: number;
+  totalCamasForMeta: number;
 };
 
 const esEcCollator = new Intl.Collator("es-EC", { numeric: true });
@@ -153,6 +170,8 @@ function groupRows(rows: ProductividadRow[]): YearGroup[] {
         horaCama: null,
         tallosPlanta: row.tallosPlanta,
         pesoTalloGramos: row.pesoTalloGramos,
+        cajaCamaMeta: row.cajaCamaMeta,
+        cumplimiento: row.cumplimiento,
       });
     }
     cycleMap.get(key)!.totalEffectiveHours += row.effectiveHours ?? 0;
@@ -182,6 +201,8 @@ function groupRows(rows: ProductividadRow[]): YearGroup[] {
         totalDeadPlants: 0,
         totalStemsForRatio: 0,
         totalPlantsForRatio: 0,
+        totalMetaWeightedByCamas: 0,
+        totalCamasForMeta: 0,
       });
     }
     const yg = yearMap.get(year)!;
@@ -199,6 +220,12 @@ function groupRows(rows: ProductividadRow[]): YearGroup[] {
     if ((cycle.plantsCurrentOrInitial ?? 0) > 0) {
       yg.totalStemsForRatio += cycle.representative.totalStems ?? 0;
       yg.totalPlantsForRatio += cycle.plantsCurrentOrInitial!;
+    }
+
+    // Meta ponderada año: ponderar por camas30, solo ciclos con meta calculada
+    if (cycle.cajaCamaMeta !== null && (cycle.camas30 ?? 0) > 0) {
+      yg.totalMetaWeightedByCamas += cycle.camas30! * cycle.cajaCamaMeta;
+      yg.totalCamasForMeta += cycle.camas30!;
     }
   }
 
@@ -296,6 +323,129 @@ function groupActivitiesBySubCostCenter(sub: CycleLaborSubCostCenterSummary): Su
     .sort((left, right) => left.activityName.localeCompare(right.activityName, "es-EC", { numeric: true, sensitivity: "base" }));
 }
 
+// ── Cumplimiento color helper ─────────────────────────────────────────────────
+// >100% = mejor rendimiento (más cajas que la meta) → verde
+// 80-100% = cerca de meta → ámbar
+// <80% = significativamente bajo → rojo
+function cumplimientoClass(ratio: number | null): string {
+  if (ratio === null) return "text-muted-foreground";
+  if (ratio >= 1.0) return "text-emerald-600 dark:text-emerald-400";
+  if (ratio >= 0.80) return "text-amber-600 dark:text-amber-400";
+  return "text-rose-600 dark:text-rose-400";
+}
+
+// ── Caja/Cama vs Meta chart ───────────────────────────────────────────────────
+type CajaCamaChartPoint = {
+  label: string;
+  actual: number | null;
+  meta: number | null;
+};
+
+function CajaCamaChart({ yearGroups }: { yearGroups: YearGroup[] }) {
+  const data = useMemo<CajaCamaChartPoint[]>(() => {
+    const points: CajaCamaChartPoint[] = [];
+    for (const yg of yearGroups) {
+      for (const cycle of yg.cycles) {
+        if (cycle.cajaCama === null && cycle.cajaCamaMeta === null) continue;
+        points.push({
+          label: cycle.block || cycle.cycleKey,
+          actual: cycle.cajaCama,
+          meta: cycle.cajaCamaMeta,
+        });
+      }
+    }
+    return points;
+  }, [yearGroups]);
+
+  if (data.length === 0) return null;
+
+  // Ancho dinámico: mínimo 600px, 80px por ciclo para que los bars respiren
+  const dynamicWidth = Math.max(600, data.length * 80);
+  const hasScroll = data.length > 12;
+
+  return (
+    <ChartSection>
+      <ChartSurface
+        title="Caja / Cama — Real vs. Meta"
+        subtitle="Barras agrupadas por ciclo. Azul = real, gris = meta ponderada por origen."
+      >
+        <div className={hasScroll ? "overflow-x-auto" : undefined}>
+          <div style={{ width: hasScroll ? dynamicWidth : "100%", minHeight: 260 }}>
+            <ResponsiveContainer width="100%" height={260}>
+              <BarChart
+                data={data}
+                margin={{ top: 4, right: 16, left: 0, bottom: 48 }}
+                barCategoryGap="28%"
+                barGap={3}
+              >
+                <CartesianGrid {...gridConfig} />
+                <XAxis
+                  {...axisConfig}
+                  dataKey="label"
+                  tick={{ ...axisTickStyleCompact, fontSize: 10 }}
+                  angle={-38}
+                  textAnchor="end"
+                  interval={0}
+                />
+                <YAxis
+                  {...axisConfig}
+                  tick={axisTickStyleCompact}
+                  tickFormatter={(v: number) => formatDecimal(v) ?? ""}
+                  width={48}
+                />
+                <Tooltip
+                  cursor={tooltipCursorStyle}
+                  content={(
+                    <RechartsTooltipAdapter
+                      title={(label) => String(label)}
+                      mapPayload={(payload, label) => {
+                        const point = data.find((d) => d.label === label);
+                        return [
+                          {
+                            label: "Real",
+                            value: formatDecimal(point?.actual ?? null) ?? "-",
+                          },
+                          {
+                            label: "Meta",
+                            value: formatDecimal(point?.meta ?? null) ?? "-",
+                          },
+                          {
+                            label: "Cumplimiento",
+                            value:
+                              point?.actual != null && point?.meta != null && point.meta !== 0
+                                ? formatPercent(point.actual / point.meta, { input: "ratio" })
+                                : "-",
+                          },
+                        ];
+                      }}
+                    />
+                  )}
+                />
+                <Bar
+                  dataKey="actual"
+                  name="Real"
+                  fill="var(--color-primary)"
+                  fillOpacity={0.88}
+                  radius={[5, 5, 0, 0]}
+                  maxBarSize={28}
+                />
+                <Bar
+                  dataKey="meta"
+                  name="Meta"
+                  fill="var(--color-muted-foreground)"
+                  fillOpacity={0.35}
+                  radius={[5, 5, 0, 0]}
+                  maxBarSize={28}
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      </ChartSurface>
+    </ChartSection>
+  );
+}
+
 type PersonSelection = { personId: string; cycleKey: string; camas30: number | null };
 
 // ── CycleDetailRows: lazy-loaded person-level drill-down ─────────────────────
@@ -329,7 +479,7 @@ function CycleDetailRows({
 
   if (isLoading) {
     return (
-      <tr><TD colSpan={11}>
+      <tr><TD colSpan={13}>
         <div className="ml-10 flex items-center gap-2 py-2 text-xs text-muted-foreground">
           <LoaderCircle className="size-3.5 animate-spin" /> Cargando detalle...
         </div>
@@ -338,7 +488,7 @@ function CycleDetailRows({
   }
   if (error || !data) {
     return (
-      <tr><TD colSpan={11}>
+      <tr><TD colSpan={13}>
         <div className="ml-10 py-2 text-xs text-destructive">
           {error?.message || "Error al cargar detalle"}
         </div>
@@ -364,6 +514,7 @@ function CycleDetailRows({
               <TD /><TD /><TD /><TD /><TD />
               <TD right className="text-xs font-semibold">{formatDecimal(hCaja(ca.effectiveHours))}</TD>
               <TD />
+              <TD /><TD />
               <TD right className="text-xs font-semibold">{formatDecimal(hCama(ca.effectiveHours))}</TD>
               <TD /><TD />
             </tr>
@@ -386,6 +537,7 @@ function CycleDetailRows({
                     <TD /><TD /><TD /><TD /><TD />
                     <TD right className="text-xs text-muted-foreground">{formatDecimal(hCaja(sub.effectiveHours))}</TD>
                     <TD />
+                    <TD /><TD />
                     <TD right className="text-xs text-muted-foreground">{formatDecimal(hCama(sub.effectiveHours))}</TD>
                     <TD /><TD />
                   </tr>
@@ -407,6 +559,7 @@ function CycleDetailRows({
                           <TD /><TD /><TD /><TD /><TD />
                           <TD right className="text-[11px] text-muted-foreground/70">{formatDecimal(hCaja(activity.effectiveHours))}</TD>
                           <TD />
+                          <TD /><TD />
                           <TD right className="text-[11px] text-muted-foreground/70">{formatDecimal(hCama(activity.effectiveHours))}</TD>
                           <TD /><TD />
                         </tr>
@@ -433,6 +586,7 @@ function CycleDetailRows({
                             <TD /><TD /><TD /><TD /><TD />
                             <TD right className="text-[11px] text-muted-foreground/60">{formatDecimal(hCaja(person.effectiveHours))}</TD>
                             <TD />
+                            <TD /><TD />
                             <TD right className="text-[11px] text-muted-foreground/60">{formatDecimal(hCama(person.effectiveHours))}</TD>
                             <TD /><TD />
                           </tr>
@@ -442,7 +596,7 @@ function CycleDetailRows({
                   })}
                   {subOpen && activities.length === 0 ? (
                     <tr className="bg-background/5">
-                      <TD colSpan={11} className="pl-[88px] text-xs text-muted-foreground">
+                      <TD colSpan={13} className="pl-[88px] text-xs text-muted-foreground">
                         No hay actividades registradas para este subcentro.
                       </TD>
                     </tr>
@@ -501,8 +655,8 @@ function ProductividadTable({
   }
 
   return (
-    <ScrollFadeTable className="rounded-[24px] border border-border/60">
-      <table className="min-w-[1200px] w-full text-sm">
+    <ScrollFadeTable className="rounded-[24px] border border-border/60" topScrollbar>
+      <table className="min-w-[1400px] w-full text-sm">
         <thead className="sticky top-0 z-10">
           <tr>
             <TH>Ciclo / Bloque</TH>
@@ -513,6 +667,8 @@ function ProductividadTable({
             <TH right>Mort. %</TH>
             <TH right>Hora / Caja</TH>
             <TH right>Caja / Cama</TH>
+            <TH right>Caja / Cama Meta</TH>
+            <TH right>Cumplimiento</TH>
             <TH right>Hora / Cama</TH>
             <TH right>Tallos / Planta</TH>
             <TH right>Peso Tallo (g)</TH>
@@ -535,6 +691,13 @@ function ProductividadTable({
             const yearMortality = yg.totalInitialPlusReseeds > 0
               ? (yg.totalDeadPlants / yg.totalInitialPlusReseeds) * 100
               : null;
+            // Meta ponderada año: ponderada por camas30 (solo ciclos con meta)
+            const yearCajaCamaMeta = yg.totalCamasForMeta > 0
+              ? yg.totalMetaWeightedByCamas / yg.totalCamasForMeta
+              : null;
+            const yearCumplimiento = yearCajaCama !== null && yearCajaCamaMeta !== null && yearCajaCamaMeta !== 0
+              ? yearCajaCama / yearCajaCamaMeta
+              : null;
 
             return (
               <React.Fragment key={`year-${yg.year}`}>
@@ -551,6 +714,8 @@ function ProductividadTable({
                   <TD right className="font-semibold">{formatPercent(yearMortality)}</TD>
                   <TD right className="font-semibold">{formatDecimal(yearHoraCaja)}</TD>
                   <TD right className="font-semibold">{formatDecimal(yearCajaCama)}</TD>
+                  <TD right className="font-semibold">{formatDecimal(yearCajaCamaMeta)}</TD>
+                  <TD right className={`font-semibold ${cumplimientoClass(yearCumplimiento)}`}>{formatPercent(yearCumplimiento, { input: "ratio" })}</TD>
                   <TD right className="font-semibold">{formatDecimal(yearHoraCama)}</TD>
                   <TD right className="font-semibold">{formatDecimal(yearTallosPlanta)}</TD>
                   <TD right className="font-semibold">{formatDecimal(yearPesoTallo)}</TD>
@@ -585,6 +750,8 @@ function ProductividadTable({
                         <TD right muted>{formatPercent(cycle.pctMortality)}</TD>
                         <TD right className="font-medium">{formatDecimal(cycle.horaCaja)}</TD>
                         <TD right muted>{formatDecimal(cycle.cajaCama)}</TD>
+                        <TD right muted>{formatDecimal(cycle.cajaCamaMeta)}</TD>
+                        <TD right className={cumplimientoClass(cycle.cumplimiento)}>{formatPercent(cycle.cumplimiento, { input: "ratio" })}</TD>
                         <TD right muted>{formatDecimal(cycle.horaCama)}</TD>
                         <TD right muted>{formatDecimal(cycle.tallosPlanta)}</TD>
                         <TD right muted>{formatDecimal(cycle.pesoTalloGramos)}</TD>
@@ -692,6 +859,8 @@ export function ProductividadExplorer({ initialData }: { initialData: Productivi
           ) : null}
         </FilterPanel>
       </SectionPageShell>
+
+      {yearGroups.length > 0 && <CajaCamaChart yearGroups={yearGroups} />}
 
       <DetailSection>
         <Card className="starter-panel border-border/70 bg-card/86">

@@ -18,6 +18,8 @@ export async function GET(request: NextRequest) {
       area: sp.get("area") ?? "",
       worker: sp.get("worker") ?? "",
       route: sp.get("route") ?? "",
+      dateFrom: sp.get("dateFrom") ?? "",
+      dateTo: sp.get("dateTo") ?? "",
     };
 
     const data = await loadFollowupIndicatorData(filters);

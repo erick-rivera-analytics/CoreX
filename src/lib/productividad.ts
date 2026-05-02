@@ -1,5 +1,6 @@
 ﻿import "server-only";
 
+import { loadBoxesPerBedTargetIndex, type BoxesPerBedTargetIndex } from "@/lib/admin-masters-goals";
 import { query } from "@/lib/db";
 import { decodeMultiSelectValue, encodeMultiSelectValue, matchesMultiSelectValue } from "@/lib/multi-select";
 import { cachedAsync } from "@/lib/server-cache";
@@ -14,9 +15,18 @@ const FENOGRAMA_SOURCE       = "gld.mv_prod_fenograma_cur";               // ste
 const PRODUCTIVITY_POST_SRC  = "gld.mv_prod_productivity_post_cur";      // post_weight_kg
 const PRODUCTIVITY_GREEN_SRC = "gld.mv_prod_productivity_green_cur";     // green_weight_kg → cajas
 const CYCLE_PROFILE_SOURCE   = "slv.camp_dim_cycle_profile_scd2";
+const CALENDAR_SOURCE        = "slv.common_dim_calendar_date_scd0";      // iso_week por fecha
 
 // ── TTL ──────────────────────────────────────────────────────────────────────
 const PRODUCTIVIDAD_TTL_MS = 60 * 1000;
+
+// ── Mapeo de origen DW → meta (boxes_per_bed) ───────────────────────────────
+// El verde DW guarda labels en español MAYÚSCULAS, las metas en inglés minúsculas.
+const ORIGIN_DW_TO_META: Record<string, string> = {
+  APERTURA: "opening",
+  GV: "gv",
+  PRECLASIFICACION: "preclassification",
+};
 
 // ── Query row types (snake_case, DB output) ──────────────────────────────────
 type ProductividadQueryRow = {
@@ -38,6 +48,8 @@ type ProductividadQueryRow = {
   units_produced: number | string | null;
   bed_area: number | string | null;
   green_weight_kg: number | string | null;
+  green_origin_kg_jsonb: Record<string, number | string | null> | null;
+  iso_week: number | string | null;
   total_stems: number | string | null;
   plants_current: number | string | null;
   initial_plants_cycle: number | string | null;
@@ -87,12 +99,15 @@ export type ProductividadRow = {
   reseedPlantsCycle: number | null;
   deadPlantsCycle: number | null;
   postWeightKg: number | null;
+  isoWeek: number | null;
   // Calculated metrics
   horaCaja: number | null;
   cajaCama: number | null;
   horaCama: number | null;
   tallosPlanta: number | null;
   pesoTalloGramos: number | null;
+  cajaCamaMeta: number | null;
+  cumplimiento: number | null; // ratio 0..1+ (cajaCama / cajaCamaMeta)
 };
 
 export type ProductividadFilterOptions = {
@@ -220,6 +235,55 @@ function divOrNull(a: number | null, b: number | null): number | null {
   return a / b;
 }
 
+/**
+ * Calcula la meta ponderada `cajas/cama` de un ciclo a partir del desglose
+ * de verde por origen y las metas dimensionadas en `db_admin`.
+ *
+ * Por cada origen presente en el verde del ciclo, busca la meta correspondiente
+ * con clave `${origin_code}|${variety_code}|${sp_type_code}|${iso_week}` y
+ * pondera por su participación (kg_origen / kg_total). Si algún origen no tiene
+ * meta registrada, se renormaliza por la suma de pesos efectivamente cubiertos
+ * (evita subestimar la meta).
+ *
+ * Retorna `null` si:
+ * - No hay desglose por origen (share_jsonb vacío).
+ * - Falta variety/sp_type/iso_week.
+ * - Ningún origen del ciclo tiene meta registrada.
+ */
+function computeWeightedBoxesPerBedMeta(
+  targetIndex: BoxesPerBedTargetIndex,
+  originKgJsonb: Record<string, number | string | null> | null | undefined,
+  variety: string,
+  spType: string,
+  isoWeek: number | null,
+): number | null {
+  if (!originKgJsonb || !variety || !spType || isoWeek === null) return null;
+  const isoWeekStr = String(isoWeek);
+
+  let weighted = 0;
+  let weightSum = 0;
+  let totalKg = 0;
+
+  // Acumular total para normalizar shares
+  for (const dwLabel of Object.keys(ORIGIN_DW_TO_META)) {
+    const kg = toNumber(originKgJsonb[dwLabel]) ?? 0;
+    if (kg > 0) totalKg += kg;
+  }
+  if (totalKg <= 0) return null;
+
+  for (const [dwLabel, originCode] of Object.entries(ORIGIN_DW_TO_META)) {
+    const kg = toNumber(originKgJsonb[dwLabel]) ?? 0;
+    if (kg <= 0) continue;
+    const meta = targetIndex.get(`${originCode}|${variety}|${spType}|${isoWeekStr}`);
+    if (meta === undefined) continue;
+    const share = kg / totalKg;
+    weighted += share * meta;
+    weightSum += share;
+  }
+
+  return weightSum > 0 ? weighted / weightSum : null;
+}
+
 function maxOrNull(current: number | null, incoming: number | null) {
   if (incoming === null) return current;
   if (current === null) return incoming;
@@ -243,7 +307,8 @@ export async function getProductividadDashboardData(
   const cacheKey = `productividad:dashboard:v2:${filters.year}:${filters.month}:${filters.spType}:${filters.variety}:${filters.area}:${filters.status}`;
 
   return cachedAsync(cacheKey, PRODUCTIVIDAD_TTL_MS, async () => {
-    const result = await query<ProductividadQueryRow>(
+    const [result, targetIndex] = await Promise.all([
+      query<ProductividadQueryRow>(
       `
       with cycle_profile as (
         select distinct on (cycle_key)
@@ -296,6 +361,41 @@ export async function getProductividadDashboardData(
         from ${PRODUCTIVITY_GREEN_SRC}
         group by cycle_key
       ),
+      -- desglose de verde por origen (APERTURA/GV/PRECLASIFICACION) para meta ponderada
+      green_by_origin as (
+        select
+          t.cycle_key,
+          upper(o.elem ->> 'origin') as origin_label_upper,
+          sum(coalesce((o.elem ->> 'green_weight_kg')::numeric, 0)) as green_weight_kg
+        from ${PRODUCTIVITY_GREEN_SRC} t
+        cross join lateral jsonb_array_elements(coalesce(t.share_jsonb -> 'origin', '[]'::jsonb)) as o(elem)
+        where t.share_jsonb is not null
+          and o.elem ->> 'origin' is not null
+        group by t.cycle_key, upper(o.elem ->> 'origin')
+      ),
+      green_origin_agg as (
+        select
+          cycle_key,
+          coalesce(jsonb_object_agg(origin_label_upper, green_weight_kg), '{}'::jsonb) as origin_kg_jsonb
+        from green_by_origin
+        group by cycle_key
+      ),
+      -- iso_week derivada de sp_date para lookup de meta.
+      -- Usamos EXTRACT(WEEK FROM date) que devuelve el ISO 8601 week (1..53)
+      -- por defecto en PostgreSQL — coincide con la semana usada en
+      -- target_scope_jsonb.filters.iso_week (int como string, ej "4").
+      -- Fallback al calendar table por si sp_date es null pero existe en común.
+      cycle_iso_week as (
+        select
+          cp.cycle_key,
+          coalesce(
+            extract(week from cp.sp_date)::int,
+            extract(week from cal.calendar_date)::int
+          ) as iso_week
+        from cycle_profile cp
+        left join ${CALENDAR_SOURCE} cal
+          on cal.calendar_date = cp.sp_date
+      ),
       hours_agg as (
         select
           h.cycle_key,
@@ -328,6 +428,8 @@ export async function getProductividadDashboardData(
         cp.bed_area,
         coalesce(k.pct_mortality, 0) as pct_mortality,
         coalesce(gw.green_weight_kg, 0) as green_weight_kg,
+        coalesce(gow.origin_kg_jsonb, '{}'::jsonb) as green_origin_kg_jsonb,
+        ciw.iso_week,
         coalesce(f.total_stems, 0)      as total_stems,
         coalesce(nullif(k.plants_current, 0),       cp.initial_plants_profile, 0) as plants_current,
         coalesce(nullif(k.initial_plants_cycle, 0), cp.initial_plants_profile, 0) as initial_plants_cycle,
@@ -340,6 +442,8 @@ export async function getProductividadDashboardData(
       left join feno       f   on f.cycle_key   = ha.cycle_key
       left join post_weight pw  on pw.cycle_key = ha.cycle_key
       left join green_weight gw on gw.cycle_key = ha.cycle_key
+      left join green_origin_agg gow on gow.cycle_key = ha.cycle_key
+      left join cycle_iso_week    ciw on ciw.cycle_key = ha.cycle_key
       order by
         harvest_year desc nulls last,
         harvest_month desc nulls last,
@@ -350,7 +454,9 @@ export async function getProductividadDashboardData(
         ha.activity_type asc,
         ha.activity_name asc
       `,
-    );
+      ),
+      loadBoxesPerBedTargetIndex(),
+    ]);
 
     // ── Transform rows ───────────────────────────────────────────────────────
     const allRows: ProductividadRow[] = result.rows.map((row) => {
@@ -371,6 +477,21 @@ export async function getProductividadDashboardData(
       const camas30 = bedArea !== null && bedArea > 0 ? bedArea / 30 : null;
       const horaCaja = divOrNull(effectiveHours, cajas);
       const cajaCama = divOrNull(cajas, camas30);
+
+      // ── Meta ponderada (boxes_per_bed) ─────────────────────────────────────
+      // Por cada origen del verde del ciclo, busca su meta en target_scope_jsonb.filters
+      // y pondera por la participación (kg_origen / kg_total).
+      const cajaCamaMeta = computeWeightedBoxesPerBedMeta(
+        targetIndex,
+        row.green_origin_kg_jsonb,
+        cleanText(row.variety),
+        cleanText(row.sp_type),
+        toNumber(row.iso_week),
+      );
+      const cumplimiento =
+        cajaCama !== null && cajaCamaMeta !== null && cajaCamaMeta !== 0
+          ? cajaCama / cajaCamaMeta
+          : null;
 
       // Cycle status
       const today = new Date();
@@ -419,6 +540,7 @@ export async function getProductividadDashboardData(
         reseedPlantsCycle,
         deadPlantsCycle,
         postWeightKg,
+        isoWeek: toNumber(row.iso_week),
         horaCaja,
         cajaCama,
         horaCama: (horaCaja !== null && cajaCama !== null) ? horaCaja * cajaCama : null,
@@ -427,6 +549,8 @@ export async function getProductividadDashboardData(
           greenWeightKg !== null ? greenWeightKg * 1000 : null,
           totalStems,
         ),
+        cajaCamaMeta,
+        cumplimiento,
       };
     });
 

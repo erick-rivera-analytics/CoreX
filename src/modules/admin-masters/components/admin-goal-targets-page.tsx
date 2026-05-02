@@ -2,7 +2,7 @@
 
 import { startTransition, useDeferredValue, useMemo, useState } from "react";
 import useSWR from "swr";
-import { ChevronDown, ChevronRight, Plus, RefreshCcw, Search, Target } from "lucide-react";
+import { ChevronDown, ChevronRight, Plus, RefreshCcw, Search, Target, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { fetchJson } from "@/lib/fetch-json";
@@ -21,71 +21,195 @@ import { localDateString } from "@/shared/lib/format";
 
 import {
   AdminGoalTargetEditor,
+  type EditorMode,
   type EditorOption,
-  type GoalTargetFormValues,
+  type MetaEditorForm,
 } from "@/modules/admin-masters/components/admin-goal-target-editor";
 
-type AdminGoalTarget = {
-  targetCode: string; targetName: string; targetDescription: string | null;
-  parentTargetCode: string | null; levelIndex: number; levelLabel: string | null;
-  metricCode: string | null; metricName: string | null; unitSymbol: string | null;
-  operatorCode: string | null; operatorLabel: string | null;
-  valueMin: number | null; valueMax: number | null; valueText: string | null;
-  notesText: string | null; domainCodes: string[]; typeItemCodes: string[];
-  validFrom: string; validTo: string | null;
+// ── Types ──────────────────────────────────────────────────────────────────────
+
+type ScopeLevel = {
+  level_index: number;
+  level_key: string;
+  level_label: string;
+  value_code: string;
+  value_label: string;
 };
+
+type AdminGoalTarget = {
+  targetCode: string;
+  targetName: string;
+  targetDescription: string | null;
+  metricCode: string | null;
+  metricName: string | null;
+  unitSymbol: string | null;
+  operatorCode: string | null;
+  operatorLabel: string | null;
+  valueMin: number | null;
+  valueMax: number | null;
+  valueText: string | null;
+  notesText: string | null;
+  domainCodes: string[];
+  typeItemCodes: string[];
+  validFrom: string;
+  validTo: string | null;
+  targetGrainCode: string | null;
+  targetScopeJsonb: {
+    grain_code?: string;
+    levels?: ScopeLevel[];
+    filters?: Record<string, string>;
+  } | null;
+};
+
 type AdminMetric = { metricCode: string; metricName: string };
 type AdminDomain = { domainCode: string; domainName: string };
 type AdminCatalogItem = { itemCode: string; itemLabelEs: string };
-type GoalsPayload = { targets: AdminGoalTarget[]; metrics: AdminMetric[]; domains: AdminDomain[]; operators: AdminCatalogItem[]; goalTypes: AdminCatalogItem[] };
+
+type GoalsPayload = {
+  targets: AdminGoalTarget[];
+  metrics: AdminMetric[];
+  domains: AdminDomain[];
+  operators: AdminCatalogItem[];
+  goalTypes: AdminCatalogItem[];
+};
+
+type GrainGroup = {
+  grainCode: string;
+  label: string;
+  metricCode: string | null;
+  domainCodes: string[];
+  typeItemCodes: string[];
+  operatorCode: string | null;
+  targets: AdminGoalTarget[];
+};
+
+// ── Constants ──────────────────────────────────────────────────────────────────
 
 const ENDPOINT = "/api/admin/administracion-maestros/metas-objetivos";
 const fetcher = (url: string) => fetchJson<GoalsPayload>(url, "No se pudo cargar metas y objetivos.");
-const today = localDateString();
-const EMPTY_FORM: GoalTargetFormValues = {
-  targetCode: "", targetName: "", targetDescription: "", parentTargetCode: "",
-  levelIndex: "1", levelLabel: "", metricCode: "", domainCodesEncoded: "all",
-  typeItemCodesEncoded: "all", operatorCode: "", valueMin: "", valueMax: "",
-  valueText: "", validFromDate: today, notesText: "", changeReason: "",
+const PAGE_SIZE = 50;
+
+const EMPTY_FORM: MetaEditorForm = {
+  grainCode: "",
+  targetCode: "",
+  metricCode: "",
+  domainCodesEncoded: "all",
+  typeItemCodesEncoded: "all",
+  operatorCode: "",
+  valueMin: "",
+  valueMax: "",
+  valueText: "",
+  validFromDate: localDateString(),
+  notesText: "",
+  changeReason: "",
+  variantValues: [],
 };
 
-const PAGE_SIZE = 50; // visible roots per page; expand-all guarded against runaway DOM
+// ── Helpers ────────────────────────────────────────────────────────────────────
 
-type TreeNode = AdminGoalTarget & { children: TreeNode[]; descendantCount: number };
+function buildGrainGroups(
+  targets: AdminGoalTarget[],
+  metrics: AdminMetric[],
+  domains: AdminDomain[],
+): GrainGroup[] {
+  const metricMap = new Map(metrics.map((m) => [m.metricCode, m.metricName]));
+  const domainMap = new Map(domains.map((d) => [d.domainCode, d.domainName]));
+  const grainMap = new Map<string, AdminGoalTarget[]>();
+  const noGrain: AdminGoalTarget[] = [];
 
-function buildTree(targets: AdminGoalTarget[]): TreeNode[] {
-  const map = new Map<string, TreeNode>();
-  targets.forEach((t) => map.set(t.targetCode, { ...t, children: [], descendantCount: 0 }));
-  const roots: TreeNode[] = [];
-  map.forEach((node) => {
-    if (node.parentTargetCode && map.has(node.parentTargetCode)) {
-      map.get(node.parentTargetCode)!.children.push(node);
+  for (const t of targets) {
+    const grain = t.targetGrainCode ?? t.targetScopeJsonb?.grain_code ?? null;
+    if (grain) {
+      const list = grainMap.get(grain) ?? [];
+      list.push(t);
+      grainMap.set(grain, list);
     } else {
-      roots.push(node);
+      noGrain.push(t);
     }
+  }
+
+  const groups: GrainGroup[] = [...grainMap.entries()].map(([grainCode, items]) => {
+    const first = items[0]!;
+    const metricName = first.metricCode ? (metricMap.get(first.metricCode) ?? first.metricCode) : null;
+    const domainNames = first.domainCodes.map((dc) => domainMap.get(dc) ?? dc).join(", ");
+    return {
+      grainCode,
+      label: [metricName, domainNames].filter(Boolean).join(" · ") || grainCode,
+      metricCode: first.metricCode,
+      domainCodes: first.domainCodes,
+      typeItemCodes: first.typeItemCodes,
+      operatorCode: first.operatorCode,
+      targets: items,
+    };
   });
-  const computeAndSort = (n: TreeNode): number => {
-    n.children.sort((a, b) => a.targetCode.localeCompare(b.targetCode));
-    let total = n.children.length;
-    for (const c of n.children) total += computeAndSort(c);
-    n.descendantCount = total;
-    return total;
-  };
-  roots.sort((a, b) => a.targetCode.localeCompare(b.targetCode));
-  for (const r of roots) computeAndSort(r);
-  return roots;
+
+  if (noGrain.length > 0) {
+    groups.push({
+      grainCode: "__ungrouped__",
+      label: "Sin agrupación",
+      metricCode: null,
+      domainCodes: [],
+      typeItemCodes: [],
+      operatorCode: null,
+      targets: noGrain,
+    });
+  }
+
+  return groups;
 }
+
+function buildScopeJsonb(grainCode: string, variantValues: MetaEditorForm["variantValues"]) {
+  if (variantValues.length === 0) return null;
+  const levels = variantValues.map((v, i) => ({
+    level_index: i + 1,
+    level_key: v.level_key.trim(),
+    level_label: v.level_label.trim(),
+    value_code: v.value_code.trim(),
+    value_label: v.value_label.trim(),
+  }));
+  return {
+    grain_code: grainCode.trim() || undefined,
+    levels,
+    filters: Object.fromEntries(levels.map((l) => [l.level_key, l.value_code])),
+  };
+}
+
+function buildTargetName(metricName: string | null | undefined, variantValues: MetaEditorForm["variantValues"]): string {
+  const labels = variantValues.map((v) => v.value_label.trim()).filter(Boolean).join(" ");
+  return [metricName, labels].filter(Boolean).join(" ");
+}
+
+function grainLabelFrom(
+  group: Pick<GrainGroup, "metricCode" | "domainCodes" | "grainCode">,
+  metrics: AdminMetric[],
+  domains: AdminDomain[],
+): string {
+  const metricName = group.metricCode
+    ? metrics.find((m) => m.metricCode === group.metricCode)?.metricName
+    : null;
+  const domainNames = group.domainCodes
+    .map((dc) => domains.find((d) => d.domainCode === dc)?.domainName ?? dc)
+    .join(", ");
+  return [metricName, domainNames].filter(Boolean).join(" · ") || group.grainCode;
+}
+
+// ── Component ──────────────────────────────────────────────────────────────────
 
 export function AdminGoalTargetsPage() {
   const { data, mutate, isValidating } = useSWR(ENDPOINT, fetcher, { revalidateOnFocus: false });
-  const [selectedCode, setSelectedCode] = useState<string | null>(null);
+
+  // Editor state
+  const [editorMode, setEditorMode] = useState<EditorMode>("idle");
+  const [selectedVariantCode, setSelectedVariantCode] = useState<string | null>(null);
+  const [selectedGrainCode, setSelectedGrainCode] = useState<string | null>(null);
+  const [form, setForm] = useState<MetaEditorForm>(EMPTY_FORM);
+
+  // List state
   const [search, setSearch] = useState("");
-  const [levelFilter, setLevelFilter] = useState<string>("all");
   const [domainFilter, setDomainFilter] = useState<string>("all");
   const [metricFilter, setMetricFilter] = useState<string>("all");
-  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [pageOffset, setPageOffset] = useState(0);
-  const [formValues, setFormValues] = useState<GoalTargetFormValues>(EMPTY_FORM);
   const deferredSearch = useDeferredValue(search);
 
   const targets = useMemo(() => data?.targets ?? [], [data?.targets]);
@@ -94,99 +218,115 @@ export function AdminGoalTargetsPage() {
   const operators = useMemo(() => data?.operators ?? [], [data?.operators]);
   const goalTypes = useMemo(() => data?.goalTypes ?? [], [data?.goalTypes]);
 
-  const levelDistribution = useMemo(() => {
-    const dist = new Map<number, number>();
-    for (const t of targets) dist.set(t.levelIndex, (dist.get(t.levelIndex) ?? 0) + 1);
-    return [...dist.entries()].sort((a, b) => a[0] - b[0]);
-  }, [targets]);
+  const grainGroups = useMemo(
+    () => buildGrainGroups(targets, metrics, domains),
+    [targets, metrics, domains],
+  );
 
-  const maxLevel = useMemo(() => targets.reduce((m, t) => Math.max(m, t.levelIndex), 0), [targets]);
-  const levelOptions = useMemo(() => {
-    return Array.from({ length: maxLevel }, (_, i) => `L${i + 1}`);
-  }, [maxLevel]);
-
-  const filteredFlat = useMemo(() => {
+  const filteredTargets = useMemo(() => {
     const normalized = deferredSearch.trim().toLowerCase();
     return targets.filter((t) => {
-      if (levelFilter !== "all" && `L${t.levelIndex}` !== levelFilter) return false;
       if (domainFilter !== "all" && !t.domainCodes.includes(domainFilter)) return false;
       if (metricFilter !== "all" && t.metricCode !== metricFilter) return false;
       if (normalized) {
-        const hay = `${t.targetCode} ${t.targetName} ${t.levelLabel ?? ""}`.toLowerCase();
+        const scopeText = (t.targetScopeJsonb?.levels ?? [])
+          .map((l) => `${l.level_label} ${l.value_label} ${l.value_code}`)
+          .join(" ");
+        const hay = `${t.targetCode} ${t.targetName} ${t.targetGrainCode ?? ""} ${scopeText}`.toLowerCase();
         if (!hay.includes(normalized)) return false;
       }
       return true;
     });
-  }, [targets, deferredSearch, levelFilter, domainFilter, metricFilter]);
+  }, [targets, deferredSearch, domainFilter, metricFilter]);
 
-  const tree = useMemo(() => buildTree(targets), [targets]);
-  const filteredTree = useMemo(() => {
-    const noFilters = !deferredSearch.trim() && levelFilter === "all" && domainFilter === "all" && metricFilter === "all";
-    if (noFilters) return tree;
-    const matchSet = new Set(filteredFlat.map((t) => t.targetCode));
-    const matchesOrHasMatchingChild = (n: TreeNode): boolean =>
-      matchSet.has(n.targetCode) || n.children.some(matchesOrHasMatchingChild);
-    const filterDeep = (nodes: TreeNode[]): TreeNode[] =>
-      nodes.filter(matchesOrHasMatchingChild).map((n) => ({ ...n, children: filterDeep(n.children) }));
-    return filterDeep(tree);
-  }, [tree, filteredFlat, deferredSearch, levelFilter, domainFilter, metricFilter]);
+  const filteredGroups = useMemo(() => {
+    const matchSet = new Set(filteredTargets.map((t) => t.targetCode));
+    return grainGroups
+      .map((g) => ({ ...g, targets: g.targets.filter((t) => matchSet.has(t.targetCode)) }))
+      .filter((g) => g.targets.length > 0);
+  }, [grainGroups, filteredTargets]);
 
-  const totalRoots = filteredTree.length;
-  const pagedRoots = useMemo(
-    () => filteredTree.slice(pageOffset, pageOffset + PAGE_SIZE),
-    [filteredTree, pageOffset],
+  const pagedGroups = useMemo(
+    () => filteredGroups.slice(pageOffset, pageOffset + PAGE_SIZE),
+    [filteredGroups, pageOffset],
   );
-  const hasMore = pageOffset + PAGE_SIZE < totalRoots;
+  const hasMore = pageOffset + PAGE_SIZE < filteredGroups.length;
 
-  const selected = selectedCode ? targets.find((t) => t.targetCode === selectedCode) ?? null : null;
-  const isEdit = selected !== null;
+  const selectedVariant = selectedVariantCode
+    ? targets.find((t) => t.targetCode === selectedVariantCode) ?? null
+    : null;
+  const selectedGrain = selectedGrainCode
+    ? grainGroups.find((g) => g.grainCode === selectedGrainCode) ?? null
+    : null;
 
-  const parentOptions: EditorOption[] = useMemo(() =>
-    targets
-      .filter((t) => t.targetCode !== formValues.targetCode)
-      .map((t) => ({ code: t.targetCode, label: `L${t.levelIndex} ${t.targetName}` })),
-    [targets, formValues.targetCode],
+  const metricOptions: EditorOption[] = useMemo(
+    () => metrics.map((m) => ({ code: m.metricCode, label: m.metricName })),
+    [metrics],
   );
-  const metricOptions: EditorOption[] = useMemo(() => metrics.map((m) => ({ code: m.metricCode, label: m.metricName })), [metrics]);
-  const domainOptions: EditorOption[] = useMemo(() => domains.map((d) => ({ code: d.domainCode, label: d.domainName })), [domains]);
-  const operatorOptions: EditorOption[] = useMemo(() => operators.map((o) => ({ code: o.itemCode, label: o.itemLabelEs })), [operators]);
-  const goalTypeOptions: EditorOption[] = useMemo(() => goalTypes.map((g) => ({ code: g.itemCode, label: g.itemLabelEs })), [goalTypes]);
+  const domainOptions: EditorOption[] = useMemo(
+    () => domains.map((d) => ({ code: d.domainCode, label: d.domainName })),
+    [domains],
+  );
+  const operatorOptions: EditorOption[] = useMemo(
+    () => operators.map((o) => ({ code: o.itemCode, label: o.itemLabelEs })),
+    [operators],
+  );
+  const goalTypeOptions: EditorOption[] = useMemo(
+    () => goalTypes.map((g) => ({ code: g.itemCode, label: g.itemLabelEs })),
+    [goalTypes],
+  );
 
-  function toggleExpanded(code: string) {
-    setExpanded((prev) => {
-      const next = new Set(prev);
-      if (next.has(code)) next.delete(code); else next.add(code);
-      return next;
+  // ── Editor actions ─────────────────────────────────────────────────────────
+
+  function cancelEditor() {
+    setEditorMode("idle");
+    setSelectedVariantCode(null);
+    setSelectedGrainCode(null);
+  }
+
+  function openCreateMeta() {
+    startTransition(() => {
+      setEditorMode("create-meta");
+      setSelectedVariantCode(null);
+      setSelectedGrainCode(null);
+      setForm({ ...EMPTY_FORM, validFromDate: localDateString() });
     });
   }
 
-  function resetFilters() {
-    setSearch("");
-    setLevelFilter("all");
-    setDomainFilter("all");
-    setMetricFilter("all");
-    setPageOffset(0);
-  }
-
-  function openCreate(parent: AdminGoalTarget | null) {
+  function openAddVariant(grain: GrainGroup) {
     startTransition(() => {
-      setSelectedCode(null);
-      setFormValues({
+      setEditorMode("add-variant");
+      setSelectedVariantCode(null);
+      setSelectedGrainCode(grain.grainCode);
+      // Inherit dimension schema from existing variants; user only fills value_code + value_label
+      const schema = (grain.targets[0]?.targetScopeJsonb?.levels ?? []).map((l) => ({
+        level_key: l.level_key,
+        level_label: l.level_label,
+        value_code: "",
+        value_label: "",
+      }));
+      setForm({
         ...EMPTY_FORM,
-        parentTargetCode: parent?.targetCode ?? "",
-        levelIndex: String((parent?.levelIndex ?? 0) + 1),
-        domainCodesEncoded: parent && parent.domainCodes.length > 0 ? encodeMultiSelectValue(parent.domainCodes) : "all",
+        grainCode: grain.grainCode,
+        metricCode: grain.metricCode ?? "",
+        domainCodesEncoded: encodeMultiSelectValue(grain.domainCodes),
+        typeItemCodesEncoded: encodeMultiSelectValue(grain.typeItemCodes),
+        operatorCode: grain.operatorCode ?? "",
+        validFromDate: localDateString(),
+        variantValues: schema,
       });
     });
   }
 
-  function openEdit(t: AdminGoalTarget) {
+  function openEditVariant(t: AdminGoalTarget) {
     startTransition(() => {
-      setSelectedCode(t.targetCode);
-      setFormValues({
-        targetCode: t.targetCode, targetName: t.targetName,
-        targetDescription: t.targetDescription ?? "", parentTargetCode: t.parentTargetCode ?? "",
-        levelIndex: String(t.levelIndex), levelLabel: t.levelLabel ?? "",
+      setEditorMode("edit-variant");
+      setSelectedVariantCode(t.targetCode);
+      setSelectedGrainCode(t.targetGrainCode ?? null);
+      setForm({
+        ...EMPTY_FORM,
+        grainCode: t.targetGrainCode ?? t.targetScopeJsonb?.grain_code ?? "",
+        targetCode: t.targetCode,
         metricCode: t.metricCode ?? "",
         domainCodesEncoded: encodeMultiSelectValue(t.domainCodes),
         typeItemCodesEncoded: encodeMultiSelectValue(t.typeItemCodes),
@@ -194,156 +334,225 @@ export function AdminGoalTargetsPage() {
         valueMin: t.valueMin !== null ? String(t.valueMin) : "",
         valueMax: t.valueMax !== null ? String(t.valueMax) : "",
         valueText: t.valueText ?? "",
-        validFromDate: t.validFrom ? t.validFrom.slice(0, 10) : today,
-        notesText: t.notesText ?? "", changeReason: "",
+        validFromDate: t.validFrom ? t.validFrom.slice(0, 10) : localDateString(),
+        notesText: t.notesText ?? "",
+        changeReason: "",
+        variantValues: (t.targetScopeJsonb?.levels ?? []).map((l) => ({
+          level_key: l.level_key,
+          level_label: l.level_label,
+          value_code: l.value_code,
+          value_label: l.value_label,
+        })),
       });
     });
   }
 
-  async function saveTarget(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!formValues.targetCode.trim() || !formValues.targetName.trim() || !formValues.validFromDate) {
-      toast.error("Código, nombre y fecha de inicio son obligatorios.");
+  // ── Submit ─────────────────────────────────────────────────────────────────
+
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+
+    if (!form.validFromDate) {
+      toast.error("La fecha de inicio es obligatoria.");
       return;
     }
-    if (isEdit && selected && formValues.validFromDate <= selected.validFrom.slice(0, 10)) {
-      toast.error("La nueva fecha de inicio debe ser posterior a la versión vigente.");
-      return;
-    }
-    const payload = {
-      targetCode: formValues.targetCode.trim(), targetName: formValues.targetName.trim(),
-      targetDescription: formValues.targetDescription.trim() || null,
-      parentTargetCode: formValues.parentTargetCode || null,
-      levelIndex: Number(formValues.levelIndex) || 1,
-      levelLabel: formValues.levelLabel.trim() || null,
-      metricCode: formValues.metricCode || null,
-      operatorCode: formValues.operatorCode || null,
-      valueMin: formValues.valueMin === "" ? null : Number(formValues.valueMin),
-      valueMax: formValues.valueMax === "" ? null : Number(formValues.valueMax),
-      valueText: formValues.valueText.trim() || null,
-      notesText: formValues.notesText.trim() || null,
-      domainCodes: decodeMultiSelectValue(formValues.domainCodesEncoded),
-      typeItemCodes: decodeMultiSelectValue(formValues.typeItemCodesEncoded),
-      validFromDate: formValues.validFromDate,
-      changeReason: formValues.changeReason.trim() || (isEdit ? "manual_update" : "manual_create"),
-    };
-    try {
-      if (isEdit) {
+
+    const metricName = metrics.find((m) => m.metricCode === form.metricCode)?.metricName;
+    const targetName = buildTargetName(metricName, form.variantValues) || form.targetCode || form.grainCode;
+    const scopeJsonb = buildScopeJsonb(form.grainCode, form.variantValues);
+
+    if (editorMode === "edit-variant") {
+      if (!selectedVariant) return;
+      if (form.validFromDate <= selectedVariant.validFrom.slice(0, 10)) {
+        toast.error("La nueva fecha de inicio debe ser posterior a la versión vigente.");
+        return;
+      }
+      try {
         await fetchJson(ENDPOINT, "No se pudo actualizar.", {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "update", ...payload }),
+          body: JSON.stringify({
+            action: "update",
+            targetCode: form.targetCode,
+            targetName,
+            metricCode: form.metricCode || null,
+            operatorCode: form.operatorCode || null,
+            valueMin: form.valueMin === "" ? null : Number(form.valueMin),
+            valueMax: form.valueMax === "" ? null : Number(form.valueMax),
+            valueText: form.valueText.trim() || null,
+            notesText: form.notesText.trim() || null,
+            domainCodes: decodeMultiSelectValue(form.domainCodesEncoded),
+            typeItemCodes: decodeMultiSelectValue(form.typeItemCodesEncoded),
+            validFromDate: form.validFromDate,
+            changeReason: form.changeReason.trim() || "manual_update",
+            targetScopeJsonb: scopeJsonb,
+          }),
         });
-        toast.success("Meta actualizada (nueva versión SCD2).");
-      } else {
-        await fetchJson(ENDPOINT, "No se pudo crear.", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-        toast.success("Meta creada.");
+        toast.success("Variante actualizada (nueva versión SCD2).");
+        await mutate(undefined, { revalidate: true });
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Error al guardar.");
       }
-      setSelectedCode(payload.targetCode);
+      return;
+    }
+
+    // create-meta or add-variant → POST
+    if (!form.targetCode.trim()) {
+      toast.error("El código de variante es obligatorio.");
+      return;
+    }
+
+    try {
+      await fetchJson(ENDPOINT, "No se pudo crear.", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          targetCode: form.targetCode.trim(),
+          targetName,
+          metricCode: form.metricCode || null,
+          operatorCode: form.operatorCode || null,
+          valueMin: form.valueMin === "" ? null : Number(form.valueMin),
+          valueMax: form.valueMax === "" ? null : Number(form.valueMax),
+          valueText: form.valueText.trim() || null,
+          notesText: form.notesText.trim() || null,
+          domainCodes: decodeMultiSelectValue(form.domainCodesEncoded),
+          typeItemCodes: decodeMultiSelectValue(form.typeItemCodesEncoded),
+          validFromDate: form.validFromDate,
+          changeReason: editorMode === "add-variant" ? "add_variant" : "manual_create",
+          targetScopeJsonb: scopeJsonb,
+        }),
+      });
+      toast.success(editorMode === "add-variant" ? "Variante agregada." : "Meta creada.");
       await mutate(undefined, { revalidate: true });
+      cancelEditor();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Error al guardar.");
+      toast.error(error instanceof Error ? error.message : "Error al crear.");
     }
   }
 
-  async function deactivate() {
-    if (!selected) return;
+  async function deactivateVariant() {
+    if (!selectedVariant) return;
     try {
       await fetchJson(ENDPOINT, "No se pudo desactivar.", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "set-validity", targetCode: selected.targetCode, isValid: false }),
+        body: JSON.stringify({
+          action: "set-validity",
+          targetCode: selectedVariant.targetCode,
+          isValid: false,
+        }),
       });
-      toast.success("Meta desactivada.");
+      toast.success("Variante desactivada.");
+      cancelEditor();
       await mutate(undefined, { revalidate: true });
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "No se pudo desactivar.");
     }
   }
 
-  function renderNode(node: TreeNode, depth: number): React.ReactNode {
-    const isOpen = expanded.has(node.targetCode);
-    const isSelected = selectedCode === node.targetCode;
-    const hasChildren = node.children.length > 0;
-    const domain = node.domainCodes[0] ?? null;
+  // ── List helpers ───────────────────────────────────────────────────────────
+
+  function toggleGroup(grain: string) {
+    setExpandedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(grain)) next.delete(grain); else next.add(grain);
+      return next;
+    });
+  }
+
+  function resetFilters() {
+    setSearch("");
+    setDomainFilter("all");
+    setMetricFilter("all");
+    setPageOffset(0);
+  }
+
+  function renderVariantRow(t: AdminGoalTarget): React.ReactNode {
+    const isSelected = selectedVariantCode === t.targetCode && editorMode === "edit-variant";
+    const levels = t.targetScopeJsonb?.levels ?? [];
+    const targetValue =
+      t.valueText
+      ?? (t.valueMin !== null && t.valueMax !== null ? `${t.valueMin}–${t.valueMax}` : null)
+      ?? (t.valueMin !== null ? `≥ ${t.valueMin}` : null)
+      ?? (t.valueMax !== null ? `≤ ${t.valueMax}` : null)
+      ?? null;
+
     return (
-      <div key={node.targetCode}>
-        <div
-          className={cn(
-            "flex items-center gap-2 rounded-[18px] border px-3 py-2 transition-colors",
-            isSelected ? "border-slate-900 bg-slate-900 text-white" : "border-border/70 bg-background/80 hover:border-slate-300",
+      <button
+        key={t.targetCode}
+        type="button"
+        className={cn(
+          "w-full rounded-[14px] border px-3 py-2.5 text-left transition-colors",
+          isSelected
+            ? "border-slate-900 bg-slate-900 text-white"
+            : "border-border/60 bg-background/80 hover:border-slate-300",
+        )}
+        onClick={() => openEditVariant(t)}
+      >
+        <div className="flex flex-wrap items-center gap-1.5">
+          {levels.length > 0
+            ? levels.map((l) => (
+                <Badge
+                  key={l.level_key}
+                  variant="outline"
+                  className={cn(
+                    "rounded-full px-2 py-0.5 text-[10px] font-normal",
+                    isSelected && "border-white/20 bg-white/12 text-white",
+                  )}
+                >
+                  <span className="font-medium">{l.level_label}:</span>&nbsp;{l.value_label}
+                </Badge>
+              ))
+            : <span className="text-sm font-medium">{t.targetName}</span>
+          }
+          {targetValue !== null && (
+            <Badge
+              variant={isSelected ? "secondary" : "outline"}
+              className={cn(
+                "ml-auto shrink-0 rounded-full px-2 py-0.5 text-[10px]",
+                isSelected && "border-white/20 bg-white/12 text-white",
+              )}
+            >
+              {t.operatorLabel ? `${t.operatorLabel} ` : ""}{targetValue}
+              {t.unitSymbol ? ` ${t.unitSymbol}` : ""}
+            </Badge>
           )}
-          style={{ marginLeft: depth * 18 }}
-        >
-          <button type="button" className="shrink-0 p-1" onClick={() => toggleExpanded(node.targetCode)} aria-label={isOpen ? "Contraer" : "Expandir"}>
-            {hasChildren ? (isOpen ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />) : <span className="block size-4" />}
-          </button>
-          <button type="button" className="min-w-0 flex-1 text-left" onClick={() => openEdit(node)}>
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-sm font-semibold">{node.targetName}</span>
-              <Badge
-                variant={isSelected ? "secondary" : "outline"}
-                className={cn("rounded-full px-2 py-0.5 text-[10px]", isSelected && "border-white/20 bg-white/12 text-white")}
-              >
-                L{node.levelIndex}
-              </Badge>
-              {node.levelLabel ? (
-                <Badge
-                  variant="outline"
-                  className={cn("rounded-full px-2 py-0.5 text-[10px]", isSelected && "border-white/20 bg-white/12 text-white")}
-                >
-                  {node.levelLabel}
-                </Badge>
-              ) : null}
-              {node.metricName ? (
-                <Badge
-                  variant="outline"
-                  className={cn("rounded-full px-2 py-0.5 text-[10px]", isSelected && "border-white/20 bg-white/12 text-white")}
-                >
-                  {node.metricName}
-                  {node.unitSymbol ? ` (${node.unitSymbol})` : ""}
-                </Badge>
-              ) : null}
-              {domain ? (
-                <Badge
-                  variant="outline"
-                  className={cn("rounded-full px-2 py-0.5 text-[10px]", isSelected && "border-white/20 bg-white/12 text-white")}
-                >
-                  {domain}
-                </Badge>
-              ) : null}
-              {hasChildren ? (
-                <Badge
-                  variant="outline"
-                  className={cn("rounded-full px-2 py-0.5 text-[10px]", isSelected && "border-white/20 bg-white/12 text-white")}
-                >
-                  {node.descendantCount} {node.descendantCount === 1 ? "hijo" : "descendientes"}
-                </Badge>
-              ) : null}
-            </div>
-            <p className={cn("mt-1 text-[11px]", isSelected ? "text-white/80" : "text-muted-foreground")}>{node.targetCode}</p>
-          </button>
-          <Button type="button" variant="ghost" size="sm" className="shrink-0" onClick={() => openCreate(node)} title="Agregar hijo (siguiente nivel)">
-            <Plus className="size-3" />
-          </Button>
         </div>
-        {isOpen && hasChildren ? (
-          <div className="mt-1 space-y-1">{node.children.map((c) => renderNode(c, depth + 1))}</div>
-        ) : null}
-      </div>
+        <p className={cn("mt-0.5 text-[10px]", isSelected ? "text-white/60" : "text-muted-foreground/70")}>
+          {t.targetCode}
+        </p>
+      </button>
     );
   }
+
+  // ── Derived ────────────────────────────────────────────────────────────────
+
+  const hasFilters = !!(search || domainFilter !== "all" || metricFilter !== "all");
+  const totalFilteredTargets = filteredTargets.length;
+
+  const editorGrainLabel =
+    editorMode === "edit-variant" && selectedVariant
+      ? grainLabelFrom(
+          {
+            metricCode: selectedVariant.metricCode,
+            domainCodes: selectedVariant.domainCodes,
+            grainCode: selectedVariant.targetGrainCode ?? selectedVariant.targetScopeJsonb?.grain_code ?? "",
+          },
+          metrics,
+          domains,
+        )
+      : editorMode === "add-variant" && selectedGrain
+        ? grainLabelFrom(selectedGrain, metrics, domains)
+        : null;
+
+  // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
     <div className="space-y-4">
       <SectionPageShell
         eyebrow="Administración / Administración Maestros / Metas & Objetivos"
         title="Metas & Objetivos"
-        subtitle="Administración jerárquica multinivel. Filtra por nivel, dominio o métrica; cada meta puede crear hijos en niveles inferiores."
+        subtitle="Una meta = métrica + dominio + grain_code. Cada grain agrupa todas sus variantes de alcance (por variedad, semana, origen, etc.)."
         icon={<Target className="size-5" aria-hidden="true" />}
         actions={(
           <div className="flex flex-wrap gap-2">
@@ -351,24 +560,15 @@ export function AdminGoalTargetsPage() {
               <RefreshCcw className={cn("size-4", isValidating && "animate-spin")} />
               Recargar
             </Button>
-            <Button type="button" className="rounded-full" onClick={() => openCreate(null)}>
+            <Button type="button" className="rounded-full" onClick={openCreateMeta}>
               <Plus className="size-4" />
-              Nueva meta raíz
+              Nueva meta
             </Button>
           </div>
         )}
       >
         <FilterPanel>
-          <div className="grid gap-3 md:grid-cols-3">
-            <SingleSelectField
-              id="goal-level-filter"
-              label="Nivel"
-              value={levelFilter}
-              options={levelOptions}
-              displayValue={(v) => v}
-              emptyLabel="Todos los niveles"
-              onChange={(v) => { setLevelFilter(v); setPageOffset(0); }}
-            />
+          <div className="flex flex-wrap items-end gap-3">
             <SingleSelectField
               id="goal-domain-filter"
               label="Dominio"
@@ -387,63 +587,152 @@ export function AdminGoalTargetsPage() {
               emptyLabel="Todas las métricas"
               onChange={(v) => { setMetricFilter(v); setPageOffset(0); }}
             />
+            {hasFilters && (
+              <div className="flex items-end pb-0.5">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-9 gap-1.5 text-muted-foreground"
+                  onClick={resetFilters}
+                >
+                  <X className="size-3.5" />
+                  Limpiar filtros
+                </Button>
+              </div>
+            )}
           </div>
           <KpiGrid columns={4}>
-            <MetricTile label="Metas activas (filtro)" value={String(filteredFlat.length)} hint={`Total catálogo: ${targets.length}`} />
-            <MetricTile label="Niveles" value={String(maxLevel)} hint="Profundidad máxima del árbol." />
-            <MetricTile label="Distribución por nivel" value={levelDistribution.map(([l, n]) => `L${l}:${n}`).join(" ")} hint="Conteo por nivel." />
+            <MetricTile
+              label="Variantes activas"
+              value={String(totalFilteredTargets)}
+              hint={`Total catálogo: ${targets.length}`}
+            />
+            <MetricTile
+              label="Metas (grains)"
+              value={String(grainGroups.filter((g) => g.grainCode !== "__ungrouped__").length)}
+              hint="Metas distintas agrupadas por grain_code."
+            />
             <MetricTile label="Dominios" value={String(domains.length)} hint="Macro-dominios disponibles." />
+            <MetricTile label="Métricas" value={String(metrics.length)} hint="Métricas con metas definidas." />
           </KpiGrid>
         </FilterPanel>
       </SectionPageShell>
 
       <div className="grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
+        {/* ── Left: catálogo de metas ──────────────────────────────────── */}
         <Card className="starter-panel border-border/70 bg-card/84">
           <CardHeader className="space-y-4">
             <div className="flex items-center gap-3">
               <div className="rounded-full bg-slate-900/10 p-3 text-slate-700 dark:bg-slate-900/20 dark:text-white">
-                <Target className="size-5" aria-hidden="true" />
+                <Target className="size-5" />
               </div>
               <div className="min-w-0 flex-1">
-                <CardTitle className="text-lg">Árbol de metas</CardTitle>
+                <CardTitle className="text-lg">Catálogo de metas</CardTitle>
                 <CardDescription>
-                  {filteredTree.length === totalRoots
-                    ? `${totalRoots} raíces`
-                    : `${totalRoots} raíces filtradas`}
-                  {totalRoots > PAGE_SIZE ? ` · mostrando ${Math.min(PAGE_SIZE, totalRoots - pageOffset)} desde ${pageOffset + 1}` : ""}
-                  · clic en + para crear hijo
+                  {filteredGroups.length} {filteredGroups.length === 1 ? "meta" : "metas"} ·{" "}
+                  {totalFilteredTargets} variantes
                 </CardDescription>
               </div>
-              {(search || levelFilter !== "all" || domainFilter !== "all" || metricFilter !== "all") ? (
-                <Button type="button" variant="ghost" size="sm" className="rounded-full" onClick={resetFilters}>
-                  Limpiar filtros
-                </Button>
-              ) : null}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="goal-search">Buscar meta</Label>
+              <Label htmlFor="goal-search">Buscar</Label>
               <div className="relative">
                 <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   id="goal-search"
                   value={search}
                   onChange={(e) => { setSearch(e.target.value); setPageOffset(0); }}
-                  placeholder="Buscar por código, nombre o etiqueta..."
+                  placeholder="variedad, semana, origen, código…"
                   className="pl-10"
                 />
               </div>
             </div>
           </CardHeader>
           <CardContent className="pt-1">
-            <div className="max-h-[calc(100dvh-22rem)] space-y-1 overflow-y-auto pr-1">
-              {pagedRoots.length ? (
-                pagedRoots.map((n) => renderNode(n, 0))
-              ) : (
-                <div className="rounded-[18px] border border-dashed border-border/70 px-4 py-8 text-center text-sm text-muted-foreground">
-                  No hay metas que coincidan con los filtros.
-                </div>
-              )}
-              {hasMore ? (
+            <div className="max-h-[calc(100dvh-22rem)] space-y-2 overflow-y-auto pr-1">
+              {pagedGroups.length > 0
+                ? pagedGroups.map((group) => {
+                    const isOpen = expandedGroups.has(group.grainCode);
+                    const PREVIEW = 5;
+                    const visibleTargets = isOpen ? group.targets : group.targets.slice(0, PREVIEW);
+                    const hiddenCount = group.targets.length - PREVIEW;
+                    const isAddingToThisGrain =
+                      editorMode === "add-variant" && selectedGrainCode === group.grainCode;
+
+                    return (
+                      <div
+                        key={group.grainCode}
+                        className="overflow-hidden rounded-[18px] border border-border/70 bg-background/80"
+                      >
+                        {/* Group header */}
+                        <div className="flex items-center gap-1 px-2 py-1.5">
+                          <button
+                            type="button"
+                            className="flex min-w-0 flex-1 items-center gap-2 rounded-[12px] px-1 py-1 text-left transition-colors hover:bg-muted/40"
+                            onClick={() => toggleGroup(group.grainCode)}
+                          >
+                            {isOpen
+                              ? <ChevronDown className="size-4 shrink-0 text-muted-foreground" />
+                              : <ChevronRight className="size-4 shrink-0 text-muted-foreground" />}
+                            <div className="min-w-0 flex-1">
+                              <span className="text-sm font-semibold">
+                                {grainLabelFrom(group, metrics, domains)}
+                              </span>
+                              <span className="ml-2 text-[11px] text-muted-foreground">
+                                {group.targets.length} variantes
+                              </span>
+                            </div>
+                            {group.grainCode !== "__ungrouped__" && (
+                              <Badge
+                                variant="outline"
+                                className="shrink-0 rounded-full px-2 py-0.5 font-mono text-[10px]"
+                              >
+                                {group.grainCode}
+                              </Badge>
+                            )}
+                          </button>
+                          {/* "+" button to add a variant to this grain */}
+                          {group.grainCode !== "__ungrouped__" && (
+                            <button
+                              type="button"
+                              title="Agregar variante a esta meta"
+                              className={cn(
+                                "shrink-0 rounded-full p-1.5 transition-colors",
+                                isAddingToThisGrain
+                                  ? "bg-slate-900 text-white"
+                                  : "text-muted-foreground hover:bg-muted/50 hover:text-foreground",
+                              )}
+                              onClick={(e) => { e.stopPropagation(); openAddVariant(group); }}
+                            >
+                              <Plus className="size-3.5" />
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Variant rows */}
+                        <div className="space-y-1 px-2 pb-2">
+                          {visibleTargets.map((t) => renderVariantRow(t))}
+                          {!isOpen && hiddenCount > 0 && (
+                            <button
+                              type="button"
+                              className="w-full rounded-[10px] py-1.5 text-center text-[11px] text-muted-foreground transition-colors hover:text-foreground"
+                              onClick={() => toggleGroup(group.grainCode)}
+                            >
+                              Ver {hiddenCount} variantes más…
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })
+                : (
+                  <div className="rounded-[18px] border border-dashed border-border/70 px-4 py-8 text-center text-sm text-muted-foreground">
+                    No hay metas que coincidan con los filtros.
+                  </div>
+                )}
+
+              {hasMore && (
                 <div className="flex justify-center pt-3">
                   <Button
                     type="button"
@@ -451,11 +740,11 @@ export function AdminGoalTargetsPage() {
                     className="rounded-full"
                     onClick={() => setPageOffset((p) => p + PAGE_SIZE)}
                   >
-                    Mostrar siguientes {Math.min(PAGE_SIZE, totalRoots - pageOffset - PAGE_SIZE)}
+                    Mostrar más metas
                   </Button>
                 </div>
-              ) : null}
-              {pageOffset > 0 ? (
+              )}
+              {pageOffset > 0 && (
                 <div className="flex justify-center pt-2">
                   <Button
                     type="button"
@@ -467,23 +756,24 @@ export function AdminGoalTargetsPage() {
                     Volver al inicio
                   </Button>
                 </div>
-              ) : null}
+              )}
             </div>
           </CardContent>
         </Card>
 
+        {/* ── Right: editor ───────────────────────────────────────────── */}
         <AdminGoalTargetEditor
-          isEdit={isEdit}
-          formValues={formValues}
-          setFormValues={setFormValues}
-          parentOptions={parentOptions}
+          mode={editorMode}
+          form={form}
+          setForm={setForm}
+          grainLabel={editorGrainLabel}
           metricOptions={metricOptions}
           domainOptions={domainOptions}
           goalTypeOptions={goalTypeOptions}
           operatorOptions={operatorOptions}
-          onSubmit={saveTarget}
-          onDeactivate={isEdit ? deactivate : undefined}
-          selectedTitle={selected?.targetName ?? null}
+          onSubmit={handleSubmit}
+          onDeactivate={editorMode === "edit-variant" ? deactivateVariant : undefined}
+          onCancel={cancelEditor}
         />
       </div>
     </div>

@@ -237,12 +237,12 @@ WHERE NOT EXISTS (
 DROP VIEW IF EXISTS public.vw_adm_goal_target_active;
 
 CREATE VIEW public.vw_adm_goal_target_active AS
-SELECT t.target_code, t.target_name, t.target_description, t.parent_target_code,
-       t.level_index, t.level_label, t.metric_code,
-       m.metric_name, m.unit_code, u.unit_symbol,
+SELECT t.target_code, t.target_name, t.target_description,
+       t.metric_code, m.metric_name, m.unit_code, u.unit_symbol,
        t.operator_code, op.item_label_es AS operator_label,
        t.value_min, t.value_max, t.value_text, t.notes_text,
-       t.valid_from, t.valid_to, t.actor_id, t.change_reason
+       t.valid_from, t.valid_to, t.actor_id, t.change_reason,
+       t.target_grain_code, t.target_scope_jsonb
 FROM public.adm_dim_goal_target_profile_scd2 t
 LEFT JOIN public.adm_dim_metric_profile_scd2 m
   ON m.metric_code = t.metric_code AND m.is_current AND m.is_valid
