@@ -149,12 +149,12 @@ function EventPill({ record, onClick, highlighted }: { record: ProgramacionRecor
         borderRight:  highlighted ? `1.5px solid ${spAccent}` : `1px solid ${areaStyle.border}`,
         borderBottom: highlighted ? `1.5px solid ${spAccent}` : `1px solid ${areaStyle.border}`,
         borderLeft:   `3px solid ${spAccent}`,
-        borderRadius: "6px",
-        padding:      "2px 5px 2px 5px",
-        cursor:       onClick ? "pointer" : "default",
-        opacity:      onClick && !highlighted ? 0.72 : 1,
       }}
-      className="flex items-center gap-1"
+      className={cn(
+        "flex items-center gap-1 rounded-[6px] py-[2px] px-[5px]",
+        onClick ? "cursor-pointer" : "cursor-default",
+        onClick && !highlighted ? "opacity-[0.72]" : "",
+      )}
       title={`${record.blockId} · ${record.variety ?? "—"} · SP: ${record.spType ?? "—"} · Área: ${record.areaId ?? "—"}`}
       // a11y: cuando es interactivo, queda foco-able y responde a Enter/Space.
       // Sin onClick conserva semantica decorativa (sin role/tabIndex/keydown).
@@ -190,17 +190,8 @@ function EventPill({ record, onClick, highlighted }: { record: ProgramacionRecor
       </span>
       {/* variety badge */}
       <span
-        style={{
-          background:    varietyColor,
-          borderRadius:  "4px",
-          padding:       "0 4px",
-          fontSize:      "12px",
-          fontWeight:    700,
-          color:         "#fff",
-          letterSpacing: "0.02em",
-          lineHeight:    "16px",
-          flexShrink:    0,
-        }}
+        style={{ background: varietyColor }}
+        className="shrink-0 rounded-[4px] px-[4px] text-[12px] font-bold leading-[16px] tracking-[0.02em] text-white"
       >
         {abbr}
       </span>
