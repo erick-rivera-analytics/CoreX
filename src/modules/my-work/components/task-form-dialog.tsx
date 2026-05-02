@@ -10,6 +10,9 @@ import { ToggleSwitch } from "@/shared/forms/toggle-switch";
 import { SingleSelectField } from "@/shared/filters/single-select-field";
 import { MY_WORK_PRIORITY_OPTIONS, MY_WORK_STATUS_OPTIONS, type MyWorkSpace, type TaskFormValue } from "@/modules/my-work/server/types";
 
+const STATUS_SELECT_OPTIONS = MY_WORK_STATUS_OPTIONS.filter((o) => o.value !== "todo").map((o) => o.value);
+const PRIORITY_SELECT_OPTIONS = MY_WORK_PRIORITY_OPTIONS.filter((o) => o.value !== "medium").map((o) => o.value);
+
 const textareaClassName =
   "flex min-h-[120px] w-full rounded-[16px] border border-input bg-background px-4 py-3 text-sm text-foreground outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring/40";
 
@@ -56,7 +59,7 @@ export function TaskFormDialog({
             value={draft.statusCode}
             emptyValue="todo"
             emptyLabel="Por hacer"
-            options={MY_WORK_STATUS_OPTIONS.filter((o) => o.value !== "todo").map((o) => o.value)}
+            options={STATUS_SELECT_OPTIONS}
             displayValue={(v) => MY_WORK_STATUS_OPTIONS.find((o) => o.value === v)?.label ?? v}
             onChange={(v) => setDraft((current) => ({ ...current, statusCode: v as TaskFormValue["statusCode"] }))}
           />
@@ -66,7 +69,7 @@ export function TaskFormDialog({
             value={draft.priorityCode}
             emptyValue="medium"
             emptyLabel="Normal"
-            options={MY_WORK_PRIORITY_OPTIONS.filter((o) => o.value !== "medium").map((o) => o.value)}
+            options={PRIORITY_SELECT_OPTIONS}
             displayValue={(v) => MY_WORK_PRIORITY_OPTIONS.find((o) => o.value === v)?.label ?? v}
             onChange={(v) => setDraft((current) => ({ ...current, priorityCode: v as TaskFormValue["priorityCode"] }))}
           />

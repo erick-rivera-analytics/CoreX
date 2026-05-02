@@ -157,7 +157,8 @@ export function BodegaProgramacionesExplorer({
   }, [visibleRows]);
 
   const productSummaryRows = useMemo<ProductSummaryRow[]>(() => {
-    const grouped = new Map<string, ProductSummaryRow>();
+    type Accumulator = Omit<ProductSummaryRow, "drenchGroupLabels"> & { labelSet: Set<string> };
+    const grouped = new Map<string, Accumulator>();
 
     for (const row of productBlockRows) {
       const key = [row.productCode, row.unitCode ?? ""].join("|");
@@ -168,25 +169,23 @@ export function BodegaProgramacionesExplorer({
         unitCode: row.unitCode,
         quantityTotal: 0,
         blockCount: 0,
-        drenchGroupLabels: [],
+        labelSet: new Set<string>(),
         blocks: [],
       };
 
       current.quantityTotal += row.quantityTotal;
       current.blocks.push(row);
       current.blockCount += 1;
-      if (!current.drenchGroupLabels.includes(row.drenchGroupLabel)) {
-        current.drenchGroupLabels.push(row.drenchGroupLabel);
-      }
+      current.labelSet.add(row.drenchGroupLabel);
       grouped.set(key, current);
     }
 
     return Array.from(grouped.values())
-      .map((group) => ({
+      .map(({ labelSet, ...group }) => ({
         ...group,
         blocks: group.blocks.sort((left, right) =>
           left.blockId.localeCompare(right.blockId, "es", { numeric: true })),
-        drenchGroupLabels: group.drenchGroupLabels.sort((left, right) => left.localeCompare(right, "es")),
+        drenchGroupLabels: [...labelSet].sort((left, right) => left.localeCompare(right, "es")),
       }))
       .sort((left, right) => left.productCode.localeCompare(right.productCode, "es"));
   }, [productBlockRows]);
