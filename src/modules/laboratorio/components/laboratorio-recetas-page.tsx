@@ -289,9 +289,14 @@ export function LaboratorioRecetasPage({
   }, [deferredSearch, products]);
 
   const summary = useMemo(() => {
-    const latest = [...products]
-      .filter((product) => product.loadedAt)
-      .sort((left, right) => String(right.loadedAt).localeCompare(String(left.loadedAt)))[0] ?? null;
+    const latest = products.reduce<(typeof products)[number] | null>(
+      (best, product) => {
+        if (!product.loadedAt) return best;
+        if (!best || String(product.loadedAt) > String(best.loadedAt)) return product;
+        return best;
+      },
+      null,
+    );
 
     return {
       products: products.length,

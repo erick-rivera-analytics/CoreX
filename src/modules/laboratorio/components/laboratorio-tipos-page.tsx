@@ -108,9 +108,14 @@ export function LaboratorioTiposPage({ initialData, initialError }: LaboratorioT
   }, [deferredSearch, records]);
 
   const summary = useMemo(() => {
-    const latest = [...records]
-      .filter((record) => record.loadedAt)
-      .sort((left, right) => String(right.loadedAt).localeCompare(String(left.loadedAt)))[0] ?? null;
+    const latest = records.reduce<(typeof records)[number] | null>(
+      (best, record) => {
+        if (!record.loadedAt) return best;
+        if (!best || String(record.loadedAt) > String(best.loadedAt)) return record;
+        return best;
+      },
+      null,
+    );
 
     return {
       total: records.length,

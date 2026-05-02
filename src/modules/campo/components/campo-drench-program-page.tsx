@@ -475,9 +475,14 @@ export function CampoDrenchProgramPage({
   const isDirty = JSON.stringify(currentPayload) !== JSON.stringify(baselinePayload);
 
   const summary = useMemo(() => {
-    const latest = [...rules]
-      .filter((rule) => rule.loadedAt)
-      .sort((left, right) => String(right.loadedAt).localeCompare(String(left.loadedAt)))[0] ?? null;
+    const latest = rules.reduce<(typeof rules)[number] | null>(
+      (best, rule) => {
+        if (!rule.loadedAt) return best;
+        if (!best || String(rule.loadedAt) > String(best.loadedAt)) return rule;
+        return best;
+      },
+      null,
+    );
 
     return {
       rules: rules.length || initialSummary.rules,

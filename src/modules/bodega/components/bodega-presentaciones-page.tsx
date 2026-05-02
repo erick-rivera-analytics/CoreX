@@ -307,9 +307,14 @@ export function BodegaPresentacionesPage({
   }, [deferredSearch, presentations]);
 
   const summary = useMemo(() => {
-    const latest = [...presentations]
-      .filter((record) => record.loadedAt)
-      .sort((left, right) => String(right.loadedAt).localeCompare(String(left.loadedAt)))[0] ?? null;
+    const latest = presentations.reduce<(typeof presentations)[number] | null>(
+      (best, record) => {
+        if (!record.loadedAt) return best;
+        if (!best || String(record.loadedAt) > String(best.loadedAt)) return record;
+        return best;
+      },
+      null,
+    );
 
     return {
       totalPresentations: presentations.length,

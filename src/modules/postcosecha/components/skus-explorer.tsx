@@ -182,9 +182,14 @@ export function PoscosechaSkusExplorer({
 
   const summaries = useMemo(() => {
     const total = records.length;
-    const latestRecord = [...records]
-      .filter((record) => record.loadedAt)
-      .sort((left, right) => String(right.loadedAt).localeCompare(String(left.loadedAt)))[0] ?? null;
+    const latestRecord = records.reduce<(typeof records)[number] | null>(
+      (best, record) => {
+        if (!record.loadedAt) return best;
+        if (!best || String(record.loadedAt) > String(best.loadedAt)) return record;
+        return best;
+      },
+      null,
+    );
 
     return {
       total,

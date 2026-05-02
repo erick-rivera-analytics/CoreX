@@ -272,9 +272,14 @@ export function BodegaProductosPage({
   }, [deferredSearch, products]);
 
   const summary = useMemo(() => {
-    const latest = [...products]
-      .filter((record) => record.loadedAt)
-      .sort((left, right) => String(right.loadedAt).localeCompare(String(left.loadedAt)))[0] ?? null;
+    const latest = products.reduce<(typeof products)[number] | null>(
+      (best, record) => {
+        if (!record.loadedAt) return best;
+        if (!best || String(record.loadedAt) > String(best.loadedAt)) return record;
+        return best;
+      },
+      null,
+    );
 
     return {
       totalProducts: products.length,
