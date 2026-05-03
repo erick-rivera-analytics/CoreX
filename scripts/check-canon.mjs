@@ -43,6 +43,8 @@ const officialDocs = new Set([
   "docs/gestion-postcosecha-clasificacion-en-blanco.md",
   "docs/gestion-calidad-punto-apertura.md",
   "docs/gestion-postcosecha-balanzas-process-engine.md",
+  "docs/gestion-bodega-drench-migration.md",
+  "docs/bodega/README.md",
   // Docs reclasificados a vigentes en Audit final preprod 2026-04-25:
   "docs/apis.md",
   "docs/datos.md",
@@ -65,6 +67,7 @@ const officialDocs = new Set([
   "docs/audits/AUD-13-react-doctor-round-2.md",
   "docs/audits/AUD-14-react-doctor-round-3.md",
   "docs/audits/AUD-15-react-doctor-round-4.md",
+  "docs/audits/AUD-16-pre-prod-readiness-2026-05.md",
 ]);
 
 const legacyDocPrefix = "> LEGACY / reference only.";
@@ -229,6 +232,25 @@ const hugeFileAllowlist = new Set([
   "src/modules/productividad/components/productividad-explorer.tsx",
   "src/modules/programaciones/components/programaciones-explorer.tsx",
   "src/modules/users/components/users-page.tsx",
+  // Catalogos administrativos extensos (ver quality-baseline.md)
+  "src/config/module-catalog.ts",
+  "src/lib/bodega-masters.ts",
+  "src/lib/campo-drench-program.ts",
+  "src/lib/comparacion.ts",
+  "src/lib/laboratory-masters.ts",
+  "src/lib/postcosecha-clasificacion-en-blanco-runner.ts",
+  "src/modules/admin-masters/components/admin-goal-target-editor.tsx",
+  "src/modules/admin-masters/components/admin-goal-targets-page.tsx",
+  "src/modules/bodega/components/bodega-categorias-page.tsx",
+  "src/modules/bodega/components/bodega-presentaciones-page.tsx",
+  "src/modules/bodega/components/bodega-productos-page.tsx",
+  "src/modules/bodega/components/bodega-programaciones-explorer.tsx",
+  "src/modules/bodega/components/bodega-unidades-page.tsx",
+  "src/modules/campo/components/campo-drench-program-page.tsx",
+  "src/modules/laboratorio/components/laboratorio-recetas-page.tsx",
+  "src/modules/laboratorio/components/laboratorio-tipos-page.tsx",
+  "src/modules/postcosecha/components/__tests__/balanzas-table-metrics.test.ts",
+  "src/modules/talento-humano/seguimientos/components/seguimientos-indicador-explorer.tsx",
 ]);
 
 for (const file of tsFiles) {

@@ -854,7 +854,7 @@ function applyLocalDetailFilters(
   }
 }
 
-// ─── Node definitions (19 nodos, prefijo vw_ confirmado en DB) ───────────────
+// ─── Node definitions (19 nodos, prefijo mv_ confirmado en DB) ───────────────
 
 const VIEW_PREFIX = "gld.mv_camp_ind_bal_";
 

@@ -27,8 +27,8 @@ type ComparisonRadarChartProps = {
   rightLabel: string;
 };
 
-const COLOR_A = "var(--comp-a, #3b82f6)";
-const COLOR_B = "var(--comp-b, #f59e0b)";
+const COLOR_A = "var(--color-chart-info-bold)";
+const COLOR_B = "var(--color-chart-warning)";
 
 function AxisTick({
   x,

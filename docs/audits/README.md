@@ -32,6 +32,7 @@ Cada AUD documenta:
 | 13 | [`AUD-13-react-doctor-round-2.md`](./AUD-13-react-doctor-round-2.md) | React Doctor Round 2 — 3 tiny-text + 2 array keys + 2 shims eliminados + 2 falsos positivos documentados | ✅ cerrado | 2026-04-26 | check holístico verde, 79/79 tests | NO |
 | 14 | [`AUD-14-react-doctor-round-3.md`](./AUD-14-react-doctor-round-3.md) | React Doctor Round 3 — 5 tiny-text → 12px (mín WCAG) + 9 array index keys con valor estable | ✅ cerrado | 2026-04-26 | check holístico verde, 79/79 tests | NO |
 | 15 | [`AUD-15-react-doctor-round-4.md`](./AUD-15-react-doctor-round-4.md) | React Doctor Round 4 — 5 useEffect-toast → SWR onError + 3 imports useEffect unused | ✅ cerrado | 2026-04-26 | check holístico verde, 79/79 tests | NO |
+| 16 | [`AUD-16-pre-prod-readiness-2026-05.md`](./AUD-16-pre-prod-readiness-2026-05.md) | Pre-producción readiness — 100% mv_, 84/84 RBAC, 38/38 pages, canon limpio, 6 env vars críticas pendientes | ✅ cerrado | 2026-05-02 | check holístico verde, 107/107 tests | NO* |
 
 ---
 

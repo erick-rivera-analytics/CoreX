@@ -92,6 +92,7 @@ Cada AUD documenta hallazgos, correcciones aplicadas, riesgos residuales y crite
 | [`audits/AUD-6-testing-qa-smoke.md`](./audits/AUD-6-testing-qa-smoke.md) | Testing/QA/smoke — 79/79 tests, E2E opt-in |
 | [`audits/AUD-7-despliegue-runtime-docker.md`](./audits/AUD-7-despliegue-runtime-docker.md) | Despliegue/Docker/runtime — TZ=UTC, IP placeholder |
 | [`audits/AUD-8-documentacion-dod-gobernanza.md`](./audits/AUD-8-documentacion-dod-gobernanza.md) | Documentación/DoD/gobernanza — este audit |
+| [`audits/AUD-16-pre-prod-readiness-2026-05.md`](./audits/AUD-16-pre-prod-readiness-2026-05.md) | Pre-producción 2026-05 — mv_, RBAC, canon, env (107/107 tests) |
 
 ---
 
