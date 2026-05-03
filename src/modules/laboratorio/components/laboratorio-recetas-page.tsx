@@ -170,12 +170,10 @@ function buildPayload(values: LaboratoryProductInput): LaboratoryProductInput {
     categoryId: values.categoryId.trim(),
     baseUnitId: values.baseUnitId.trim(),
     isActive: values.isActive,
-    assignments: values.assignments
-      .map((assignment, index) => ({
-        activityId: assignment.activityId.trim().toUpperCase(),
-        branchOrder: index + 1,
-      }))
-      .filter((assignment) => assignment.activityId),
+    assignments: values.assignments.flatMap((assignment, index) => {
+      const activityId = assignment.activityId.trim().toUpperCase();
+      return activityId ? [{ activityId, branchOrder: index + 1 }] : [];
+    }),
     recipeLines: values.recipeLines.map((line, index) => ({
       lineOrder: index + 1,
       ingredientProductId: line.ingredientProductId?.trim() || null,

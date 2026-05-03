@@ -51,19 +51,22 @@ export const MortalityCurveChart = memo(function MortalityCurveChart({ data }: M
                   const point = payload?.[0]?.payload as MortalityCurvePoint | undefined;
                   return point ? `Día ${label} / ${point.calendarDate}` : `Día ${label}`;
                 }}
-                mapPayload={(payload) =>
-                  payload
-                    .filter((entry, idx, arr) =>
-                      arr.findIndex((e) => e.name === entry.name) === idx
-                    )
-                    .map((entry) => ({
+                mapPayload={(payload) => {
+                  const seen = new Set<unknown>();
+                  const out: Array<{ label: string; value: string }> = [];
+                  for (const entry of payload) {
+                    if (seen.has(entry.name)) continue;
+                    seen.add(entry.name);
+                    out.push({
                       label: String(entry.name ?? ""),
                       value:
                         entry.name === "Mortandad diaria" || entry.name === "Mortandad acumulada"
                           ? formatPercent(Number(entry.value))
                           : formatFlexibleNumber(Number(entry.value)),
-                    }))
-                }
+                    });
+                  }
+                  return out;
+                }}
               />
             }
           />

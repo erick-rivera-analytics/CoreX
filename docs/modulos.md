@@ -218,10 +218,14 @@ Referencia por módulo activo: propósito, datos, KPIs, archivos clave y endpoin
 | Tallos/Planta | `Σ(stems) / Σ(plants_current)` solo ciclos con `plants_current > 0` |
 | Peso Tallo (g) | `Σ(green_kg) × 1000 / Σ(stems)` |
 | Cajas/Cama | `Σ(cajas) / Σ(camas 30m²)` |
+| Cajas/Cama Meta | Meta ponderada por share de verde por origen (APERTURA/GV/PRECLASIFICACION) → `boxes_per_bed` desde `db_admin.adm_dim_goal_target_profile_scd2` |
+| Cumplimiento | `cajaCama_real ÷ cajaCama_meta` (≥1 verde, 0.80–1 ámbar, <0.80 rojo) |
 | Hora/Caja | `Σ(horas) / Σ(cajas)` |
 | Hora/Cama | `Hora/Caja × Caja/Cama` |
 
-**Filtros:** year, month, spType, variety, area, status (activo/cerrado), costArea (CAMPO/COSECHA/all)
+> **Año-level meta:** ponderada por kg verde de cada ciclo: `Σ(greenKg_j × meta_j) / Σ(greenKg_j)`. Esto refleja la composición real del verde, no el conteo de camas.
+
+**Filtros:** year, month, spType, variety, area, **block**, status (activo/cerrado), costArea (CAMPO/COSECHA/all)
 
 **API endpoints:**
 - `GET /api/productividad` — dashboard completo

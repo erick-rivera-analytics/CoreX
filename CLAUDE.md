@@ -249,6 +249,9 @@ Cuando el usuario pida generar un PDF — un botón de impresión, un reporte, u
 | Registro de reunión con acuerdos | `acta_minuta.tex` |
 | Una página de KPIs resumidos | `ficha_resumen.tex` |
 | Datos de soporte de otro documento | `anexo_tecnico.tex` |
+| Orden de trabajo Solver clasificación | `orden_trabajo_clasificacion.tex` |
+| Agenda Seguimientos Trabajo Social | `tthh_agenda_seguimientos.tex` |
+| Programación drench por bloque (landscape) | `bodega_programacion_drench.tex` |
 
 ### Componentes LaTeX disponibles (no inventar otros)
 
@@ -300,6 +303,8 @@ Si el usuario pide un botón que genere el PDF desde la app:
 - El template recibe datos dinámicos via `dataTexContent` (comandos `\SetDoc*` + macros)
 - Retornar con `pdfBufferToResponse(pdf, "nombre.pdf")`
 - Requiere `pdflatex` en el servidor (agregar `texlive-latex-extra` al Dockerfile si se activa)
+- **NUNCA usar Python + reportlab para nuevos PDFs.** Toda generación de PDF debe pasar por `generateCanonicalPdf` para mantener una sola dependencia (pdflatex) y un solo estilo institucional.
+- Logo institucional StarFlowers vive en `pdf-canon/assets/logo.pdf`. El servicio reescribe la ruta a `./assets/logo.pdf` automáticamente al copiar `canon_variables.tex` al workDir temporal.
 
 Documentación completa: `pdf-canon/docs/`
 

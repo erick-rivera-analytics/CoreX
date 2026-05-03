@@ -133,7 +133,7 @@ export function FenogramaExplorer({ initialData }: { initialData: FenogramaDashb
         <FilterPanel>
           <ToggleChipGroup
             options={lifecycleOptions}
-            selected={lifecycleOptions.filter((o) => filters[lifecycleFilterKeys[o.value]]).map((o) => o.value)}
+            selected={lifecycleOptions.flatMap((o) => (filters[lifecycleFilterKeys[o.value]] ? [o.value] : []))}
             onChange={(selected) => {
               setFilters((current) => ({
                 ...current,

@@ -147,12 +147,10 @@ function buildPayload(values: BodegaProductInput): BodegaProductInput {
       ? null
       : values.activeComponentName?.trim() || null,
     isActive: values.isActive,
-    assignments: values.assignments
-      .map((assignment, index) => ({
-        activityId: assignment.activityId.trim().toUpperCase(),
-        branchOrder: index + 1,
-      }))
-      .filter((assignment) => assignment.activityId),
+    assignments: values.assignments.flatMap((assignment, index) => {
+      const activityId = assignment.activityId.trim().toUpperCase();
+      return activityId ? [{ activityId, branchOrder: index + 1 }] : [];
+    }),
     changeReason: values.changeReason?.trim() || null,
   };
 }

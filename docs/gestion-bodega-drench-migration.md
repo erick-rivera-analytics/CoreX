@@ -124,8 +124,8 @@ Capas principales:
 - `X:\PROYECTOS\PLANIFICACION\CoreX\src\lib\drench-week-calendar.ts`
 - `X:\PROYECTOS\PLANIFICACION\CoreX\src\modules\bodega\components\bodega-programaciones-page.tsx`
 - `X:\PROYECTOS\PLANIFICACION\CoreX\src\modules\bodega\components\bodega-programaciones-explorer.tsx`
-- `X:\PROYECTOS\PLANIFICACION\CoreX\src\app\api\bodega\planificacion\programaciones\route.ts`
-- `X:\PROYECTOS\PLANIFICACION\CoreX\src\app\api\bodega\planificacion\programaciones\pdf\route.ts`
+- `src/app/api/bodega/planificacion/programaciones/route.ts`
+- `src/app/api/bodega/planificacion/programaciones/pdf/route.ts`
 
 ## Modelo funcional de Drench
 
@@ -324,9 +324,16 @@ Ruta:
 
 - `POST /api/bodega/planificacion/programaciones/pdf`
 
-Script:
+Sistema:
 
-- `X:\PROYECTOS\PLANIFICACION\CoreX\scripts\generate_drench_program_pdf.py`
+- **pdf-canon (LaTeX / pdflatex)** — usa `generateCanonicalPdf` igual que Solver y Seguimientos.
+- Template: `pdf-canon/templates/bodega_programacion_drench.tex` (landscape A4).
+- Helpers: `pdf-canon/scripts/generate_pdf_service.ts`.
+- Logo institucional: `pdf-canon/assets/logo.pdf` (StarFlowers).
+
+> **Histórico:** la versión anterior usaba Python + reportlab y un path
+> hardcodeado a la máquina de un dev. Migrado a pdf-canon en 2026-05 para
+> que funcione en producción sin Python instalado en el servidor.
 
 ### Payload soportado
 
@@ -441,8 +448,8 @@ limit 20;
 - `X:\PROYECTOS\PLANIFICACION\CoreX\scripts\generate_drench_program_pdf.py`
 
 ### APIs
-- `X:\PROYECTOS\PLANIFICACION\CoreX\src\app\api\bodega\planificacion\programaciones\route.ts`
-- `X:\PROYECTOS\PLANIFICACION\CoreX\src\app\api\bodega\planificacion\programaciones\pdf\route.ts`
+- `src/app/api/bodega/planificacion/programaciones/route.ts`
+- `src/app/api/bodega/planificacion/programaciones/pdf/route.ts`
 
 ### Libs
 - `X:\PROYECTOS\PLANIFICACION\CoreX\src\lib\campo-drench-program.ts`

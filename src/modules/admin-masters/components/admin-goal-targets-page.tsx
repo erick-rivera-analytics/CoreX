@@ -241,9 +241,10 @@ export function AdminGoalTargetsPage() {
 
   const filteredGroups = useMemo(() => {
     const matchSet = new Set(filteredTargets.map((t) => t.targetCode));
-    return grainGroups
-      .map((g) => ({ ...g, targets: g.targets.filter((t) => matchSet.has(t.targetCode)) }))
-      .filter((g) => g.targets.length > 0);
+    return grainGroups.flatMap((g) => {
+      const targets = g.targets.filter((t) => matchSet.has(t.targetCode));
+      return targets.length > 0 ? [{ ...g, targets }] : [];
+    });
   }, [grainGroups, filteredTargets]);
 
   const pagedGroups = useMemo(

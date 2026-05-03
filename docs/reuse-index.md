@@ -101,7 +101,7 @@ Regla:
 | Permisos UI (cliente) | `usePermission(resourceKey)` (`@/shared/hooks/use-permission`) |
 | Guarda UI por recurso/accion | `<PermissionGuard resource action="view\|write\|delete\|export">` (`@/shared/auth/permission-guard`) |
 | Fetch cliente | `@/lib/fetch-json` |
-| Formatters numericos / fechas / horas / porcentaje | `@/shared/lib/format` (incluye `formatRatio`, `formatCount`) |
+| Formatters numericos / fechas / horas / porcentaje | `@/shared/lib/format` (incluye `formatRatio`, `formatCount`, `formatMonthNumeric` para filtros mes 1–12 → "Enero") |
 | Diccionarios canonicos de etiquetas (cycle/lifecycle/task/presence status) | `@/shared/lib/labels` (`CYCLE_STATUS_LABELS`, `LIFECYCLE_LABELS`, `TASK_STATUS_LABELS`, `PRESENCE_LABELS`, `getLabel`) |
 | Persistencia local del solver | `src/modules/postcosecha/hooks/use-solver-draft-storage.ts` |
 | Dashboard Calidad / Punto de apertura | `src/lib/calidad-punto-apertura.ts` + `src/modules/calidad/components/punto-apertura-*.tsx` |

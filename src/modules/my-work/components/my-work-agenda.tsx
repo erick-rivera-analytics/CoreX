@@ -70,7 +70,7 @@ export function MyWorkAgenda({
             <Badge variant="outline">{reminders.length}</Badge>
           </div>
           <div className="space-y-2">
-            {reminders.filter((reminder) => reminder.statusCode === "pending").map((reminder) => (
+            {reminders.flatMap((reminder) => reminder.statusCode !== "pending" ? [] : [(
               <div key={reminder.id} className="flex items-center justify-between gap-3 rounded-[16px] border border-border/70 bg-background/70 px-4 py-3">
                 <div className="min-w-0">
                   <p className="font-medium">{reminder.title}</p>
@@ -81,7 +81,7 @@ export function MyWorkAgenda({
                   <Button variant="ghost" size="sm" onClick={() => onUpdateReminder(reminder, "canceled")}>Cancelar</Button>
                 </div>
               </div>
-            ))}
+            )])}
           </div>
         </div>
       ) : null}

@@ -38,6 +38,7 @@ Contrato visual y estructural para no romper consistencia de CoreX al crecer.
 - Recharts: `RechartsTooltipAdapter` + `axisConfig` o `axisTickStyleCompact`
 - filtros visibles: solo `src/shared/filters/*`
 - numeros y fechas: solo `@/shared/lib/format`
+- filtro `Mes` (numero 1–12): siempre `displayValue={formatMonthNumeric}` — convierte `"1"` → `"Enero"`. No reinventar diccionarios locales (`MONTHS_ES = ["Ene", ...]`)
 - fetch cliente: solo `@/lib/fetch-json`
 - overlays nuevos: `DialogShell` o `SheetShell`
 - sombras y colores nuevos: tokens CSS o excepcion documentada

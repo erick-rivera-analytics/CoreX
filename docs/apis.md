@@ -246,8 +246,8 @@ Referencia completa de todos los endpoints REST de CoreX v4. Reemplaza el archiv
 **Policy:** `resource-bound` → requiere `/dashboard/productividad`
 
 ### `GET /api/productividad`
-**Query params:** `year?`, `month?`, `spType?`, `variety?`, `area?`, `status?`, `costArea?` (CAMPO | COSECHA | all)  
-**Response:** KPIs ponderados agrupados por ciclo y año de cosecha  
+**Query params:** `year?`, `month?`, `spType?`, `variety?`, `area?`, `block?`, `status?`, `costArea?` (CAMPO | COSECHA | all)  
+**Response:** KPIs ponderados agrupados por ciclo y año de cosecha (incluye `cajaCamaMeta`, `cumplimiento` ponderados por share de verde por origen)  
 **Cache:** `private, max-age=30, stale-while-revalidate=120`
 
 ### `GET /api/productividad/[cycleKey]/detail`
@@ -447,6 +447,25 @@ Crea una nueva regla de drench con sus líneas de productos.
 ### `PATCH /api/campo/administrar-maestros/programacion-drench/[ruleId]`
 Actualiza o desactiva una regla existente.  
 **Body:** `Partial<DrenchProgramRuleInput>`
+
+---
+
+## Bodega — Planificación Programaciones
+
+**Política:** `resource-bound` → requiere acceso a `/dashboard/bodega/planificacion/programaciones`.  
+**Prefijo:** `/api/bodega/planificacion/programaciones`
+
+### `GET /api/bodega/planificacion/programaciones`
+Lista calendario de drench por semana fenológica con receta homologada por bloque.  
+**Query params:** `isoWeekId?`, `cycleType?`, `variety?`, `areaId?`  
+**Response:** `{ rows, options, filters }` (ver `DrenchWeekCalendarRow`)
+
+### `POST /api/bodega/planificacion/programaciones/pdf`
+Genera el PDF de programación drench usando **pdf-canon (LaTeX)**.  
+**Body:** `{ filters?, selectedGroupKey?, viewMode? }`  
+**`viewMode`:** `"by-block"` (default — landscape, longtable) | `"by-product-block"` (resumen + detalle).  
+**Response:** `application/pdf` con `Content-Disposition: attachment`.  
+**Sistema:** `generateCanonicalPdf` con template `bodega_programacion_drench`. Sin dependencias Python en el servidor.
 
 ---
 

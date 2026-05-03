@@ -190,7 +190,7 @@ export function MyWorkExplorer({ initialData }: { initialData: MyWorkInitialData
               id="my-work-space"
               label="Espacio"
               value={filters.spaceId}
-              options={spaces.filter((space) => !space.isArchived).map((space) => space.id)}
+              options={spaces.flatMap((space) => (space.isArchived ? [] : [space.id]))}
               onChange={(value) => updateFilter("spaceId", value)}
               emptyLabel="Todos los espacios"
               displayValue={(id) => spaces.find((space) => space.id === id)?.name ?? id}

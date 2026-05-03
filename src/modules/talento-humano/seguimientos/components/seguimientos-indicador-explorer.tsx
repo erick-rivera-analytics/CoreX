@@ -34,7 +34,7 @@ import { DateField } from "@/shared/filters/date-field";
 import { Button } from "@/shared/ui/button";
 import { RechartsTooltipAdapter } from "@/shared/charts/chart-tooltip";
 import { axisConfig, axisTickStyle, axisTickStyleCompact, gridConfig, tooltipCursorStyle } from "@/shared/charts/chart-axis-config";
-import { formatPercent, formatInteger } from "@/shared/lib/format";
+import { formatPercent, formatInteger, formatMonthNumeric } from "@/shared/lib/format";
 import type { FollowupIndicatorData, FollowupIndicatorFilters } from "@/lib/talento-humano-seguimientos-indicador";
 
 // ── Color tokens ───────────────────────────────────────────────────────────────
@@ -71,10 +71,9 @@ const DEFAULT_FILTERS: FollowupIndicatorFilters = {
   year: "", month: "", area: "", worker: "", route: "", dateFrom: "", dateTo: "",
 };
 
-// ── Month labels ───────────────────────────────────────────────────────────────
+// ── Month / route options ─────────────────────────────────────────────────────
 
-const MONTHS_ES = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"] as const;
-const MONTH_OPTIONS = MONTHS_ES.map((label, i) => String(i + 1));
+const MONTH_OPTIONS = Array.from({ length: 12 }, (_, i) => String(i + 1));
 const ROUTE_OPTIONS = ["AGR", "ADM"];
 
 // ── Main explorer ──────────────────────────────────────────────────────────────
@@ -135,7 +134,7 @@ export function SeguimientosIndicadorExplorer({ initialData }: { initialData: Fo
               label="Mes"
               value={filters.month}
               options={MONTH_OPTIONS}
-              displayValue={(v) => MONTHS_ES[Number(v) - 1] ?? v}
+              displayValue={formatMonthNumeric}
               emptyLabel="Todos los meses"
               onChange={(v) => setFilter("month", v)}
             />
@@ -264,7 +263,7 @@ export function SeguimientosIndicadorExplorer({ initialData }: { initialData: Fo
                   const selectedMonths = decodeMultiSelectValue(filters.month);
                   const currentLabel =
                     selectedYears.length === 1 && selectedMonths.length === 1
-                      ? `${MONTHS_ES[Number(selectedMonths[0]) - 1]} ${selectedYears[0]}`
+                      ? `${formatMonthNumeric(selectedMonths[0]!)} ${selectedYears[0]}`
                       : selectedYears.length === 1
                         ? selectedYears[0]!
                         : "Período actual";
@@ -481,12 +480,14 @@ function EvolutionChart({
                 <RechartsTooltipAdapter
                   title={(label) => String(label)}
                   mapPayload={(payload) =>
-                    payload
-                      .filter((e) => e.name !== `Meta ${goal}%`)
-                      .map((e) => ({
-                        label: String(e.name ?? ""),
-                        value: formatPercent(Number(e.value)),
-                      }))
+                    payload.flatMap((e) =>
+                      e.name === `Meta ${goal}%`
+                        ? []
+                        : [{
+                            label: String(e.name ?? ""),
+                            value: formatPercent(Number(e.value)),
+                          }],
+                    )
                   }
                 />
               }

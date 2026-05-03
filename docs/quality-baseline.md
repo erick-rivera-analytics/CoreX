@@ -46,6 +46,18 @@ El build puede emitir un warning de Turbopack/NFT relacionado con rutas dinamica
 - `src/modules/postcosecha/components/solver-results.tsx` -> dueno esperado: Postcosecha solver, seguir separando resultados/tablas si vuelve a crecer
 - `src/modules/postcosecha/hooks/use-clasificacion-en-blanco-explorer.ts` -> dueno esperado: Postcosecha solver, extraer recipe/export/storage si vuelve a crecer
 - `src/modules/talento-humano/components/talento-charts.tsx` -> dueno esperado: Talento, seguir dividiendo charts si aparece nueva complejidad
+- `src/modules/talento-humano/seguimientos/components/seguimientos-indicador-explorer.tsx` -> dueno esperado: Talento Humano, considerar split de charts si vuelve a crecer
+
+## React Doctor — deuda aceptada
+
+Reglas conocidas que NO se aplican (decision documentada):
+
+- `js-tosorted-immutable` (11 archivos) — `Array.prototype.toSorted()` es ES2023; tsconfig actual usa ES2017/lib es6 y rompe con TS2550. No aplicar hasta migrar `target` y `lib`.
+- `no-z-index-9999` (campo-map / campo-sub-map-modal) — Leaflet maneja su propio stacking; los z-index altos son intencionales.
+- `prefer-dynamic-import` (recharts en 7 archivos) — bundle ya pasa el check; aplicar caso por caso si el TTI lo justifica.
+- `no-derived-useState` (18 sitios) — el patron `useState(initialData)` es SSR-hidration legítimo (loader server pasa snapshot, SWR revalida).
+- `no-giant-component` (15 archivos) — split mayor coincide con la deuda de archivos grandes vigilados.
+- `prefer-useReducer` / `no-cascading-set-state` — refactor invasivo, postergado.
 
 ## Meta de calidad
 
