@@ -73,10 +73,16 @@ export async function loadScheduledFollowups(
   let pIdx = 2;
 
   if (filters.personSearch?.trim()) {
-    const pattern = `%${filters.personSearch.trim().replace(/[%_]/g, "\\$&")}%`;
-    conditions.push(`(p.person_id ILIKE $${pIdx} OR p.person_name ILIKE $${pIdx})`);
-    params.push(pattern);
-    pIdx++;
+    const tokens = filters.personSearch.trim().split(/\s+/).filter(Boolean).slice(0, 6);
+    const tokenConditions: string[] = [];
+    for (const token of tokens) {
+      tokenConditions.push(`(p.person_id ILIKE $${pIdx} ESCAPE '\\' OR p.person_name ILIKE $${pIdx} ESCAPE '\\')`);
+      params.push(`%${token.replace(/[%_\\]/g, "\\$&")}%`);
+      pIdx++;
+    }
+    if (tokenConditions.length > 0) {
+      conditions.push(`(${tokenConditions.join(" AND ")})`);
+    }
   }
 
   const workers = decodeMultiSelectValue(filters.associatedWorker);

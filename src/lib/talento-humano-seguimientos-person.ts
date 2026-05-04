@@ -41,7 +41,11 @@ export async function searchPersons(
   asOfDate: string,
   limit = 20,
 ): Promise<EmployeeFollowupPersonSearchResult[]> {
-  const pattern = `%${q.trim().replace(/[%_]/g, "\\$&")}%`;
+  const searchTokens = q.trim().split(/\s+/).filter(Boolean).slice(0, 6);
+  const searchConditions = searchTokens.map((_, index) => (
+    `(p.person_id ILIKE $${index + 2} ESCAPE '\\' OR p.person_name ILIKE $${index + 2} ESCAPE '\\')`
+  ));
+  const searchParams = searchTokens.map((token) => `%${token.replace(/[%_\\]/g, "\\$&")}%`);
 
   const result = await query<
     PersonProfileQueryRow & { area_name: string | null; area_general: string | null }
@@ -78,11 +82,11 @@ export async function searchPersons(
     ) a ON true
     WHERE p.is_current = true
       AND p.is_valid = true
-      AND (p.person_id ILIKE $2 OR p.person_name ILIKE $2)
+      AND ${searchConditions.join(" AND ")}
     ORDER BY p.person_name
-    LIMIT $3
+    LIMIT $${searchParams.length + 2}
     `,
-    [asOfDate, pattern, limit],
+    [asOfDate, ...searchParams, limit],
   );
 
   return result.rows.map((row) => ({
