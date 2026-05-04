@@ -9,9 +9,9 @@
  */
 
 import { exec } from "node:child_process";
-import { mkdtemp, writeFile, readFile, rm, mkdir, copyFile } from "node:fs/promises";
-import { join, resolve } from "node:path";
-import { tmpdir } from "node:os";
+import { mkdtemp, writeFile, readFile, rm, mkdir, copyFile, access } from "node:fs/promises";
+import { basename, join, resolve } from "node:path";
+import { homedir, tmpdir } from "node:os";
 import { promisify } from "node:util";
 
 const execAsync = promisify(exec);
@@ -20,6 +20,17 @@ const execAsync = promisify(exec);
 
 const PDF_CANON_ROOT = resolve(process.cwd(), "pdf-canon");
 const COMPILE_TIMEOUT_MS = 120_000;
+const BUNDLED_TECTONIC_BIN = resolve(
+  homedir(),
+  ".codex",
+  ".tmp",
+  "bundled-marketplaces",
+  "openai-bundled",
+  "plugins",
+  "latex-tectonic",
+  "bin",
+  "tectonic.exe",
+);
 
 // ── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -36,7 +47,8 @@ export type CanonTemplateKey =
   | "anexo_tecnico"
   | "orden_trabajo_clasificacion"
   | "tthh_agenda_seguimientos"
-  | "bodega_programacion_drench";
+  | "bodega_programacion_drench"
+  | "calidad_punto_apertura";
 
 export type GeneratePdfPayload = {
   /**
@@ -204,15 +216,24 @@ async function runPdfLatex(
   pass: number,
   jobId: string,
 ): Promise<{ log: string }> {
-  const pdflatexBin = process.env["PDFLATEX_BIN"] ?? "pdflatex";
-
-  const cmd = [
-    pdflatexBin,
-    "-interaction=nonstopmode",
-    "-halt-on-error",
-    `-output-directory="${workDir}"`,
-    `"${join(workDir, "main.tex")}"`,
-  ].join(" ");
+  const { bin, engine } = await resolveLatexEngine();
+  const cmd =
+    engine === "tectonic"
+      ? [
+          `"${bin}"`,
+          "--keep-logs",
+          "--keep-intermediates",
+          "-r 0",
+          `-o "${workDir}"`,
+          `"${join(workDir, "main.tex")}"`,
+        ].join(" ")
+      : [
+          `"${bin}"`,
+          "-interaction=nonstopmode",
+          "-halt-on-error",
+          `-output-directory="${workDir}"`,
+          `"${join(workDir, "main.tex")}"`,
+        ].join(" ");
 
   try {
     const { stdout, stderr } = await execAsync(cmd, {
@@ -234,6 +255,28 @@ async function runPdfLatex(
       log,
       jobId,
     );
+  }
+}
+
+async function resolveLatexEngine(): Promise<{
+  bin: string;
+  engine: "pdflatex" | "tectonic";
+}> {
+  const configured = process.env["PDFLATEX_BIN"]?.trim();
+  if (configured) {
+    return {
+      bin: configured,
+      engine: basename(configured).toLowerCase().includes("tectonic")
+        ? "tectonic"
+        : "pdflatex",
+    };
+  }
+
+  try {
+    await access(BUNDLED_TECTONIC_BIN);
+    return { bin: BUNDLED_TECTONIC_BIN, engine: "tectonic" };
+  } catch {
+    return { bin: "pdflatex", engine: "pdflatex" };
   }
 }
 

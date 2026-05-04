@@ -17,6 +17,7 @@ import { Badge } from "@/shared/ui/badge";
 import { Card, CardContent } from "@/shared/ui/card";
 import { EmptyState } from "@/shared/data-display/empty-state";
 import { MetricTile } from "@/shared/data-display/metric-tile";
+import { ExportButton } from "@/shared/ui/export-button";
 import { DateField } from "@/shared/filters/date-field";
 import { MultiSelectField } from "@/shared/filters/multi-select-field";
 import { ScrollFadeTable } from "@/shared/tables/scroll-fade-table";
@@ -57,6 +58,7 @@ export function PuntoAperturaExplorer({ initialData }: { initialData: PuntoApert
   const [filters, setFilters] = useState<PuntoAperturaFilters>(initialData.filters);
   const [selectedRecord, setSelectedRecord] = useState<PuntoAperturaRecord | null>(null);
   const [selectedStatusComposition, setSelectedStatusComposition] = useState<"homogeneous" | "nonHomogeneous" | null>(null);
+  const [isExportingPdf, setIsExportingPdf] = useState(false);
   const deferredFilters = useDeferredValue(filters);
 
   const initialFilterKey = useMemo(() => buildQueryString(initialData.filters), [initialData.filters]);
@@ -93,10 +95,46 @@ export function PuntoAperturaExplorer({ initialData }: { initialData: PuntoApert
     setFilters(initialData.filters);
   }
 
+  async function handleExportPdf() {
+    if (isExportingPdf) return;
+    setIsExportingPdf(true);
+
+    try {
+      const response = await fetch("/api/calidad/punto-apertura/pdf", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ filters: deferredFilters }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({})) as { message?: string };
+        throw new Error(data.message ?? "Error al generar el PDF");
+      }
+
+      const disposition = response.headers.get("content-disposition") ?? "";
+      const match = /filename="([^"]+)"/.exec(disposition);
+      const filename = match?.[1] ?? `reporte_gerencial_punto_apertura_${Date.now()}.pdf`;
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Error al generar el PDF");
+    } finally {
+      setIsExportingPdf(false);
+    }
+  }
+
   return (
     <div className="min-w-0 space-y-4">
       <SectionPageShell
-        eyebrow="Analítica / Calidad / Indicadores & KPI"
+        eyebrow="Dashboard / Indicadores / Calidad"
         title="Punto de apertura"
         subtitle="Carta de control por registro para medir homogeneidad de apertura."
         icon={<Activity className="size-6" aria-hidden="true" />}
@@ -193,6 +231,16 @@ export function PuntoAperturaExplorer({ initialData }: { initialData: PuntoApert
               <button type="button" className="underline underline-offset-2" onClick={() => mutate()}>Reintentar</button>
             </div>
           ) : null}
+
+          <div className="flex justify-end">
+            <ExportButton
+              formats={["pdf"]}
+              disabled={isExportingPdf}
+              label={isExportingPdf ? "Exportando..." : "Exportar PDF"}
+              ariaLabel="Exportar PDF de punto de apertura"
+              onExport={() => handleExportPdf()}
+            />
+          </div>
         </FilterPanel>
       </SectionPageShell>
 
