@@ -305,12 +305,9 @@ export async function updateFollowupResponse(
       `UPDATE public.tthh_fact_employee_followup_response_cur
        SET is_latest_valid_version = false,
            is_valid = false,
-           invalid_reason_code = COALESCE(invalid_reason_code, 'superseded_by_update'),
-           change_reason = $2,
-           actor_id = $3,
-           run_id = $4
+           invalid_reason_code = COALESCE(invalid_reason_code, 'superseded_by_update')
        WHERE event_id = $1`,
-      [eventId, input.changeReason, actorId, runId],
+      [eventId],
     );
 
     // Mezclar campos nuevos con la version actual.
@@ -441,9 +438,9 @@ export async function updateFollowupResponse(
 
     await client.query(
       `UPDATE public.tthh_asgn_employee_followup_catalog_selection_cur
-       SET is_valid = false, change_reason = $1, actor_id = $2, run_id = $3
-       WHERE event_id = $4 AND is_valid = true`,
-      [input.changeReason, actorId, runId, eventId],
+       SET is_valid = false
+       WHERE event_id = $1 AND is_valid = true`,
+      [eventId],
     );
 
     for (const sel of selectionRows) {

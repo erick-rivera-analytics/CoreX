@@ -11,6 +11,7 @@ import {
   buildStatusComposition,
   StatusCompositionDialog,
 } from "@/modules/calidad/components/punto-apertura-status-composition";
+import { PuntoAperturaPdfExportButton } from "@/modules/calidad/components/punto-apertura-pdf-export-button";
 import { fetchJson } from "@/lib/fetch-json";
 import { Button } from "@/shared/ui/button";
 import { Badge } from "@/shared/ui/badge";
@@ -193,6 +194,10 @@ export function PuntoAperturaExplorer({ initialData }: { initialData: PuntoApert
               <button type="button" className="underline underline-offset-2" onClick={() => mutate()}>Reintentar</button>
             </div>
           ) : null}
+
+          <div className="flex justify-end">
+            <PuntoAperturaPdfExportButton filters={deferredFilters} />
+          </div>
         </FilterPanel>
       </SectionPageShell>
 
