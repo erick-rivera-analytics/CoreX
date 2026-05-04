@@ -4,6 +4,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { canAccessResource, getApiAccessRule } from "@/lib/access-control";
 import { getSessionUser } from "@/lib/auth";
 import { apiJsonError } from "@/lib/api-error";
+import { logEvent } from "@/lib/logger";
 import { getRequestId } from "@/lib/request-id";
 
 export async function getCurrentUserAccess() {
@@ -90,17 +91,13 @@ function validateMutationOrigin(request: NextRequest, requestId: string) {
   if (process.env.API_ORIGIN_CHECK_ENABLED !== "true") return null;
   if (!["POST", "PUT", "PATCH", "DELETE"].includes(request.method)) return null;
 
-  const source = request.headers.get("origin") || request.headers.get("referer");
-  if (!source) {
-    return apiJsonError("Origen de solicitud no permitido.", 403, requestId);
-  }
+  const originHeader = request.headers.get("origin");
+  const refererHeader = request.headers.get("referer");
+  const hostHeader = request.headers.get("host");
+  const xForwardedHost = request.headers.get("x-forwarded-host");
+  const xForwardedProto = request.headers.get("x-forwarded-proto");
+  const source = originHeader || refererHeader;
 
-  let sourceOrigin: string;
-  try {
-    sourceOrigin = new URL(source).origin;
-  } catch {
-    return apiJsonError("Origen de solicitud no permitido.", 403, requestId);
-  }
   const allowedOrigins = new Set(
     [
       request.nextUrl.origin,
@@ -111,8 +108,37 @@ function validateMutationOrigin(request: NextRequest, requestId: string) {
       .filter(Boolean) as string[],
   );
 
-  if (!allowedOrigins.has(sourceOrigin)) {
+  function deny(reason: string, sourceOrigin?: string) {
+    logEvent("warn", "api.origin.denied", {
+      requestId,
+      reason,
+      method: request.method,
+      path: request.nextUrl.pathname,
+      sourceOrigin: sourceOrigin ?? source ?? null,
+      originHeader,
+      refererHeader,
+      hostHeader,
+      xForwardedHost,
+      xForwardedProto,
+      requestNextUrlOrigin: request.nextUrl.origin,
+      allowedOrigins: Array.from(allowedOrigins),
+    });
     return apiJsonError("Origen de solicitud no permitido.", 403, requestId);
+  }
+
+  if (!source) {
+    return deny("missing_origin_and_referer_header");
+  }
+
+  let sourceOrigin: string;
+  try {
+    sourceOrigin = new URL(source).origin;
+  } catch {
+    return deny("malformed_source_url");
+  }
+
+  if (!allowedOrigins.has(sourceOrigin)) {
+    return deny("origin_not_in_allowlist", sourceOrigin);
   }
 
   return null;

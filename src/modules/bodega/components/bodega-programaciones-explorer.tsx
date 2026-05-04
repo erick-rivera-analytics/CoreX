@@ -4,6 +4,7 @@ import { Fragment, useMemo, useState } from "react";
 import type { LucideIcon } from "lucide-react";
 import { CalendarClock, ChevronDown, ChevronRight, Package2, RefreshCcw } from "lucide-react";
 import useSWR from "swr";
+import { toast } from "sonner";
 
 import type {
   DrenchWeekCalendarFilters,
@@ -274,33 +275,40 @@ export function BodegaProgramacionesExplorer({
   }
 
   async function handleExportPdf() {
-    const response = await fetch("/api/bodega/planificacion/programaciones/pdf", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        filters,
-        selectedGroupKey,
-        viewMode,
-      }),
-    });
+    try {
+      const response = await fetch("/api/bodega/planificacion/programaciones/pdf", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          filters,
+          selectedGroupKey,
+          viewMode,
+        }),
+      });
 
-    if (!response.ok) {
-      const data = await response.json().catch(() => ({})) as { message?: string };
-      throw new Error(data.message ?? "No se pudo generar el PDF.");
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({})) as { message?: string };
+        const message = data.message ?? `No se pudo generar el PDF (HTTP ${response.status}).`;
+        toast.error(message);
+        return;
+      }
+
+      const disposition = response.headers.get("content-disposition") ?? "";
+      const match = /filename="([^"]+)"/.exec(disposition);
+      const filename = match?.[1] ?? `programacion_drench_${filters.isoWeekId || "semana"}.pdf`;
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "No se pudo generar el PDF.";
+      toast.error(message);
     }
-
-    const disposition = response.headers.get("content-disposition") ?? "";
-    const match = /filename="([^"]+)"/.exec(disposition);
-    const filename = match?.[1] ?? `programacion_drench_${filters.isoWeekId || "semana"}.pdf`;
-    const blob = await response.blob();
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    URL.revokeObjectURL(url);
   }
 
   return (
