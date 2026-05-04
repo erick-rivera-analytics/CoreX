@@ -183,6 +183,10 @@ Revisar:
 - que `SESSION_SECRET` no este vacio
 - que `PORT=7777` y `HOSTNAME=0.0.0.0` se mantengan coherentes
 
+### Rutas cargan en localhost pero fallan por IP HTTP
+
+Si una pantalla cliente funciona en `localhost` pero falla en `http://<ip>`, revisar usos directos de APIs web que requieren contexto seguro. Caso real: `crypto.randomUUID()` no esta garantizado fuera de HTTPS/localhost y puede tumbar la hidratacion con "This page couldn't load". En componentes cliente usar `makeClientId()` de `src/shared/lib/client-id.ts`.
+
 ## Regla operativa
 
 El deploy real del servidor hoy se gobierna por este documento, `docker-compose.yml` y el codigo. Si cambian nombres de servicio, puertos o variables runtime, este archivo debe actualizarse en el mismo lote.

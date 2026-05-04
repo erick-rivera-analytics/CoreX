@@ -92,3 +92,7 @@ Viewers heredan todos los paneles por defecto (opt-out); el admin los bloquea po
 - `HUMAN_TALENT_DATABASE_URL` (alternativa a split config; prioridad sobre DATABASE_HOST/PORT/USER/PASSWORD)
 - `TTHH_FOLLOWUPS_WRITE_RATE_LIMIT`
 - `TTHH_FOLLOWUPS_WRITE_RATE_LIMIT_WINDOW_MS`
+
+## APIs web en clientes HTTP internos
+
+El entorno productivo puede operar temporalmente por `http://<ip>`, que no es contexto seguro para algunas APIs del navegador. No usar `crypto.randomUUID()` directamente en componentes cliente; usar `makeClientId()` para mantener fallback compatible con HTTP interno. APIs server-side de Node pueden seguir usando `crypto.randomUUID()`.
