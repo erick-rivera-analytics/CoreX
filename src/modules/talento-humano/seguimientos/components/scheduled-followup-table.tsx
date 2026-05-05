@@ -15,6 +15,8 @@ import { cn } from "@/lib/utils";
 import type { EmployeeScheduledFollowupRow } from "@/modules/talento-humano/seguimientos/server/types";
 
 type SortKey = "personName" | "areaName" | "followUpDate" | "derivedRoute" | "status";
+type PdfSortKey = "areaId" | "personName" | "followUpDate" | "derivedRoute" | "status";
+type PdfSortRule = { key: PdfSortKey | ""; direction: "asc" | "desc" };
 
 const STATUS_LABELS: Record<string, string> = {
   pending: "Pendiente",
@@ -25,6 +27,14 @@ const STATUS_VARIANTS: Record<string, "outline" | "success"> = {
   pending: "outline",
   registered: "success",
 };
+
+const PDF_SORT_OPTIONS: Array<{ value: PdfSortKey; label: string }> = [
+  { value: "areaId", label: "Cod. Area" },
+  { value: "personName", label: "Nombre" },
+  { value: "followUpDate", label: "Fecha" },
+  { value: "derivedRoute", label: "Clasificacion" },
+  { value: "status", label: "Estado" },
+];
 
 type Props = {
   rows: EmployeeScheduledFollowupRow[];
@@ -38,6 +48,11 @@ export function ScheduledFollowupTable({ rows, selectedFollowup, onSelect, isLoa
   const [sortKey, setSortKey] = useState<SortKey>("followUpDate");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [exporting, setExporting] = useState(false);
+  const [pdfSortRules, setPdfSortRules] = useState<PdfSortRule[]>([
+    { key: "", direction: "asc" },
+    { key: "", direction: "asc" },
+    { key: "", direction: "asc" },
+  ]);
 
   function handleSort(key: string) {
     const typed = key as SortKey;
@@ -52,7 +67,12 @@ export function ScheduledFollowupTable({ rows, selectedFollowup, onSelect, isLoa
   async function handleExport() {
     setExporting(true);
     try {
-      const res = await fetch(exportUrl);
+      const exportEndpoint = new URL(exportUrl, window.location.origin);
+      pdfSortRules
+        .filter((rule): rule is { key: PdfSortKey; direction: "asc" | "desc" } => Boolean(rule.key))
+        .forEach((rule) => exportEndpoint.searchParams.append("sort", `${rule.key}:${rule.direction}`));
+
+      const res = await fetch(exportEndpoint.toString(), { credentials: "same-origin" });
       if (!res.ok) throw new Error("Error al generar el PDF.");
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
@@ -96,6 +116,49 @@ export function ScheduledFollowupTable({ rows, selectedFollowup, onSelect, isLoa
             <FileDown className="mr-1.5 size-4" />
             {exporting ? "Generando..." : "Exportar PDF"}
           </Button>
+        </div>
+        <div className="grid gap-2 rounded-[16px] border border-border/60 bg-background/70 p-2 sm:grid-cols-3">
+          {pdfSortRules.map((rule, index) => (
+            <div key={index} className="grid min-w-0 grid-cols-[minmax(0,1fr)_88px] gap-2">
+              <label className="sr-only" htmlFor={`pdf-sort-key-${index}`}>
+                Orden PDF {index + 1}
+              </label>
+              <select
+                id={`pdf-sort-key-${index}`}
+                value={rule.key}
+                onChange={(event) => {
+                  const key = event.target.value as PdfSortKey | "";
+                  setPdfSortRules((current) => current.map((item, itemIndex) => (
+                    itemIndex === index ? { ...item, key } : item
+                  )));
+                }}
+                className="h-9 min-w-0 rounded-[12px] border border-input bg-background px-3 text-xs outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+              >
+                <option value="">{index === 0 ? "Orden PDF" : `Orden ${index + 1}`}</option>
+                {PDF_SORT_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
+              </select>
+              <label className="sr-only" htmlFor={`pdf-sort-dir-${index}`}>
+                Direccion PDF {index + 1}
+              </label>
+              <select
+                id={`pdf-sort-dir-${index}`}
+                value={rule.direction}
+                onChange={(event) => {
+                  const direction = event.target.value === "desc" ? "desc" : "asc";
+                  setPdfSortRules((current) => current.map((item, itemIndex) => (
+                    itemIndex === index ? { ...item, direction } : item
+                  )));
+                }}
+                disabled={!rule.key}
+                className="h-9 rounded-[12px] border border-input bg-background px-2 text-xs outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:opacity-55"
+              >
+                <option value="asc">Asc</option>
+                <option value="desc">Desc</option>
+              </select>
+            </div>
+          ))}
         </div>
       </CardHeader>
       <CardContent className="pt-0">

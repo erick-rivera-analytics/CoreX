@@ -14,6 +14,12 @@ import type { EmployeeFollowupFilters } from "@/modules/talento-humano/seguimien
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
+type FollowupExportSortKey = "areaId" | "personName" | "followUpDate" | "derivedRoute" | "status";
+type FollowupExportSortRule = { key: FollowupExportSortKey; direction: "asc" | "desc" };
+
+const SORT_KEYS = new Set<FollowupExportSortKey>(["areaId", "personName", "followUpDate", "derivedRoute", "status"]);
+const collator = new Intl.Collator("es-EC", { numeric: true, sensitivity: "base" });
+
 function tex(value: unknown): string {
   return String(value ?? "")
     .replace(/\\/g, "\\textbackslash{}")
@@ -54,6 +60,38 @@ function titleCaseName(value: string): string {
     .replace(/\p{L}+/gu, (word) => word.charAt(0).toLocaleUpperCase("es-EC") + word.slice(1));
 }
 
+function parseSortRules(searchParams: URLSearchParams): FollowupExportSortRule[] {
+  return searchParams
+    .getAll("sort")
+    .flatMap((raw) => raw.split(","))
+    .map((raw) => raw.trim())
+    .filter(Boolean)
+    .flatMap((raw) => {
+      const [key, rawDirection] = raw.split(":").map((part) => part.trim());
+      const direction = rawDirection === "desc" ? "desc" : "asc";
+      return SORT_KEYS.has(key as FollowupExportSortKey)
+        ? [{ key: key as FollowupExportSortKey, direction }]
+        : [];
+    });
+}
+
+function sortRows(
+  rows: Awaited<ReturnType<typeof loadScheduledFollowups>>,
+  sortRules: FollowupExportSortRule[],
+): Awaited<ReturnType<typeof loadScheduledFollowups>> {
+  if (sortRules.length === 0) return rows;
+  return [...rows].sort((left, right) => {
+    for (const rule of sortRules) {
+      const direction = rule.direction === "asc" ? 1 : -1;
+      const leftValue = rule.key === "personName" ? titleCaseName(left.personName) : String(left[rule.key] ?? "");
+      const rightValue = rule.key === "personName" ? titleCaseName(right.personName) : String(right[rule.key] ?? "");
+      const result = collator.compare(leftValue, rightValue);
+      if (result !== 0) return result * direction;
+    }
+    return collator.compare(left.personName, right.personName);
+  });
+}
+
 function buildDataTex(rows: Awaited<ReturnType<typeof loadScheduledFollowups>>, exportDate: Date): string {
   const pad = (n: number) => String(n).padStart(2, "0");
   const docCode = `TTHH-AGE-${exportDate.getFullYear()}${pad(exportDate.getMonth() + 1)}${pad(exportDate.getDate())}`;
@@ -82,11 +120,11 @@ function buildDataTex(rows: Awaited<ReturnType<typeof loadScheduledFollowups>>, 
   \\begin{longtable}{@{} p{6.1cm} p{2.4cm} l l l @{}}
     \\caption{Agenda de seguimientos programados} \\\\
     \\toprule
-    \\textbf{Nombre} & \\textbf{area\\_id} & \\textbf{Fecha} & \\textbf{Clasif.} & \\textbf{Estado} \\\\
+    \\textbf{Nombre} & \\textbf{Cod. \\'Area} & \\textbf{Fecha} & \\textbf{Clasif.} & \\textbf{Estado} \\\\
     \\midrule
     \\endfirsthead
     \\toprule
-    \\textbf{Nombre} & \\textbf{area\\_id} & \\textbf{Fecha} & \\textbf{Clasif.} & \\textbf{Estado} \\\\
+    \\textbf{Nombre} & \\textbf{Cod. \\'Area} & \\textbf{Fecha} & \\textbf{Clasif.} & \\textbf{Estado} \\\\
     \\midrule
     \\endhead
     \\midrule
@@ -128,7 +166,10 @@ export async function GET(request: NextRequest) {
       return Response.json({ message: "Filtros invalidos." }, { status: 400 });
     }
 
-    const rows = await loadScheduledFollowups(parsed.data as EmployeeFollowupFilters);
+    const rows = sortRows(
+      await loadScheduledFollowups(parsed.data as EmployeeFollowupFilters),
+      parseSortRules(sp),
+    );
     const exportDate = new Date();
     const dataTexContent = buildDataTex(rows, exportDate);
 
