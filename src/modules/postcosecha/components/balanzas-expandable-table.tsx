@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 
 import { ExpandableTreeTable, type ExpandableTreeTableColumn, type TreeNode } from "@/shared/tables/expandable-tree-table";
+import { ScrollFadeTable } from "@/shared/tables/scroll-fade-table";
 import type { BalanzasNodeDetail } from "@/lib/postcosecha-balanzas";
 import {
   aggregateBalanzasMetrics,
@@ -197,30 +198,50 @@ export function BalanzasExpandableTable({
 
   const columns = useMemo<ExpandableTreeTableColumn<BalanzasNodeData>[]>(() => {
     const numericCols = detail.columns.filter((c) => c.numeric);
+    const textCols = detail.columns.filter((c) => !c.numeric && c.key !== dateColumn);
     return [
       {
         key: "label",
         label: "Descripción",
         align: "left",
-        render: (node) => node.label,
+        cellClassName: "min-w-[220px]",
+        headerClassName: "min-w-[220px]",
+        render: (node, level) => (
+          <span className={level === 0 ? "font-semibold text-foreground" : undefined}>
+            {node.label}
+          </span>
+        ),
       },
+      ...textCols.map<ExpandableTreeTableColumn<BalanzasNodeData>>((col) => ({
+        key: col.key,
+        label: col.label,
+        align: "left",
+        render: (node) => (node.data.rawRow ? formatLeafCell(node.data.rawRow[col.key]) : ""),
+      })),
       ...numericCols.map<ExpandableTreeTableColumn<BalanzasNodeData>>((col) => ({
         key: col.key,
         label: col.label,
         align: "right",
-        render: (node) => formatBalanzasTableMetric(node.data.metrics[col.key] ?? null, col),
+        render: (node, level) => (
+          <span className={level === 0 ? "font-semibold text-foreground" : undefined}>
+            {formatBalanzasTableMetric(node.data.metrics[col.key] ?? null, col)}
+          </span>
+        ),
       })),
     ];
-  }, [detail.columns]);
+  }, [dateColumn, detail.columns]);
 
   return (
-    <ExpandableTreeTable
-      nodes={tree}
-      columns={columns}
-      defaultExpandLevel={0}
-      indentPerLevel={20}
-      className={className}
-      emptyState="No hay filas para los filtros seleccionados."
-    />
+    <ScrollFadeTable className={className ?? "rounded-[16px] border border-border/70 bg-card"} innerClassName="tabular-nums" topScrollbar>
+      <ExpandableTreeTable
+        nodes={tree}
+        columns={columns}
+        defaultExpandLevel={0}
+        indentPerLevel={20}
+        tableClassName="min-w-[1280px]"
+        withWrapper={false}
+        emptyState="No hay filas para los filtros seleccionados."
+      />
+    </ScrollFadeTable>
   );
 }

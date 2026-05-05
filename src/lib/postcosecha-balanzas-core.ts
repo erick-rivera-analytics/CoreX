@@ -2,7 +2,7 @@ import "server-only";
 
 import { query } from "@/lib/db";
 import { cachedAsync } from "@/lib/server-cache";
-import { decodeMultiSelectValue, encodeMultiSelectValue } from "@/lib/multi-select";
+import { decodeMultiSelectValue } from "@/lib/multi-select";
 import { formatFlexibleNumber, formatPercent as formatPercentShared } from "@/shared/lib/format";
 import { toNumber } from "@/shared/lib/number-utils";
 
@@ -23,6 +23,15 @@ export type BalanzasFilterOptions = {
   weeks: SelectOption[];
   months: SelectOption[];
   years: SelectOption[];
+};
+
+export type BalanzasDetailTemporalOptions = {
+  dateKey: BalanzasDetailDateFilterKey;
+  dateLabel: string;
+  years: SelectOption[];
+  months: SelectOption[];
+  weeks: SelectOption[];
+  dates: SelectOption[];
 };
 
 export type BalanzasSummaryMetric = {
@@ -117,6 +126,7 @@ export type BalanzasNodeDetail = {
   destinations: string[];
   grades: string[];
   gradeGroups: string[];
+  temporalOptions: BalanzasDetailTemporalOptions;
   rowCount: number;
   metrics: BalanzasSummaryMetric[];
 };
@@ -223,7 +233,7 @@ const B2_B2A_WEIGHT_DETAIL_COLUMN_LABELS: Record<string, string> = {
   dispatch_pct: "%Desp_Peso",
 };
 
-const B2_B2A_WEIGHT_DETAIL_DATE_FILTER_KEYS: BalanzasDetailDateFilterKey[] = ["work_date", "lot_date"];
+const B2_B2A_WEIGHT_DETAIL_DATE_FILTER_KEYS: BalanzasDetailDateFilterKey[] = ["work_date"];
 
 const B1C_B2A_IDEAL_SUMMARY_METRICS: SummaryMetricDef[] = [
   { col: "weight_b1c_kg", label: "Peso_B1C", agg: "sum", format: "kg" },
@@ -695,28 +705,7 @@ const PRECLASIF_B1_B3_IDEAL_DETAIL_COLUMN_LABELS: Record<string, string> = {
 
 const PRECLASIF_B1_B3_IDEAL_DETAIL_DATE_FILTER_KEYS: BalanzasDetailDateFilterKey[] = ["work_date"];
 
-// ─── ISO week helpers ─────────────────────────────────────────────────────────
-
-function isoWeekYear(date: Date): number {
-  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
-  const dow = d.getUTCDay() || 7;
-  d.setUTCDate(d.getUTCDate() + 4 - dow);
-  return d.getUTCFullYear();
-}
-
-function isoWeekNumber(date: Date): number {
-  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
-  const dow = d.getUTCDay() || 7;
-  d.setUTCDate(d.getUTCDate() + 4 - dow);
-  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-  return Math.ceil(((d.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
-}
-
-function toYYWW(date: Date): string {
-  const yy = isoWeekYear(date) % 100;
-  const ww = isoWeekNumber(date);
-  return String(yy).padStart(2, "0") + String(ww).padStart(2, "0");
-}
+// ─── Week label helpers ───────────────────────────────────────────────────────
 
 export function formatWeekLabel(yyww: string): string {
   // Formato canónico de semana en CoreX: `YYWW` (4 dígitos: 2 año + 2 semana).
@@ -811,13 +800,17 @@ type BalanzasDetailLocalFilters = {
   destinations: string[];
   grades: string[];
   gradeGroups: string[];
-  workDateFrom?: string;
-  workDateTo?: string;
-  lotDateFrom?: string;
-  lotDateTo?: string;
+  years: string[];
+  months: string[];
+  weeks: string[];
+  dates: string[];
 };
 
-function applyLocalDetailFilters(
+function weekSql(dateCol: string) {
+  return `(lpad((extract(isoyear from ${dateCol}) % 100)::int::text, 2, '0') || lpad(extract(week from ${dateCol})::int::text, 2, '0'))`;
+}
+
+function applyLocalCategoryFilters(
   nodeDef: BalanzasNodeDef,
   localFilters: BalanzasDetailLocalFilters,
   conditions: string[],
@@ -835,23 +828,42 @@ function applyLocalDetailFilters(
     values.push(localFilters.gradeGroups);
     conditions.push(`grade_group = any($${values.length}::text[])`);
   }
+}
 
-  if (localFilters.workDateFrom) {
-    values.push(localFilters.workDateFrom);
-    conditions.push(`work_date >= $${values.length}::date`);
+function applyLocalTemporalFilters(
+  nodeDef: BalanzasNodeDef,
+  localFilters: BalanzasDetailLocalFilters,
+  conditions: string[],
+  values: unknown[],
+) {
+  const dateCol = nodeDef.dateCol;
+
+  if (localFilters.years.length > 0) {
+    values.push(localFilters.years);
+    conditions.push(`extract(year from ${dateCol})::text = any($${values.length}::text[])`);
   }
-  if (localFilters.workDateTo) {
-    values.push(localFilters.workDateTo);
-    conditions.push(`work_date <= $${values.length}::date`);
+  if (localFilters.months.length > 0) {
+    values.push(localFilters.months);
+    conditions.push(`extract(month from ${dateCol})::text = any($${values.length}::text[])`);
   }
-  if (localFilters.lotDateFrom) {
-    values.push(localFilters.lotDateFrom);
-    conditions.push(`lot_date >= $${values.length}::date`);
+  if (localFilters.weeks.length > 0) {
+    values.push(localFilters.weeks);
+    conditions.push(`${weekSql(dateCol)} = any($${values.length}::text[])`);
   }
-  if (localFilters.lotDateTo) {
-    values.push(localFilters.lotDateTo);
-    conditions.push(`lot_date <= $${values.length}::date`);
+  if (localFilters.dates.length > 0) {
+    values.push(localFilters.dates);
+    conditions.push(`${dateCol}::date = any($${values.length}::date[])`);
   }
+}
+
+function applyLocalDetailFilters(
+  nodeDef: BalanzasNodeDef,
+  localFilters: BalanzasDetailLocalFilters,
+  conditions: string[],
+  values: unknown[],
+) {
+  applyLocalCategoryFilters(nodeDef, localFilters, conditions, values);
+  applyLocalTemporalFilters(nodeDef, localFilters, conditions, values);
 }
 
 // ─── Node definitions (19 nodos, prefijo mv_ confirmado en DB) ───────────────
@@ -1038,6 +1050,7 @@ const BALANZAS_NODES: BalanzasNodeDef[] = [
     hasDestination: false,
     hasGrade: false,
     hasGradeGroup: false,
+    detailDateFilterKeys: ["work_date"],
     bpmnBinding: { elementId: "Task_B1C_Apertura_GV", overlayOffsetLeft: 172 },
   },
   {
@@ -1104,7 +1117,6 @@ const BALANZAS_NODES: BalanzasNodeDef[] = [
         },
       },
     },
-    detailTableMode: "flat",
     detailVisibleColumns: [
       "work_date",
       "lot_date",
@@ -1125,7 +1137,7 @@ const BALANZAS_NODES: BalanzasNodeDef[] = [
       weight_b1c_estimated_kg: "Peso_B1c",
       hydration_pct: "%HIDR",
     },
-    detailDateFilterKeys: ["work_date", "lot_date"],
+    detailDateFilterKeys: ["work_date"],
     hasDestination: true,
     hasGrade: true,
     hasGradeGroup: false,
@@ -1142,7 +1154,6 @@ const BALANZAS_NODES: BalanzasNodeDef[] = [
     dateCol: "work_date",
     summaryMetrics: B2_B2A_WEIGHT_SUMMARY_METRICS,
     detailColumnConfig: B2_B2A_WEIGHT_DETAIL_COLUMN_CONFIG,
-    detailTableMode: "flat",
     detailVisibleColumns: B2_B2A_WEIGHT_DETAIL_VISIBLE_COLUMNS,
     detailColumnLabels: B2_B2A_WEIGHT_DETAIL_COLUMN_LABELS,
     detailDateFilterKeys: B2_B2A_WEIGHT_DETAIL_DATE_FILTER_KEYS,
@@ -1167,7 +1178,6 @@ const BALANZAS_NODES: BalanzasNodeDef[] = [
     dateCol: "work_date",
     summaryMetrics: B1C_B2A_IDEAL_SUMMARY_METRICS,
     detailColumnConfig: B1C_B2A_IDEAL_DETAIL_COLUMN_CONFIG,
-    detailTableMode: "flat",
     detailVisibleColumns: B1C_B2A_IDEAL_DETAIL_VISIBLE_COLUMNS,
     detailColumnLabels: B1C_B2A_IDEAL_DETAIL_COLUMN_LABELS,
     detailDateFilterKeys: B1C_B2A_IDEAL_DETAIL_DATE_FILTER_KEYS,
@@ -1231,6 +1241,7 @@ const BALANZAS_NODES: BalanzasNodeDef[] = [
     hasDestination: false,
     hasGrade: false,
     hasGradeGroup: false,
+    detailDateFilterKeys: ["work_date"],
     bpmnBinding: { elementId: "Task_B1C_Apertura_Directo", overlayOffsetLeft: 172 },
   },
   {
@@ -1297,7 +1308,6 @@ const BALANZAS_NODES: BalanzasNodeDef[] = [
         },
       },
     },
-    detailTableMode: "flat",
     detailVisibleColumns: [
       "work_date",
       "lot_date",
@@ -1318,7 +1328,7 @@ const BALANZAS_NODES: BalanzasNodeDef[] = [
       weight_b1c_estimated_kg: "Peso_B1c",
       hydration_pct: "%HIDR",
     },
-    detailDateFilterKeys: ["work_date", "lot_date"],
+    detailDateFilterKeys: ["work_date"],
     hasDestination: true,
     hasGrade: true,
     hasGradeGroup: false,
@@ -1335,7 +1345,6 @@ const BALANZAS_NODES: BalanzasNodeDef[] = [
     dateCol: "work_date",
     summaryMetrics: B2_B2A_WEIGHT_SUMMARY_METRICS,
     detailColumnConfig: B2_B2A_WEIGHT_DETAIL_COLUMN_CONFIG,
-    detailTableMode: "flat",
     detailVisibleColumns: B2_B2A_WEIGHT_DETAIL_VISIBLE_COLUMNS,
     detailColumnLabels: B2_B2A_WEIGHT_DETAIL_COLUMN_LABELS,
     detailDateFilterKeys: B2_B2A_WEIGHT_DETAIL_DATE_FILTER_KEYS,
@@ -1360,7 +1369,6 @@ const BALANZAS_NODES: BalanzasNodeDef[] = [
     dateCol: "work_date",
     summaryMetrics: B1C_B2A_IDEAL_SUMMARY_METRICS,
     detailColumnConfig: B1C_B2A_IDEAL_DETAIL_COLUMN_CONFIG,
-    detailTableMode: "flat",
     detailVisibleColumns: B1C_B2A_IDEAL_DETAIL_VISIBLE_COLUMNS,
     detailColumnLabels: B1C_B2A_IDEAL_DETAIL_COLUMN_LABELS,
     detailDateFilterKeys: B1C_B2A_IDEAL_DETAIL_DATE_FILTER_KEYS,
@@ -1429,9 +1437,7 @@ function buildTemporalConditions(
   const weeks = decodeMultiSelectValue(filters.weekValue);
   if (weeks.length > 0) {
     values.push(weeks);
-    conditions.push(
-      `(lpad((extract(isoyear from ${dateCol}) % 100)::int::text, 2, '0') || lpad(extract(week from ${dateCol})::int::text, 2, '0')) = any($${values.length}::text[])`,
-    );
+    conditions.push(`${weekSql(dateCol)} = any($${values.length}::text[])`);
   }
 
   const months = decodeMultiSelectValue(filters.month);
@@ -1595,6 +1601,74 @@ async function loadNodeSummary(
 
 // ─── Node detail ──────────────────────────────────────────────────────────────
 
+async function loadDetailTemporalOptions(
+  nodeDef: BalanzasNodeDef,
+  filters: BalanzasFilters,
+  localFilters: BalanzasDetailLocalFilters,
+): Promise<BalanzasDetailTemporalOptions> {
+  const { conditions, values } = buildTemporalConditions(nodeDef.dateCol, filters);
+  applyLocalCategoryFilters(nodeDef, localFilters, conditions, values);
+
+  const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+  const dateCol = nodeDef.dateCol;
+  const sql = `
+    WITH detail_dates AS (
+      SELECT DISTINCT ${dateCol}::date AS d
+      FROM ${nodeDef.viewName}
+      ${where}
+      ${where ? "AND" : "WHERE"} ${dateCol} IS NOT NULL
+    )
+    SELECT
+      (
+        SELECT array_agg(year_val ORDER BY year_val::int DESC)
+        FROM (
+          SELECT DISTINCT extract(year from d)::int::text AS year_val
+          FROM detail_dates
+        ) y
+      ) AS years,
+      (
+        SELECT array_agg(month_val ORDER BY month_val::int ASC)
+        FROM (
+          SELECT DISTINCT extract(month from d)::int::text AS month_val
+          FROM detail_dates
+        ) m
+      ) AS months,
+      (
+        SELECT array_agg(week_val ORDER BY week_val DESC)
+        FROM (
+          SELECT DISTINCT ${weekSql("d")} AS week_val
+          FROM detail_dates
+        ) w
+      ) AS weeks,
+      (
+        SELECT array_agg(date_val ORDER BY date_val DESC)
+        FROM (
+          SELECT DISTINCT to_char(d, 'YYYY-MM-DD') AS date_val
+          FROM detail_dates
+        ) dates
+      ) AS dates
+  `;
+
+  const result = await query<{ years: string[] | null; months: string[] | null; weeks: string[] | null; dates: string[] | null }>(
+    sql,
+    values,
+  );
+  const row = result.rows[0];
+  const years = row?.years ?? [];
+  const months = row?.months ?? [];
+  const weeks = row?.weeks ?? [];
+  const dates = row?.dates ?? [];
+
+  return {
+    dateKey: nodeDef.dateCol,
+    dateLabel: columnLabelForNode(nodeDef, nodeDef.dateCol),
+    years: years.map((value) => ({ value, label: value })),
+    months: months.map((value) => ({ value, label: formatMonthName(value) })),
+    weeks: weeks.map((value) => ({ value, label: formatWeekLabel(value) })),
+    dates: dates.map((value) => ({ value, label: value })),
+  };
+}
+
 export async function loadNodeDetail(
   nodeKey: string,
   filters: BalanzasFilters,
@@ -1618,7 +1692,7 @@ export async function loadNodeDetail(
 
   const aggExprs = buildSummaryMetricSelects(nodeDef.summaryMetrics);
 
-  const [dataRes, optRes, summaryRes] = await Promise.all([
+  const [dataRes, optRes, summaryRes, temporalOptions] = await Promise.all([
     query<BalanzasDetailRow>(
       `SELECT * FROM ${nodeDef.viewName} ${where} ORDER BY ${nodeDef.dateCol} DESC LIMIT 2000`,
       values,
@@ -1631,6 +1705,7 @@ export async function loadNodeDetail(
       `SELECT COUNT(*) AS row_count, MIN(${nodeDef.dateCol}) AS date_min, MAX(${nodeDef.dateCol}) AS date_max ${aggExprs ? `, ${aggExprs}` : ""} FROM ${nodeDef.viewName} ${where}`,
       values,
     ),
+    loadDetailTemporalOptions(nodeDef, filters, localFilters),
   ]);
 
   const rows = dataRes.rows;
@@ -1671,6 +1746,7 @@ export async function loadNodeDetail(
     destinations: [...new Set(optRes.rows.map((r) => r.destination).filter((v): v is string => !!v))].sort(),
     grades: [...new Set(optRes.rows.map((r) => r.grade).filter((v): v is string => !!v))].sort(),
     gradeGroups: [...new Set(optRes.rows.map((r) => r.grade_group).filter((v): v is string => !!v))].sort(),
+    temporalOptions,
     rowCount: toNumber(sRow.row_count) ?? rows.length,
     metrics,
   };
@@ -1759,16 +1835,10 @@ function columnLabel(key: string): string {
 // ─── Public API ───────────────────────────────────────────────────────────────
 
 function buildDefaultBalanzasFilters(): BalanzasFilters {
-  const now = new Date();
-  const currentYYWW = toYYWW(now);
-  const prevDate = new Date(now);
-  prevDate.setDate(prevDate.getDate() - 7);
-  const prevYYWW = toYYWW(prevDate);
-  const weeks = currentYYWW === prevYYWW ? [currentYYWW] : [currentYYWW, prevYYWW];
   return {
-    weekValue: encodeMultiSelectValue(weeks),
+    weekValue: "all",
     month: "all",
-    year: "all",
+    year: "2026",
     dateFrom: "",
     dateTo: "",
     farm: "xl",
@@ -1790,7 +1860,7 @@ export function normalizeBalanzasFilters(raw: {
   return {
     weekValue: raw.weekValue ?? defaults.weekValue,
     month: raw.month ?? "all",
-    year: raw.year ?? "all",
+    year: raw.year ?? defaults.year,
     dateFrom: raw.dateFrom ?? "",
     dateTo: raw.dateTo ?? "",
     farm: VALID_FARMS.has(farm) ? farm : "xl",

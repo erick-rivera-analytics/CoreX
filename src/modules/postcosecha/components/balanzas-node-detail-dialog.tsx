@@ -6,15 +6,12 @@ import useSWR from "swr";
 
 import type { BalanzasFilters, BalanzasNodeDetail, BalanzasNodeSummary } from "@/lib/postcosecha-balanzas";
 import { fetchJson } from "@/lib/fetch-json";
-import { encodeMultiSelectValue } from "@/lib/multi-select";
 import { BalanzasExpandableTable, type BalanzasGroupBy } from "@/modules/postcosecha/components/balanzas-expandable-table";
 import { BalanzasFlatTable } from "@/modules/postcosecha/components/balanzas-flat-table";
 import { MetricTile } from "@/shared/data-display/metric-tile";
-import { DateField } from "@/shared/filters/date-field";
+import { MultiSelectField } from "@/shared/filters/multi-select-field";
 import { FilterPanel, KpiGrid } from "@/shared/layout/filter-panel";
 import { DialogShell } from "@/shared/overlays/dialog-shell";
-import { MultiSelectField } from "@/shared/filters/multi-select-field";
-import { SingleSelectField } from "@/shared/filters/single-select-field";
 import { Button } from "@/shared/ui/button";
 
 type Props = {
@@ -29,21 +26,32 @@ type LocalFilters = {
   destinations: string;
   grades: string;
   gradeGroups: string;
-  workDateFrom: string;
-  workDateTo: string;
-  lotDateFrom: string;
-  lotDateTo: string;
+  detailYears: string;
+  detailMonths: string;
+  detailWeeks: string;
+  detailDates: string;
 };
 
 const EMPTY_LOCAL: LocalFilters = {
   destinations: "all",
   grades: "all",
   gradeGroups: "all",
-  workDateFrom: "",
-  workDateTo: "",
-  lotDateFrom: "",
-  lotDateTo: "",
+  detailYears: "all",
+  detailMonths: "all",
+  detailWeeks: "all",
+  detailDates: "all",
 };
+
+const TEMPORAL_FILTER_NODE_KEYS = new Set([
+  "gv-b1-b1c-weight",
+  "apertura-b1-b1c-weight",
+  "gv-b1c-b2-weight",
+  "apertura-b1c-b2-weight",
+  "gv-b2-b2a-weight",
+  "apertura-b2-b2a-weight",
+  "gv-b1c-b2a-ideal",
+  "apertura-b1c-b2a-ideal",
+]);
 
 function buildEmptyLocalFilters(presetDestination?: string | null): LocalFilters {
   return {
@@ -77,11 +85,10 @@ function buildDetailUrl(nodeKey: string, filters: BalanzasFilters, local: LocalF
   params.set("destinations", local.destinations);
   params.set("grades", local.grades);
   params.set("gradeGroups", local.gradeGroups);
-
-  if (local.workDateFrom) params.set("workDateFrom", local.workDateFrom);
-  if (local.workDateTo) params.set("workDateTo", local.workDateTo);
-  if (local.lotDateFrom) params.set("lotDateFrom", local.lotDateFrom);
-  if (local.lotDateTo) params.set("lotDateTo", local.lotDateTo);
+  params.set("detailYears", local.detailYears);
+  params.set("detailMonths", local.detailMonths);
+  params.set("detailWeeks", local.detailWeeks);
+  params.set("detailDates", local.detailDates);
 
   return `/api/postcosecha/balanzas/${nodeKey}?${params.toString()}`;
 }
@@ -113,7 +120,7 @@ function downloadCsv(detail: BalanzasNodeDetail) {
 
 export function BalanzasNodeDetailDialog({ node, filters, open, presetDestination, onClose }: Props) {
   const [local, setLocal] = useState<LocalFilters>(() => buildEmptyLocalFilters(presetDestination));
-  const [groupBy, setGroupBy] = useState<BalanzasGroupBy>(null);
+  const groupBy: BalanzasGroupBy = null;
 
   const url = open ? buildDetailUrl(node.key, filters, local) : null;
 
@@ -135,13 +142,16 @@ export function BalanzasNodeDetailDialog({ node, filters, open, presetDestinatio
   const hasGrades = detail ? detail.grades.length > 0 : false;
   const hasGradeGroups = detail ? detail.gradeGroups.length > 0 : false;
   const isFlatTable = (detail?.tableMode ?? node.detailTableMode) === "flat";
-  const supportsGrouping = !isFlatTable;
-  const hasWorkDateFilter = detail?.dateFilterKeys.includes("work_date") ?? false;
-  const hasLotDateFilter = detail?.dateFilterKeys.includes("lot_date") ?? false;
 
   const destinationOptions = detail?.destinations ?? [];
   const gradeOptions = detail?.grades ?? [];
   const gradeGroupOptions = detail?.gradeGroups ?? [];
+  const temporalOptions = detail && TEMPORAL_FILTER_NODE_KEYS.has(detail.nodeKey) ? detail.temporalOptions : undefined;
+  const yearOptions = temporalOptions?.years.map((option) => option.value) ?? [];
+  const monthOptions = temporalOptions?.months.map((option) => option.value) ?? [];
+  const weekOptions = temporalOptions?.weeks.map((option) => option.value) ?? [];
+  const dateOptions = temporalOptions?.dates.map((option) => option.value) ?? [];
+  const monthLabelMap = new Map((temporalOptions?.months ?? []).map((option) => [option.value, option.label]));
 
   return (
     <DialogShell
@@ -151,7 +161,7 @@ export function BalanzasNodeDetailDialog({ node, filters, open, presetDestinatio
           ? `${node.dialogTitle ?? node.label} · ${formatDestinationLabel(presetDestination)}`
           : (node.dialogTitle ?? node.label)
       }
-      description={`${detail ? detail.rowCount.toLocaleString("es-EC") : "…"} registros`}
+      description={`${detail ? detail.rowCount.toLocaleString("es-EC") : "..."} registros`}
       maxWidth="max-w-7xl"
       onClose={onClose}
       headerActions={
@@ -177,27 +187,6 @@ export function BalanzasNodeDetailDialog({ node, filters, open, presetDestinatio
 
         <FilterPanel>
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-            {supportsGrouping ? (
-              <SingleSelectField
-                id="detail-groupBy"
-                label="Agrupación"
-                value={groupBy ?? "none"}
-                options={[
-                  ...(hasDestination ? ["destination"] : []),
-                  ...(hasGrades ? ["grade"] : []),
-                  ...(hasGradeGroups ? ["gradeGroup"] : []),
-                ]}
-                displayValue={(value) =>
-                  value === "destination" ? "Por destino"
-                    : value === "grade" ? "Por grado"
-                      : value === "gradeGroup" ? "Por grupo de grado"
-                        : value
-                }
-                emptyValue="none"
-                emptyLabel="Sin agrupar (Semana → detalle)"
-                onChange={(value) => setGroupBy(value === "none" ? null : (value as BalanzasGroupBy))}
-              />
-            ) : null}
             {hasDestination ? (
               <MultiSelectField
                 id="detail-destinations"
@@ -231,40 +220,41 @@ export function BalanzasNodeDetailDialog({ node, filters, open, presetDestinatio
             ) : null}
           </div>
 
-          {hasWorkDateFilter || hasLotDateFilter ? (
+          {temporalOptions ? (
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-              {hasWorkDateFilter ? (
-                <DateField
-                  id="detail-work-date-from"
-                  label="Fecha trabajo desde"
-                  value={local.workDateFrom}
-                  onChange={(value) => setLocal((prev) => ({ ...prev, workDateFrom: value }))}
-                />
-              ) : null}
-              {hasWorkDateFilter ? (
-                <DateField
-                  id="detail-work-date-to"
-                  label="Fecha trabajo hasta"
-                  value={local.workDateTo}
-                  onChange={(value) => setLocal((prev) => ({ ...prev, workDateTo: value }))}
-                />
-              ) : null}
-              {hasLotDateFilter ? (
-                <DateField
-                  id="detail-lot-date-from"
-                  label="Fecha lote desde"
-                  value={local.lotDateFrom}
-                  onChange={(value) => setLocal((prev) => ({ ...prev, lotDateFrom: value }))}
-                />
-              ) : null}
-              {hasLotDateFilter ? (
-                <DateField
-                  id="detail-lot-date-to"
-                  label="Fecha lote hasta"
-                  value={local.lotDateTo}
-                  onChange={(value) => setLocal((prev) => ({ ...prev, lotDateTo: value }))}
-                />
-              ) : null}
+              <MultiSelectField
+                id="detail-years"
+                label="Año"
+                value={local.detailYears}
+                options={yearOptions}
+                onChange={(value) => setLocal((prev) => ({ ...prev, detailYears: value }))}
+                emptyLabel="Todos los años"
+              />
+              <MultiSelectField
+                id="detail-months"
+                label="Mes"
+                value={local.detailMonths}
+                options={monthOptions}
+                displayValue={(value) => monthLabelMap.get(value) ?? value}
+                onChange={(value) => setLocal((prev) => ({ ...prev, detailMonths: value }))}
+                emptyLabel="Todos los meses"
+              />
+              <MultiSelectField
+                id="detail-weeks"
+                label="Semana"
+                value={local.detailWeeks}
+                options={weekOptions}
+                onChange={(value) => setLocal((prev) => ({ ...prev, detailWeeks: value }))}
+                emptyLabel="Todas las semanas"
+              />
+              <MultiSelectField
+                id="detail-dates"
+                label={temporalOptions.dateLabel}
+                value={local.detailDates}
+                options={dateOptions}
+                onChange={(value) => setLocal((prev) => ({ ...prev, detailDates: value }))}
+                emptyLabel="Todas las fechas"
+              />
             </div>
           ) : null}
         </FilterPanel>
@@ -272,7 +262,7 @@ export function BalanzasNodeDetailDialog({ node, filters, open, presetDestinatio
         {isLoading && !detail ? (
           <div className="flex items-center gap-3 py-12 text-sm text-muted-foreground">
             <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
-            Cargando detalle…
+            Cargando detalle...
           </div>
         ) : detail && detail.columns.length > 0 ? (
           isFlatTable ? (
@@ -289,5 +279,3 @@ export function BalanzasNodeDetailDialog({ node, filters, open, presetDestinatio
     </DialogShell>
   );
 }
-
-export { encodeMultiSelectValue };

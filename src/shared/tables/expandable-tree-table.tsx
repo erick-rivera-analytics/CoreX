@@ -265,7 +265,7 @@ export function ExpandableTreeTable<T>({
                       <span className="size-5 shrink-0" aria-hidden="true" />
                     )}
                     <div className="flex min-w-0 flex-1 items-center gap-2">
-                      <span className="min-w-0 truncate">{labelNode}</span>
+                      <span className="min-w-0 whitespace-nowrap">{labelNode}</span>
                       {node.badge ? (
                         <span
                           className={cn(

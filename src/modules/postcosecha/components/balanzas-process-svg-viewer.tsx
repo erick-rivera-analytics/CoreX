@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
-import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Maximize2, Minus, Plus } from "lucide-react";
+import { useMemo, useRef, useState, type MouseEvent, type PointerEvent, type WheelEvent } from "react";
+import { Maximize2, Minus, Plus } from "lucide-react";
 
 import { Button } from "@/shared/ui/button";
 import { cn } from "@/lib/utils";
@@ -49,14 +49,96 @@ const C = {
   selected:   "var(--bal-selected)",
 };
 
-const PAN_STEP = 160;
+const MIN_ZOOM = 0.45;
+const MAX_ZOOM = 2.5;
+const ZOOM_STEP = 0.12;
+
+function clampZoom(value: number) {
+  return Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, Number(value.toFixed(2))));
+}
 
 export function BalanzasProcessSvgViewer({ nodes, selectedNodeKey, onNodeSelect }: Props) {
   const [zoom, setZoom] = useState(1);
+  const [isPanning, setIsPanning] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const panRef = useRef({ active: false, moved: false, x: 0, y: 0, left: 0, top: 0 });
 
-  function pan(dx: number, dy: number) {
-    scrollRef.current?.scrollBy({ left: dx, top: dy, behavior: "smooth" });
+  function applyZoom(nextZoom: number, anchor?: { clientX: number; clientY: number }) {
+    const boundedZoom = clampZoom(nextZoom);
+    const scroller = scrollRef.current;
+    if (!scroller || boundedZoom === zoom) {
+      setZoom(boundedZoom);
+      return;
+    }
+
+    const rect = scroller.getBoundingClientRect();
+    const anchorX = anchor ? anchor.clientX - rect.left : rect.width / 2;
+    const anchorY = anchor ? anchor.clientY - rect.top : rect.height / 2;
+    const contentX = scroller.scrollLeft + anchorX;
+    const contentY = scroller.scrollTop + anchorY;
+    const ratio = boundedZoom / zoom;
+
+    setZoom(boundedZoom);
+
+    requestAnimationFrame(() => {
+      scroller.scrollLeft = contentX * ratio - anchorX;
+      scroller.scrollTop = contentY * ratio - anchorY;
+    });
+  }
+
+  function handleWheel(event: WheelEvent<HTMLDivElement>) {
+    event.preventDefault();
+    const direction = event.deltaY > 0 ? -1 : 1;
+    applyZoom(zoom + direction * ZOOM_STEP, { clientX: event.clientX, clientY: event.clientY });
+  }
+
+  function handlePointerDown(event: PointerEvent<HTMLDivElement>) {
+    if (event.button !== 0) return;
+    if ((event.target as HTMLElement).closest("button")) return;
+
+    const scroller = scrollRef.current;
+    if (!scroller) return;
+
+    panRef.current = {
+      active: true,
+      moved: false,
+      x: event.clientX,
+      y: event.clientY,
+      left: scroller.scrollLeft,
+      top: scroller.scrollTop,
+    };
+    setIsPanning(true);
+    scroller.setPointerCapture(event.pointerId);
+  }
+
+  function handlePointerMove(event: PointerEvent<HTMLDivElement>) {
+    const state = panRef.current;
+    const scroller = scrollRef.current;
+    if (!state.active || !scroller) return;
+
+    const dx = event.clientX - state.x;
+    const dy = event.clientY - state.y;
+    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
+      state.moved = true;
+    }
+    scroller.scrollLeft = state.left - dx;
+    scroller.scrollTop = state.top - dy;
+  }
+
+  function stopPanning(event: PointerEvent<HTMLDivElement>) {
+    const scroller = scrollRef.current;
+    panRef.current.active = false;
+    setIsPanning(false);
+    if (scroller?.hasPointerCapture(event.pointerId)) {
+      scroller.releasePointerCapture(event.pointerId);
+    }
+  }
+
+  function suppressDraggedClick(event: MouseEvent<HTMLDivElement>) {
+    if (!panRef.current.moved) return;
+    event.preventDefault();
+    event.stopPropagation();
+    panRef.current.moved = false;
   }
 
   const elementToNode = useMemo(() => {
@@ -82,37 +164,19 @@ export function BalanzasProcessSvgViewer({ nodes, selectedNodeKey, onNodeSelect 
     <div className="rounded-[30px] border border-border/70 bg-[linear-gradient(180deg,rgba(254,254,252,0.98),rgba(238,245,242,0.96))] p-3 shadow-[0_18px_50px_-30px_rgba(15,23,42,0.35)] dark:bg-[linear-gradient(180deg,rgba(26,32,40,0.98),rgba(18,23,31,0.98))]">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
         <div className="min-w-0 text-sm text-muted-foreground">
-          Haz clic en cualquier nodo balanza para ver el detalle completo.
+          Haz clic en cualquier nodo balanza para ver el detalle completo. Arrastra el mapa para moverte y usa la rueda del mouse para zoom.
         </div>
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-1 rounded-full border border-border/70 bg-background/88 p-1 shadow-sm">
-            <Button variant="ghost" size="icon" className="size-8 rounded-full" onClick={() => pan(-PAN_STEP, 0)}>
-              <ChevronLeft className="size-4" aria-hidden="true" />
-              <span className="sr-only">Desplazar izquierda</span>
-            </Button>
-            <Button variant="ghost" size="icon" className="size-8 rounded-full" onClick={() => pan(0, -PAN_STEP)}>
-              <ChevronUp className="size-4" aria-hidden="true" />
-              <span className="sr-only">Desplazar arriba</span>
-            </Button>
-            <Button variant="ghost" size="icon" className="size-8 rounded-full" onClick={() => pan(0, PAN_STEP)}>
-              <ChevronDown className="size-4" aria-hidden="true" />
-              <span className="sr-only">Desplazar abajo</span>
-            </Button>
-            <Button variant="ghost" size="icon" className="size-8 rounded-full" onClick={() => pan(PAN_STEP, 0)}>
-              <ChevronRight className="size-4" aria-hidden="true" />
-              <span className="sr-only">Desplazar derecha</span>
-            </Button>
-          </div>
-          <div className="flex items-center gap-1 rounded-full border border-border/70 bg-background/88 p-1 shadow-sm">
-            <Button variant="ghost" size="icon" className="size-8 rounded-full" onClick={() => setZoom((z) => Math.max(0.4, z - 0.1))}>
+            <Button variant="ghost" size="icon" className="size-8 rounded-full" onClick={() => applyZoom(zoom - ZOOM_STEP)}>
               <Minus className="size-4" aria-hidden="true" />
               <span className="sr-only">Reducir zoom</span>
             </Button>
-            <Button variant="ghost" size="icon" className="size-8 rounded-full" onClick={() => setZoom(1)}>
+            <Button variant="ghost" size="icon" className="size-8 rounded-full" onClick={() => applyZoom(1)}>
               <Maximize2 className="size-4" aria-hidden="true" />
               <span className="sr-only">Ajustar</span>
             </Button>
-            <Button variant="ghost" size="icon" className="size-8 rounded-full" onClick={() => setZoom((z) => Math.min(2.5, z + 0.1))}>
+            <Button variant="ghost" size="icon" className="size-8 rounded-full" onClick={() => applyZoom(zoom + ZOOM_STEP)}>
               <Plus className="size-4" aria-hidden="true" />
               <span className="sr-only">Aumentar zoom</span>
             </Button>
@@ -122,8 +186,17 @@ export function BalanzasProcessSvgViewer({ nodes, selectedNodeKey, onNodeSelect 
 
       <div
         ref={scrollRef}
-        className="balanzas-process relative overflow-auto rounded-[24px] border border-border/70 bg-white/95 dark:bg-slate-900/70"
-        style={{ height: 1080 }}
+        className={cn(
+          "balanzas-process relative overscroll-contain overflow-auto rounded-[24px] border border-border/70 bg-white/95 dark:bg-slate-900/70",
+          isPanning ? "cursor-grabbing select-none" : "cursor-grab",
+        )}
+        style={{ height: "clamp(560px, calc(100vh - 340px), 1080px)", scrollbarGutter: "stable both-edges" }}
+        onWheel={handleWheel}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={stopPanning}
+        onPointerCancel={stopPanning}
+        onClickCapture={suppressDraggedClick}
       >
         <div className="relative" style={{ width: renderedW, height: renderedH }}>
           <svg

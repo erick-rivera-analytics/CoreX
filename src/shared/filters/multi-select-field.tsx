@@ -255,8 +255,8 @@ export function MultiSelectField({
         ? createPortal(
             <div
               ref={panelRef}
-              className="fixed z-[250] overflow-hidden rounded-[24px] border border-border/80 bg-card shadow-[0_24px_80px_-32px_rgba(15,23,42,0.28)]"
-              style={{ top: panelStyle.top, left: panelStyle.left, width: panelStyle.width }}
+              className="fixed z-[250] flex min-h-0 flex-col overflow-hidden rounded-[24px] border border-border/80 bg-card shadow-[0_24px_80px_-32px_rgba(15,23,42,0.28)]"
+              style={{ top: panelStyle.top, left: panelStyle.left, width: panelStyle.width, maxHeight: panelStyle.maxHeight }}
             >
               <div className="border-b border-border/70 p-3">
                 <div className="flex items-center gap-2">
@@ -287,7 +287,7 @@ export function MultiSelectField({
                   </Button>
                 </div>
               </div>
-              <div className="overflow-auto p-2" style={{ maxHeight: panelStyle.maxHeight }}>
+              <div className="min-h-0 flex-1 overflow-auto p-2">
                 {filteredOptions.length ? (
                   <div className="space-y-1">
                     {filteredOptions.map((option) => {

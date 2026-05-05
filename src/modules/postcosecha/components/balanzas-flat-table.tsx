@@ -7,8 +7,8 @@ import { formatBalanzasTableMetric, formatBalanzasTextValue } from "@/modules/po
 
 export function BalanzasFlatTable({ detail }: { detail: BalanzasNodeDetail }) {
   return (
-    <ScrollFadeTable className="rounded-[16px] border border-border/70 bg-card" innerClassName="tabular-nums">
-      <StandardTable>
+    <ScrollFadeTable className="rounded-[16px] border border-border/70 bg-card" innerClassName="tabular-nums" topScrollbar>
+      <StandardTable className="min-w-[920px]">
         <thead className="sticky top-0 z-10 bg-card">
           <tr className="border-b border-border/70">
             {detail.columns.map((column) => (

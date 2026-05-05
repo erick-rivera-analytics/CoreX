@@ -29,10 +29,10 @@ export async function GET(
       destinations: decodeMultiSelectValue(p.get("destinations")),
       grades: decodeMultiSelectValue(p.get("grades")),
       gradeGroups: decodeMultiSelectValue(p.get("gradeGroups")),
-      workDateFrom: p.get("workDateFrom") ?? undefined,
-      workDateTo: p.get("workDateTo") ?? undefined,
-      lotDateFrom: p.get("lotDateFrom") ?? undefined,
-      lotDateTo: p.get("lotDateTo") ?? undefined,
+      years: decodeMultiSelectValue(p.get("detailYears")),
+      months: decodeMultiSelectValue(p.get("detailMonths")),
+      weeks: decodeMultiSelectValue(p.get("detailWeeks")),
+      dates: decodeMultiSelectValue(p.get("detailDates")),
     };
     const data = await loadNodeDetail(nodeKey, filters, localFilters);
     return NextResponse.json(data, {
