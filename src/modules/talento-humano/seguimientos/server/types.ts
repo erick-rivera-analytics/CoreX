@@ -67,6 +67,7 @@ export type EmployeeScheduledFollowupRow = {
   uniqueFollowUpCode: string;
   followUpDate: string;
   associatedWorkerName: string | null;
+  areaId: string | null;
   areaName: string | null;
   areaGeneral: string | null;
   jobClassificationCode: string | null;

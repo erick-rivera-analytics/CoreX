@@ -204,8 +204,8 @@ export function BalanzasExpandableTable({
         key: "label",
         label: "Descripción",
         align: "left",
-        cellClassName: "min-w-[220px]",
-        headerClassName: "min-w-[220px]",
+        cellClassName: "w-[1%] min-w-[180px]",
+        headerClassName: "w-[1%] min-w-[180px]",
         render: (node, level) => (
           <span className={level === 0 ? "font-semibold text-foreground" : undefined}>
             {node.label}
@@ -238,7 +238,7 @@ export function BalanzasExpandableTable({
         columns={columns}
         defaultExpandLevel={0}
         indentPerLevel={20}
-        tableClassName="min-w-[1280px]"
+        tableClassName="w-max min-w-full"
         withWrapper={false}
         emptyState="No hay filas para los filtros seleccionados."
       />

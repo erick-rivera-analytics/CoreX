@@ -217,7 +217,6 @@ const B2_B2A_WEIGHT_DETAIL_COLUMN_CONFIG: Record<string, BalanzasDetailColumnCon
 
 const B2_B2A_WEIGHT_DETAIL_VISIBLE_COLUMNS = [
   "work_date",
-  "lot_date",
   "destination",
   "weight_b2_kg",
   "weight_b2a_kg",
@@ -226,7 +225,6 @@ const B2_B2A_WEIGHT_DETAIL_VISIBLE_COLUMNS = [
 
 const B2_B2A_WEIGHT_DETAIL_COLUMN_LABELS: Record<string, string> = {
   work_date: "Fecha_entrega",
-  lot_date: "Lote",
   destination: "Destino",
   weight_b2_kg: "Peso_B2",
   weight_b2a_kg: "Peso_B2A",

@@ -14,6 +14,7 @@ type ScheduledFollowupDwRow = ScheduledFollowupQueryRow & {
   person_name: string;
   associated_worker_name: string | null;
   job_classification_code: string | null;
+  area_id: string | null;
   area_name: string | null;
   area_general: string | null;
 };
@@ -144,6 +145,7 @@ export async function loadScheduledFollowups(
       p.person_name,
       p.associated_worker_name,
       p.job_classification_code,
+      a.area_id,
       a.area_name,
       a.area_general
     FROM gld.mv_tthh_asgn_followup_scd2 f
@@ -152,7 +154,7 @@ export async function loadScheduledFollowups(
       AND p.is_current = true
       AND p.is_valid = true
     LEFT JOIN LATERAL (
-      SELECT ap.area_name, ap.area_general
+      SELECT e.area_id::text AS area_id, ap.area_name, ap.area_general
       FROM slv.tthh_asgn_person_area_event_scd2 e
       LEFT JOIN slv.camp_dim_area_profile_scd2 ap
         ON ap.area_id = e.area_id AND ap.is_current = true AND ap.is_valid = true
@@ -239,6 +241,7 @@ export async function loadScheduledFollowups(
         uniqueFollowUpCode: row.unique_follow_up_code,
         followUpDate: row.follow_up_date,
         associatedWorkerName: row.associated_worker_name,
+        areaId: row.area_id,
         areaName: row.area_name,
         areaGeneral: row.area_general,
         jobClassificationCode: row.job_classification_code,

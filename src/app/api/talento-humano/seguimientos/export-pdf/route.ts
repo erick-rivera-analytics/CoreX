@@ -43,9 +43,16 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 const ROUTE_LABEL: Record<string, string> = {
-  AGR: "Agr\\'icola",
-  ADM: "Administrativo",
+  AGR: "AGR",
+  ADM: "ADM",
 };
+
+function titleCaseName(value: string): string {
+  return value
+    .trim()
+    .toLocaleLowerCase("es-EC")
+    .replace(/\p{L}+/gu, (word) => word.charAt(0).toLocaleUpperCase("es-EC") + word.slice(1));
+}
 
 function buildDataTex(rows: Awaited<ReturnType<typeof loadScheduledFollowups>>, exportDate: Date): string {
   const pad = (n: number) => String(n).padStart(2, "0");
@@ -53,8 +60,8 @@ function buildDataTex(rows: Awaited<ReturnType<typeof loadScheduledFollowups>>, 
   const docDate = `${exportDate.getFullYear()}-${pad(exportDate.getMonth() + 1)}-${pad(exportDate.getDate())}`;
 
   const tableRows = rows.map((row) => {
-    const nombre = tex(row.personName);
-    const area = tex(row.areaName ?? row.areaGeneral ?? "—");
+    const nombre = tex(titleCaseName(row.personName));
+    const area = tex(row.areaId ?? "-");
     const fecha = tex(formatFollowupDate(row.followUpDate));
     const clasif = ROUTE_LABEL[row.derivedRoute] ?? tex(row.derivedRoute);
     const estado = tex(STATUS_LABEL[row.status] ?? row.status);
@@ -72,14 +79,14 @@ function buildDataTex(rows: Awaited<ReturnType<typeof loadScheduledFollowups>>, 
   \\section*{Agenda de Seguimientos -- Trabajo Social}
 
   \\begin{center}
-  \\begin{longtable}{@{} p{5.2cm} p{3.8cm} l l l @{}}
+  \\begin{longtable}{@{} p{6.1cm} p{2.4cm} l l l @{}}
     \\caption{Agenda de seguimientos programados} \\\\
     \\toprule
-    \\textbf{Nombre} & \\textbf{\\'Area} & \\textbf{Fecha} & \\textbf{Clasif.} & \\textbf{Estado} \\\\
+    \\textbf{Nombre} & \\textbf{area\\_id} & \\textbf{Fecha} & \\textbf{Clasif.} & \\textbf{Estado} \\\\
     \\midrule
     \\endfirsthead
     \\toprule
-    \\textbf{Nombre} & \\textbf{\\'Area} & \\textbf{Fecha} & \\textbf{Clasif.} & \\textbf{Estado} \\\\
+    \\textbf{Nombre} & \\textbf{area\\_id} & \\textbf{Fecha} & \\textbf{Clasif.} & \\textbf{Estado} \\\\
     \\midrule
     \\endhead
     \\midrule
@@ -118,7 +125,7 @@ export async function GET(request: NextRequest) {
     });
 
     if (!parsed.success) {
-      return Response.json({ message: "Filtros inválidos." }, { status: 400 });
+      return Response.json({ message: "Filtros invalidos." }, { status: 400 });
     }
 
     const rows = await loadScheduledFollowups(parsed.data as EmployeeFollowupFilters);
@@ -143,3 +150,4 @@ export async function GET(request: NextRequest) {
     return handleApiError(error, "No se pudo exportar la agenda.");
   }
 }
+

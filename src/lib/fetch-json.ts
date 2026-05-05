@@ -3,7 +3,7 @@ export async function fetchJson<T>(
   fallbackMessage: string,
   init?: RequestInit,
 ): Promise<T> {
-  const response = await fetch(url, init);
+  const response = await fetch(url, { credentials: "same-origin", ...init });
 
   if (!response.ok) {
     let message = fallbackMessage;
