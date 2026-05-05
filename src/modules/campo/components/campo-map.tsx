@@ -12,6 +12,7 @@ import {
   useState,
   type CSSProperties,
   type RefObject,
+  type ReactNode,
 } from "react";
 import {
   GeoJSON,
@@ -19,7 +20,6 @@ import {
   MapContainer,
   Marker,
   Pane,
-  Popup,
   TileLayer,
   useMap,
   useMapEvents,
@@ -37,6 +37,7 @@ export type RasterBounds = Partial<
 type ClickState = { latlng: L.LatLng; bloquePad: string };
 type IrrigationClickState = { latlng: L.LatLng; diameter: string };
 type BlockCentroid = { bloquePad: string; area: string; lat: number; lng: number };
+type MapPopoverPosition = { x: number; y: number };
 
 type Props = {
   viewKey: "campo" | "sjp" | "riego";
@@ -494,6 +495,52 @@ function FitBounds({ data }: { data: FeatureCollection }) {
   return null;
 }
 
+function MapFloatingPopover({
+  latlng,
+  children,
+}: {
+  latlng: L.LatLng;
+  children: ReactNode;
+}) {
+  const map = useMap();
+  const [position, setPosition] = useState<MapPopoverPosition>(() => {
+    const point = map.latLngToContainerPoint(latlng);
+    return { x: point.x, y: point.y };
+  });
+
+  const updatePosition = useCallback(() => {
+    const point = map.latLngToContainerPoint(latlng);
+    setPosition({ x: point.x, y: point.y });
+  }, [latlng, map]);
+
+  useEffect(() => {
+    updatePosition();
+  }, [updatePosition]);
+
+  useMapEvents({
+    move: updatePosition,
+    zoom: updatePosition,
+    resize: updatePosition,
+  });
+
+  return (
+    <div
+      className="pointer-events-auto absolute z-[760] max-w-[260px] rounded-[16px] border border-slate-200 bg-white p-2 shadow-xl dark:border-slate-700 dark:bg-slate-950"
+      style={{
+        left: position.x,
+        top: position.y,
+        transform: "translate(-50%, calc(-100% - 14px))",
+      }}
+      onClick={(event) => event.stopPropagation()}
+      onDoubleClick={(event) => event.stopPropagation()}
+      onMouseDown={(event) => event.stopPropagation()}
+    >
+      {children}
+      <span className="absolute left-1/2 top-full size-3 -translate-x-1/2 -translate-y-1/2 rotate-45 border-b border-r border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-950" />
+    </div>
+  );
+}
+
 export function CampoBaseTiles({ activeLayer }: { activeLayer: ActiveLayer }) {
   return (
     <TileLayer
@@ -919,17 +966,7 @@ export function CampoLeafletMap({
         />
 
         {clickState && viewKey !== "riego" && (
-          <Popup
-            position={clickState.latlng}
-            keepInView
-            autoPan
-            offset={[0, -18]}
-            autoPanPaddingTopLeft={[24, 24]}
-            autoPanPaddingBottomRight={[32, 220]}
-            minWidth={232}
-            maxWidth={248}
-            closeButton={false}
-          >
+          <MapFloatingPopover latlng={clickState.latlng}>
             <div className="min-w-[210px] space-y-2.5 p-1">
               <div className="flex items-start justify-between gap-2">
                 <p className="text-[13px] font-bold text-slate-900 dark:text-white">
@@ -969,21 +1006,11 @@ export function CampoLeafletMap({
                 {secondaryActionLabel}
               </button>
             </div>
-          </Popup>
+          </MapFloatingPopover>
         )}
 
         {irrigationClickState && viewKey === "riego" && (
-          <Popup
-            position={irrigationClickState.latlng}
-            keepInView
-            autoPan
-            offset={[0, -14]}
-            autoPanPaddingTopLeft={[24, 24]}
-            autoPanPaddingBottomRight={[32, 220]}
-            minWidth={210}
-            maxWidth={238}
-            closeButton={false}
-          >
+          <MapFloatingPopover latlng={irrigationClickState.latlng}>
             <div className="min-w-[190px] space-y-2 p-1">
               <div className="flex items-start justify-between gap-2">
                 <p className="text-[13px] font-bold text-slate-900 dark:text-white">
@@ -1001,7 +1028,7 @@ export function CampoLeafletMap({
                 Diametro: {irrigationClickState.diameter} mm
               </p>
             </div>
-          </Popup>
+          </MapFloatingPopover>
         )}
 
         <FitBounds data={geoData} />
