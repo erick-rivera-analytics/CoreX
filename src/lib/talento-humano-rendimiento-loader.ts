@@ -3,55 +3,21 @@ import "server-only";
 import { query } from "@/lib/db";
 import { cachedAsync } from "@/lib/server-cache";
 import type {
-  TalentoPersonRendimientoActivity,
-  TalentoPersonRendimientoCycle,
   TalentoPersonRendimientoPayload,
+  TalentoPersonRendimientoWeek,
 } from "@/lib/talento-humano";
 
-const PROD_HOURS_SOURCE = "gld.mv_prod_hours_cycle_person_cur";
-const PROD_HOURS_VARIOS_SPLIT_SOURCE = "gld.mv_prod_hours_varios_split_cycle_person_cur";
-const PROD_HOURS_APPEND_SOURCE = `
-  (
-    select
-      event_date,
-      cycle_key,
-      person_id,
-      activity_id,
-      activity_name,
-      activity_type,
-      unit_of_measure,
-      actual_hours,
-      effective_hours,
-      units_produced
-    from ${PROD_HOURS_SOURCE}
-    union all
-    select
-      event_date,
-      cycle_key,
-      person_id,
-      activity_id,
-      activity_name,
-      activity_type,
-      unit_of_measure,
-      actual_hours,
-      effective_hours,
-      units_produced
-    from ${PROD_HOURS_VARIOS_SPLIT_SOURCE}
-  )
-`;
-const PERSON_RENDIMIENTO_DEFAULT_CYCLE_LIMIT = 8;
+const PERSON_RENDIMIENTO_DEFAULT_WEEK_LIMIT = 26;
 const PERSON_RENDIMIENTO_TTL_MS = 5 * 60 * 1000;
+const TALENTO_RENDIMIENTO_SOURCE = "gld.prod_rend_adj_cur";
 
 type PersonRendimientoQueryRow = {
-  event_date: string | null;
-  cycle_key: string | null;
-  activity_id: string | null;
-  activity_name: string | null;
-  activity_type: string | null;
-  unit_of_measure: string | null;
-  actual_hours: string | number | null;
-  effective_hours: string | number | null;
-  units_produced: string | number | null;
+  iso_week_id: string | number | null;
+  rendimiento: string | number | null;
+  rendimiento_min: string | number | null;
+  actual_hours_hn: string | number | null;
+  actual_hours_rend: string | number | null;
+  total_actual_hours: string | number | null;
 };
 
 function toNum(value: unknown): number | null {
@@ -60,155 +26,97 @@ function toNum(value: unknown): number | null {
   return Number.isFinite(num) ? num : null;
 }
 
-function toStr(value: unknown): string | null {
-  if (value === null || value === undefined) return null;
-  const text = String(value).trim();
-  return text === "" || text === "UNKNOWN" ? null : text;
-}
-
-function ratioPct(numer: number, denom: number): number | null {
-  if (!Number.isFinite(numer) || !Number.isFinite(denom) || denom <= 0) return null;
-  return (numer / denom) * 100;
-}
-
-function ratioOrNull(numer: number, denom: number): number | null {
-  if (!Number.isFinite(numer) || !Number.isFinite(denom) || denom <= 0) return null;
+function ratioOrNull(numer: number | null, denom: number | null): number | null {
+  if (numer === null || denom === null || !Number.isFinite(numer) || !Number.isFinite(denom) || denom <= 0) return null;
   return numer / denom;
 }
 
+function round(value: number | null, digits = 6): number | null {
+  if (value === null || !Number.isFinite(value)) return null;
+  const factor = 10 ** digits;
+  return Math.round(value * factor) / factor;
+}
+
 /**
- * Rendimiento histórico de la persona SIN requerir cycleKey.
+ * Rendimiento semanal de la persona para la ficha abierta desde Talento Humano.
  *
- * Agrega los últimos `cycleLimit` ciclos donde la persona tuvo registros
- * productivos, agrupado por (cycle_key, activity).
- *
- * Usado por la tab "Rendimiento" de `PersonProfileDialog` cuando
- * `sourceContext.module === "talento"`.
+ * Fuente canónica: `gld.prod_rend_adj_cur`.
+ * La tabla ya viene al grano persona/semana; el loader agrega por semana por
+ * seguridad y calcula ponderados con `actual_hours_rend` como peso.
  */
 export async function getPersonRendimiento(
   personId: string,
-  cycleLimit: number = PERSON_RENDIMIENTO_DEFAULT_CYCLE_LIMIT,
+  weekLimit: number = PERSON_RENDIMIENTO_DEFAULT_WEEK_LIMIT,
 ): Promise<TalentoPersonRendimientoPayload> {
   const normalizedPersonId = personId.trim();
-  const cap = Math.max(1, Math.min(cycleLimit, 50));
-  const cacheKey = `talento:rendimiento:v2:${normalizedPersonId}:${cap}`;
+  const cap = Math.max(1, Math.min(weekLimit, 104));
+  const cacheKey = `talento:rendimiento:v3:${normalizedPersonId}:${cap}`;
 
   return cachedAsync(cacheKey, PERSON_RENDIMIENTO_TTL_MS, async () => {
     const result = await query<PersonRendimientoQueryRow>(
       `
-        with person_hours as (
+        with weekly as (
           select
-            to_char(event_date, 'YYYY-MM-DD') as event_date,
-            cycle_key,
-            coalesce(nullif(trim(activity_id::text), ''), 'Sin actividad') as activity_id,
-            coalesce(
-              nullif(trim(activity_name), ''),
-              coalesce(nullif(trim(activity_id::text), ''), 'Sin actividad')
-            ) as activity_name,
-            coalesce(nullif(trim(activity_type), ''), 'Sin tipo') as activity_type,
-            coalesce(nullif(trim(unit_of_measure), ''), '') as unit_of_measure,
-            coalesce(actual_hours, 0) as actual_hours,
-            coalesce(effective_hours, 0) as effective_hours,
-            coalesce(units_produced, 0) as units_produced
-          from ${PROD_HOURS_APPEND_SOURCE}
+            iso_week_id::text as iso_week_id,
+            sum(coalesce(rend, 0)::numeric * coalesce(actual_hours_rend, 0)::numeric)
+              / nullif(sum(case when rend is not null then coalesce(actual_hours_rend, 0)::numeric else 0 end), 0) as rendimiento,
+            sum(coalesce(rend_min, 0)::numeric * coalesce(actual_hours_rend, 0)::numeric)
+              / nullif(sum(case when rend_min is not null then coalesce(actual_hours_rend, 0)::numeric else 0 end), 0) as rendimiento_min,
+            sum(coalesce(actual_hours_hn, 0)::numeric) as actual_hours_hn,
+            sum(coalesce(actual_hours_rend, 0)::numeric) as actual_hours_rend,
+            sum(coalesce(total_actual_hours, 0)::numeric) as total_actual_hours
+          from ${TALENTO_RENDIMIENTO_SOURCE}
           where trim(person_id::text) = $1
-            and cycle_key is not null
-        ),
-        recent_cycles as (
-          select cycle_key
-          from person_hours
-          group by cycle_key
-          order by max(cycle_key) desc
-          limit $2
+            and iso_week_id is not null
+          group by iso_week_id
         )
         select
-          ph.cycle_key,
-          ph.event_date,
-          ph.activity_id,
-          ph.activity_name,
-          ph.activity_type,
-          nullif(ph.unit_of_measure, '') as unit_of_measure,
-          sum(ph.actual_hours) as actual_hours,
-          sum(ph.effective_hours) as effective_hours,
-          sum(ph.units_produced) as units_produced
-        from person_hours ph
-        join recent_cycles rc on rc.cycle_key = ph.cycle_key
-        group by 1, 2, 3, 4, 5, 6
-        order by ph.cycle_key desc, ph.event_date desc nulls last, ph.activity_name asc
+          iso_week_id,
+          rendimiento,
+          rendimiento_min,
+          actual_hours_hn,
+          actual_hours_rend,
+          total_actual_hours
+        from weekly
+        order by iso_week_id::int desc
+        limit $2
       `,
       [normalizedPersonId, cap],
     );
 
-    const cyclesMap = new Map<string, TalentoPersonRendimientoCycle>();
-    let totalActual = 0;
-    let totalEffective = 0;
-    let totalUnits = 0;
-    let activityCount = 0;
-
-    for (const row of result.rows) {
-      const cycleKey = toStr(row.cycle_key);
-      if (!cycleKey) continue;
-
-      const actualHours = toNum(row.actual_hours) ?? 0;
-      const effectiveHours = toNum(row.effective_hours) ?? 0;
-      const unitsProduced = toNum(row.units_produced) ?? 0;
-
-      const activity: TalentoPersonRendimientoActivity = {
-        eventDate: toStr(row.event_date),
-        activityId: toStr(row.activity_id) ?? "Sin actividad",
-        activityName: toStr(row.activity_name) ?? "Sin actividad",
-        activityType: toStr(row.activity_type) ?? "Sin tipo",
-        unitOfMeasure: toStr(row.unit_of_measure) ?? "",
-        actualHours,
-        effectiveHours,
-        unitsProduced,
-        productivity: ratioOrNull(unitsProduced, actualHours),
-        rendimientoPct: ratioPct(effectiveHours, actualHours),
+    const weeklyRows: TalentoPersonRendimientoWeek[] = result.rows.map((row) => {
+      const rendimiento = round(toNum(row.rendimiento));
+      const rendimientoMin = round(toNum(row.rendimiento_min));
+      return {
+        isoWeekId: String(row.iso_week_id ?? ""),
+        rendimiento,
+        rendimientoMin,
+        cumplimiento: round(ratioOrNull(rendimiento, rendimientoMin)),
+        actualHoursHn: round(toNum(row.actual_hours_hn)) ?? 0,
+        actualHoursRend: round(toNum(row.actual_hours_rend)) ?? 0,
+        totalActualHours: round(toNum(row.total_actual_hours)) ?? 0,
       };
+    });
 
-      let cycle = cyclesMap.get(cycleKey);
-      if (!cycle) {
-        cycle = {
-          cycleKey,
-          totalActualHours: 0,
-          totalEffectiveHours: 0,
-          totalUnitsProduced: 0,
-          rendimientoPct: null,
-          activities: [],
-        };
-        cyclesMap.set(cycleKey, cycle);
-      }
-
-      cycle.activities.push(activity);
-      cycle.totalActualHours += actualHours;
-      cycle.totalEffectiveHours += effectiveHours;
-      cycle.totalUnitsProduced += unitsProduced;
-
-      totalActual += actualHours;
-      totalEffective += effectiveHours;
-      totalUnits += unitsProduced;
-      activityCount += 1;
-    }
-
-    const cycles = Array.from(cyclesMap.values()).map((cycle) => ({
-      ...cycle,
-      rendimientoPct: ratioPct(cycle.totalEffectiveHours, cycle.totalActualHours),
-    }));
-
-    cycles.sort((a, b) => (a.cycleKey < b.cycleKey ? 1 : a.cycleKey > b.cycleKey ? -1 : 0));
+    const weightedRendNumerator = weeklyRows.reduce((sum, row) => sum + (row.rendimiento ?? 0) * row.actualHoursRend, 0);
+    const weightedMinNumerator = weeklyRows.reduce((sum, row) => sum + (row.rendimientoMin ?? 0) * row.actualHoursRend, 0);
+    const totalHoursRend = weeklyRows.reduce((sum, row) => sum + row.actualHoursRend, 0);
+    const rendimiento = round(ratioOrNull(weightedRendNumerator, totalHoursRend));
+    const rendimientoMin = round(ratioOrNull(weightedMinNumerator, totalHoursRend));
 
     return {
       personId: normalizedPersonId,
       generatedAt: new Date().toISOString(),
       totals: {
-        totalActualHours: totalActual,
-        totalEffectiveHours: totalEffective,
-        totalUnitsProduced: totalUnits,
-        rendimientoPct: ratioPct(totalEffective, totalActual),
-        cycleCount: cycles.length,
-        activityCount,
+        rendimiento,
+        rendimientoMin,
+        cumplimiento: round(ratioOrNull(rendimiento, rendimientoMin)),
+        actualHoursHn: round(weeklyRows.reduce((sum, row) => sum + row.actualHoursHn, 0)) ?? 0,
+        actualHoursRend: round(totalHoursRend) ?? 0,
+        totalActualHours: round(weeklyRows.reduce((sum, row) => sum + row.totalActualHours, 0)) ?? 0,
+        weekCount: weeklyRows.length,
       },
-      cycles,
+      weeklyRows,
     };
   });
 }
