@@ -73,8 +73,10 @@ export async function searchPersons(
         LEFT JOIN slv.camp_dim_area_profile_scd2 ap
           ON ap.area_id = e.area_id AND ap.is_current = true AND ap.is_valid = true
         WHERE e.person_id = p.person_id
-          AND e.event_type = 'CA'
+          AND e.is_current = true
+          AND e.event_type = 'IS'
           AND e.is_valid = true
+          AND e.area_id NOT IN ('UNKNOWN')
           AND $1::date >= e.valid_from::date
           AND $1::date < COALESCE(e.valid_to::date, DATE '9999-12-31')
         ORDER BY e.person_id, e.valid_from DESC
@@ -133,8 +135,10 @@ export async function getPersonDetail(
       LEFT JOIN slv.camp_dim_area_profile_scd2 ap
         ON ap.area_id = e.area_id AND ap.is_current = true AND ap.is_valid = true
       WHERE e.person_id = p.person_id
-        AND e.event_type = 'CA'
+        AND e.is_current = true
+        AND e.event_type = 'IS'
         AND e.is_valid = true
+        AND e.area_id NOT IN ('UNKNOWN')
         AND $1::date >= e.valid_from::date
         AND $1::date < COALESCE(e.valid_to::date, DATE '9999-12-31')
       ORDER BY e.valid_from DESC
@@ -188,16 +192,18 @@ export async function loadAssociatedWorkers(): Promise<string[]> {
 }
 
 export async function loadAreaOptions(): Promise<string[]> {
-  const result = await query<{ area_name: string }>(
+  const result = await query<{ area_id: string }>(
     `
-    SELECT DISTINCT area_name
-    FROM slv.camp_dim_area_profile_scd2
-    WHERE is_current = true
-      AND is_valid = true
-      AND area_name IS NOT NULL
-    ORDER BY area_name
+    SELECT DISTINCT e.area_id::text AS area_id
+    FROM slv.tthh_asgn_person_area_event_scd2 e
+    WHERE e.is_current = true
+      AND e.event_type = 'IS'
+      AND e.is_valid = true
+      AND e.area_id IS NOT NULL
+      AND e.area_id NOT IN ('UNKNOWN')
+    ORDER BY e.area_id::text
     `,
   );
 
-  return result.rows.map((r) => r.area_name);
+  return result.rows.map((r) => r.area_id);
 }

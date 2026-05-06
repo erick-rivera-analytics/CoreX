@@ -161,7 +161,7 @@ export function SeguimientosPage({ initialCatalogs, initialWorkers, initialAreas
               />
               <MultiSelectField
                 id="filter-area"
-                label="Área"
+                label="Cod. Área"
                 value={filters.area ?? ""}
                 options={areaOptions}
                 onChange={(value) => setFilter("area", value || undefined)}

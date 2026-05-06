@@ -127,7 +127,7 @@ export async function loadScheduledFollowups(
 
   const areas = decodeMultiSelectValue(filters.area);
   if (areas.length > 0) {
-    conditions.push(`a.area_name = ANY($${pIdx}::text[])`);
+    conditions.push(`(a.area_id = ANY($${pIdx}::text[]) OR a.area_name = ANY($${pIdx}::text[]))`);
     params.push(areas);
     pIdx++;
   }
@@ -159,8 +159,10 @@ export async function loadScheduledFollowups(
       LEFT JOIN slv.camp_dim_area_profile_scd2 ap
         ON ap.area_id = e.area_id AND ap.is_current = true AND ap.is_valid = true
       WHERE e.person_id = f.person_id
-        AND e.event_type = 'CA'
+        AND e.is_current = true
+        AND e.event_type = 'IS'
         AND e.is_valid = true
+        AND e.area_id NOT IN ('UNKNOWN')
         AND $1::date >= e.valid_from::date
         AND $1::date < COALESCE(e.valid_to::date, DATE '9999-12-31')
       ORDER BY e.valid_from DESC
