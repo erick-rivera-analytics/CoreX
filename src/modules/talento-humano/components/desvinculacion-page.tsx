@@ -220,13 +220,13 @@ export function TalentoDesvinculacionPage({ initialData }: { initialData: Talent
             <MetricTile label="% horas rendimiento" value={formatPercent(current.summary.avgPctActualHoursRend)} />
             <MetricTile label="% absentismo total" value={formatPercent(current.summary.avgPctAbsTotal)} />
           </KpiGrid>
-          <div className="grid grid-cols-[repeat(auto-fit,minmax(420px,1fr))] gap-5">
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,620px),1fr))] gap-5">
             <DonutBreakdownCard title="Motivo de salida" groups={groups.exitReason} onSelect={(group) => selectGroup("Motivo de salida", group)} />
             <DonutBreakdownCard title="Motivo de renuncia" groups={groups.resignationReason} onSelect={(group) => selectGroup("Motivo renuncia", group)} />
             <DonutBreakdownCard title="Categorías de renuncia" groups={groups.resignationCategory} onSelect={(group) => selectGroup("Categoría", group)} />
             <DonutBreakdownCard title="Clasificación de renuncia" groups={groups.resignationClassification} onSelect={(group) => selectGroup("Clasificación", group)} />
           </div>
-          <div className="grid grid-cols-[repeat(auto-fit,minmax(460px,1fr))] gap-5">
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,680px),1fr))] gap-5">
             <BarListCard title="Cumplimiento al salir" subtitle="Segmentación por desempeño frente al rendimiento mínimo." groups={groups.compliance} onSelect={(group) => selectGroup("Cumplimiento", group)} showCompliance />
             <BarListCard title="Antigüedad al salir" subtitle="Rango de experiencia al momento de salida." groups={groups.tenure} onSelect={(group) => selectGroup("Antigüedad", group)} showCompliance />
             <ContingencyTableCard title="Antigüedad vs cumplimiento" subtitle="Tabla de contingencia: filas por antigüedad, columnas por cumplimiento." groups={groups.tenureCompliance} onSelect={(group) => selectGroup("Antigüedad", group)} />

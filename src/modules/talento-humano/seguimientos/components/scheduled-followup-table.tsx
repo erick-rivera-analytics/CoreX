@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { FileDown } from "lucide-react";
+import { FileDown, Sheet } from "lucide-react";
 import { toast } from "sonner";
 import { formatDate, localDateString } from "@/shared/lib/format";
 import { Badge } from "@/shared/ui/badge";
@@ -42,12 +42,13 @@ type Props = {
   onSelect: (row: EmployeeScheduledFollowupRow) => void;
   isLoading: boolean;
   exportUrl: string;
+  exportXlsxUrl: string;
 };
 
-export function ScheduledFollowupTable({ rows, selectedFollowup, onSelect, isLoading, exportUrl }: Props) {
+export function ScheduledFollowupTable({ rows, selectedFollowup, onSelect, isLoading, exportUrl, exportXlsxUrl }: Props) {
   const [sortKey, setSortKey] = useState<SortKey>("followUpDate");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
-  const [exporting, setExporting] = useState(false);
+  const [exporting, setExporting] = useState<"pdf" | "xlsx" | null>(null);
   const [pdfSortRules, setPdfSortRules] = useState<PdfSortRule[]>([
     { key: "", direction: "asc" },
     { key: "", direction: "asc" },
@@ -64,13 +65,17 @@ export function ScheduledFollowupTable({ rows, selectedFollowup, onSelect, isLoa
     }
   }
 
-  async function handleExport() {
-    setExporting(true);
+  function appendSortRules(exportEndpoint: URL) {
+    pdfSortRules
+      .filter((rule): rule is { key: PdfSortKey; direction: "asc" | "desc" } => Boolean(rule.key))
+      .forEach((rule) => exportEndpoint.searchParams.append("sort", `${rule.key}:${rule.direction}`));
+  }
+
+  async function handleExportPdf() {
+    setExporting("pdf");
     try {
       const exportEndpoint = new URL(exportUrl, window.location.origin);
-      pdfSortRules
-        .filter((rule): rule is { key: PdfSortKey; direction: "asc" | "desc" } => Boolean(rule.key))
-        .forEach((rule) => exportEndpoint.searchParams.append("sort", `${rule.key}:${rule.direction}`));
+      appendSortRules(exportEndpoint);
 
       const res = await fetch(exportEndpoint.toString(), { credentials: "same-origin" });
       if (!res.ok) throw new Error("Error al generar el PDF.");
@@ -84,7 +89,29 @@ export function ScheduledFollowupTable({ rows, selectedFollowup, onSelect, isLoa
     } catch {
       toast.error("No se pudo generar el PDF. Intente nuevamente.");
     } finally {
-      setExporting(false);
+      setExporting(null);
+    }
+  }
+
+  async function handleExportXlsx() {
+    setExporting("xlsx");
+    try {
+      const exportEndpoint = new URL(exportXlsxUrl, window.location.origin);
+      appendSortRules(exportEndpoint);
+
+      const res = await fetch(exportEndpoint.toString(), { credentials: "same-origin" });
+      if (!res.ok) throw new Error("Error al generar el XLSX.");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `agenda_seguimientos_${localDateString()}.xlsx`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      toast.error("No se pudo generar el XLSX. Intente nuevamente.");
+    } finally {
+      setExporting(null);
     }
   }
 
@@ -105,17 +132,28 @@ export function ScheduledFollowupTable({ rows, selectedFollowup, onSelect, isLoa
               {isLoading ? "Cargando agenda..." : `${rows.length} seguimiento(s) con los filtros actuales.`}
             </CardDescription>
           </div>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="shrink-0"
-            onClick={handleExport}
-            disabled={exporting || rows.length === 0}
-          >
-            <FileDown className="mr-1.5 size-4" />
-            {exporting ? "Generando..." : "Exportar PDF"}
-          </Button>
+          <div className="flex shrink-0 flex-wrap justify-end gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleExportPdf}
+              disabled={Boolean(exporting) || rows.length === 0}
+            >
+              <FileDown className="mr-1.5 size-4" />
+              {exporting === "pdf" ? "Generando..." : "Exportar PDF"}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleExportXlsx}
+              disabled={Boolean(exporting) || rows.length === 0}
+            >
+              <Sheet className="mr-1.5 size-4" />
+              {exporting === "xlsx" ? "Generando..." : "Exportar XLSX"}
+            </Button>
+          </div>
         </div>
         <div className="grid gap-2 rounded-[16px] border border-border/60 bg-background/70 p-2 sm:grid-cols-3">
           {pdfSortRules.map((rule, index) => (

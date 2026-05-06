@@ -24,6 +24,7 @@ type Props = {
   isLoading: boolean;
   asOfDate?: string;
   exportUrl: string;
+  exportXlsxUrl: string;
 };
 
 export function FollowupWorkspace({
@@ -36,6 +37,7 @@ export function FollowupWorkspace({
   isLoading,
   asOfDate,
   exportUrl,
+  exportXlsxUrl,
 }: Props) {
   const hasSelected = Boolean(selectedFollowup);
   const [agendaCollapsed, setAgendaCollapsed] = useState(false);
@@ -64,6 +66,7 @@ export function FollowupWorkspace({
           onSelect={onSelectFollowup}
           isLoading={isLoading}
           exportUrl={exportUrl}
+          exportXlsxUrl={exportXlsxUrl}
         />
       </div>
 

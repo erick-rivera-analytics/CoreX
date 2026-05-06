@@ -80,20 +80,20 @@ export function ExitPeopleModal({
         <div className="space-y-4">
           <div className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
-            <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar por nombre, ID, cedula, motivo u observacion..." className="pl-8" />
+            <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar por nombre, ID, cédula, motivo u observación..." className="pl-8" />
           </div>
           {filteredRows.length ? (
-            <ScrollFadeTable topScrollbar>
+            <ScrollFadeTable topScrollbar innerClassName="max-h-[65vh] overflow-y-auto">
               <StandardTable>
-                <thead className="border-b border-border/70">
+                <thead className="sticky top-0 z-10 border-b border-border/70 bg-card">
                   <tr>
                     <StandardTh>Nombre</StandardTh>
                     <StandardTh>Cod</StandardTh>
                     <StandardTh>Motivo</StandardTh>
-                    <StandardTh>Categoria</StandardTh>
-                    <StandardTh>Clasificacion</StandardTh>
+                    <StandardTh>Categoría</StandardTh>
+                    <StandardTh>Clasificación</StandardTh>
                     <StandardTh>TS</StandardTh>
-                    <StandardTh>Observacion</StandardTh>
+                    <StandardTh>Observación</StandardTh>
                     <StandardTh>Cumplimiento</StandardTh>
                   </tr>
                 </thead>

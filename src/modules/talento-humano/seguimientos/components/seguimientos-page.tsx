@@ -237,6 +237,7 @@ export function SeguimientosPage({ initialCatalogs, initialWorkers, initialAreas
           isLoading={isValidating}
           asOfDate={filters.asOfDate}
           exportUrl={`/api/talento-humano/seguimientos/export-pdf?${qs}`}
+          exportXlsxUrl={`/api/talento-humano/seguimientos/export-xlsx?${qs}`}
         />
       )}
     </div>
