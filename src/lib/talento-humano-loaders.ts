@@ -56,6 +56,7 @@ type ActiveQueryRow = {
   education_title: string | null;
   children_count: string | number | null;
   dependents_count: string | number | null;
+  entry_count: string | number | null;
   performance_pay_applicable: boolean | null;
   disabled_flag: boolean | null;
 };
@@ -171,6 +172,17 @@ function buildActivosQuery(filters: TalentoFilters): { text: string; values: unk
           area_id, area_name, area_general
         FROM slv.camp_dim_area_profile_scd2
         ORDER BY area_id, valid_from DESC NULLS LAST
+      ),
+      entry_counts AS (
+        SELECT
+          e.person_id,
+          COUNT(*) AS entry_count
+        FROM slv.tthh_asgn_person_area_event_scd2 e
+        CROSS JOIN cal
+        WHERE e.event_type = 'IS'
+          AND e.area_id <> 'UNKNOWN'
+          AND e.valid_from::date <= cal.snapshot_date
+        GROUP BY e.person_id
       )
       SELECT
         a.person_id,
@@ -185,10 +197,12 @@ function buildActivosQuery(filters: TalentoFilters): { text: string; values: unk
         to_char(p.birth_date, 'YYYY-MM-DD') AS birth_date,
         to_char(p.last_entry_date, 'YYYY-MM-DD') AS last_entry_date,
         p.farm_code, p.nationality, p.education_title,
-        p.children_count, p.dependents_count, p.performance_pay_applicable, p.disabled_flag
+        p.children_count, p.dependents_count, p.performance_pay_applicable, p.disabled_flag,
+        COALESCE(ec.entry_count, 0) AS entry_count
       FROM assignments a
       JOIN profiles p ON p.person_id = a.person_id AND p.employer_name = $2
       LEFT JOIN areas ar ON ar.area_id = a.area_id
+      LEFT JOIN entry_counts ec ON ec.person_id = a.person_id
       WHERE 1=1 ${extraWhere}
       ORDER BY area_general, area_name, person_name
     `,
@@ -221,6 +235,7 @@ function mapActiveRow(row: ActiveQueryRow): TalentoPersonRecord {
     educationTitle: toStr(row.education_title),
     childrenCount: toNum(row.children_count),
     dependentsCount: toNum(row.dependents_count),
+    entryCount: toNum(row.entry_count),
     performancePayApplicable: row.performance_pay_applicable,
     disabledFlag: row.disabled_flag,
   };

@@ -57,6 +57,7 @@ export type TalentoPersonRecord = {
   educationTitle: string | null;
   childrenCount: number | null;
   dependentsCount: number | null;
+  entryCount: number | null;
   performancePayApplicable: boolean | null;
   disabledFlag: boolean | null;
 };
