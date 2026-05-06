@@ -18,6 +18,7 @@ import {
   UserCog,
   BriefcaseBusiness,
   UserSquare,
+  UserX,
   Beaker,
 } from "lucide-react";
 
@@ -164,6 +165,20 @@ export const MODULE_CATALOG: CatalogModule[] = [
     summary: "Ingresos, salidas y tasa de rotación por semana.",
     href: "/dashboard/talento-humano/rotacion-laboral",
     icon: TrendingDown,
+    navigationGroup: "Dashboard",
+    trail: ["Talento Humano", "Indicadores & KPI"],
+    accessSection: "Analítica / Indicadores & KPI",
+    status: "active",
+    mobileVisible: false,
+  },
+  {
+    key: "talento-desvinculacion",
+    label: "Desvinculación personal",
+    title: "Desvinculación personal",
+    eyebrow: "Analítica / Talento Humano / Indicadores & KPI",
+    summary: "Motivos de salida, antigüedad del evento y rendimiento previo a la desvinculación.",
+    href: "/dashboard/talento-humano/desvinculacion-personal",
+    icon: UserX,
     navigationGroup: "Dashboard",
     trail: ["Talento Humano", "Indicadores & KPI"],
     accessSection: "Analítica / Indicadores & KPI",

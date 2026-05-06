@@ -107,6 +107,72 @@ export type TalentoRotacionData = {
   salidas: TalentoSalidaRecord[];
 };
 
+export type TalentoExitFilters = {
+  year: string;
+  month: string;
+  associatedWorker: string;
+  exitReason: string;
+  resignationReason: string;
+  resignationCategory: string;
+  resignationClassification: string;
+  complianceBucket: string;
+  tenureBucket: string;
+};
+
+export type TalentoExitFilterOptions = {
+  years: string[];
+  months: string[];
+  associatedWorkers: string[];
+  exitReasons: string[];
+  resignationReasons: string[];
+  resignationCategories: string[];
+  resignationClassifications: string[];
+  complianceBuckets: string[];
+  tenureBuckets: string[];
+};
+
+export type TalentoExitRecord = TalentoPersonRecord & {
+  nationalId: string | null;
+  lastExitDate: string | null;
+  entryDate: string | null;
+  exitDate: string | null;
+  activeDays: number | null;
+  activeMonths: number | null;
+  exitReason: string | null;
+  resignationReason: string | null;
+  resignationCategory: string | null;
+  resignationClassification: string | null;
+  rendimiento: number | null;
+  rendimientoMin: number | null;
+  cumplimiento: number | null;
+  pctActualHoursRend: number | null;
+  pctActualHoursHn: number | null;
+  pctAbsTotal: number | null;
+  observations: string | null;
+  complianceBucket: string;
+  tenureBucket: string;
+};
+
+export type TalentoExitData = {
+  generatedAt: string;
+  filters: TalentoExitFilters;
+  options: TalentoExitFilterOptions;
+  rows: TalentoExitRecord[];
+  summary: {
+    totalExits: number;
+    exitsWithReason: number;
+    categoriesDetected: number;
+    socialWorkers: number;
+    avgCompliance: number | null;
+    avgRendimiento: number | null;
+    avgRendimientoMin: number | null;
+    avgPctActualHoursRend: number | null;
+    avgPctActualHoursHn: number | null;
+    avgPctAbsTotal: number | null;
+    avgActiveMonths: number | null;
+  };
+};
+
 export type TalentoPersonRendimientoPayload = {
   personId: string;
   generatedAt: string;
@@ -205,6 +271,18 @@ export const defaultTalentoSnapshotFilters: TalentoFilters = {
   weekTo: currentIsoWeek(),
 };
 
+export const defaultTalentoExitFilters: TalentoExitFilters = {
+  year: String(new Date().getFullYear()),
+  month: "all",
+  associatedWorker: "all",
+  exitReason: "all",
+  resignationReason: "all",
+  resignationCategory: "all",
+  resignationClassification: "all",
+  complianceBucket: "all",
+  tenureBucket: "all",
+};
+
 export function normalizeTalentoFilters(raw: Record<string, string | undefined>): TalentoFilters {
   const weekFrom = normalizeWeek(raw.weekFrom, defaultTalentoFilters.weekFrom);
   const weekTo = normalizeWeek(raw.weekTo, defaultTalentoFilters.weekTo);
@@ -241,9 +319,44 @@ export function normalizeTalentoSnapshotFilters(raw: Record<string, string | und
   };
 }
 
+function normalizeYear(value: string | undefined, fallback: string) {
+  const cleaned = value?.trim();
+  return cleaned === "all" || (cleaned && /^\d{4}$/.test(cleaned)) ? cleaned : fallback;
+}
+
+function normalizeMonth(value: string | undefined, fallback: string) {
+  const cleaned = value?.trim();
+  return cleaned === "all" || (cleaned && /^(0?[1-9]|1[0-2])$/.test(cleaned)) ? String(Number(cleaned)) : fallback;
+}
+
+function normalizeMultiFilter(value: string | undefined, fallback = "all") {
+  const cleaned = value?.trim();
+  return cleaned || fallback;
+}
+
+export function normalizeTalentoExitFilters(raw: Record<string, string | undefined>): TalentoExitFilters {
+  return {
+    year: normalizeYear(raw.year, defaultTalentoExitFilters.year),
+    month: normalizeMonth(raw.month, defaultTalentoExitFilters.month),
+    associatedWorker: normalizeMultiFilter(raw.associatedWorker),
+    exitReason: normalizeMultiFilter(raw.exitReason),
+    resignationReason: normalizeMultiFilter(raw.resignationReason),
+    resignationCategory: normalizeMultiFilter(raw.resignationCategory),
+    resignationClassification: normalizeMultiFilter(raw.resignationClassification),
+    complianceBucket: normalizeMultiFilter(raw.complianceBucket),
+    tenureBucket: normalizeMultiFilter(raw.tenureBucket),
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Async loaders — implemented in talento-humano-loaders.ts
 // ---------------------------------------------------------------------------
 
-export { getActivosPersonas, getRotacionData, getPersonProfile, getPersonRendimiento } from "./talento-humano-loaders";
+export {
+  getActivosPersonas,
+  getRotacionData,
+  getPersonProfile,
+  getPersonRendimiento,
+  getDesvinculacionData,
+} from "./talento-humano-loaders";
 

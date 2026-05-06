@@ -301,6 +301,11 @@ const API_ACCESS_RULES_UNSORTED: ApiAccessRule[] = [
     requiredResources: ["/dashboard/talento-humano/rotacion-laboral"],
   },
   {
+    pathnamePrefix: "/api/talento-humano/desvinculacion",
+    policy: "resource-bound",
+    requiredResources: ["/dashboard/talento-humano/desvinculacion-personal"],
+  },
+  {
     pathnamePrefix: "/api/talento-humano/seguimientos-indicador",
     policy: "resource-bound",
     requiredResources: ["/dashboard/talento-humano/indicador-seguimientos"],

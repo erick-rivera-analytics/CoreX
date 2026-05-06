@@ -17,6 +17,7 @@ import type {
 } from "@/lib/talento-humano";
 
 export { getPersonRendimiento } from "@/lib/talento-humano-rendimiento-loader";
+export { getDesvinculacionData } from "@/lib/talento-humano-desvinculacion-loader";
 
 // ---------------------------------------------------------------------------
 // Constants
