@@ -127,7 +127,13 @@ export type CollaboratorDetailPayload = {
     detail: CollaboratorPerformanceDetail[];
   } | null;
   absenteeism: {
+    /** Total de horas de ausentismo (solo F + P + ATR). */
     totalHours: number;
+    /**
+     * Total de horas reales registradas en `slv.prod_fact_hours_cur`,
+     * usado como denominador canon del % Ausentismo.
+     */
+    totalActualHours: number;
     metrics: CollaboratorAbsenteeismMetrics | null;
     rows: CollaboratorAbsenteeismRow[];
   } | null;
@@ -504,8 +510,23 @@ async function loadPerformance(personId: string) {
   return { totals, weekly, detail };
 }
 
+/**
+ * Códigos de actividad considerados ausentismo según el canon de RR.HH.:
+ * - F   = Faltas
+ * - P   = Permisos (con descuento)
+ * - ATR = Atrasos
+ *
+ * El % Ausentismo se calcula como:
+ *   absence_rate = SUM(absence_hours) / SUM(actual_hours de prod_fact_hours_cur)
+ *
+ * Nota: el resto de códigos en `slv.prod_fact_absenteeism_cur` (ej. AJH, L,
+ * PTH) NO cuentan como ausentismo a efectos del KPI; quedan filtrados de
+ * la tabla detalle también.
+ */
+const ABSENCE_ACTIVITY_CODES = ["F", "P", "ATR"] as const;
+
 async function loadAbsenteeism(personId: string) {
-  const [result, metricsResult] = await Promise.all([
+  const [result, metricsResult, factHoursResult] = await Promise.all([
     query<{ event_date: DbDate; work_date: DbDate; activity_id: string | null; activity_name: string | null; absence_hours: unknown }>(
     `
     SELECT
@@ -520,12 +541,12 @@ async function loadAbsenteeism(personId: string) {
       AND act.is_current = true
       AND act.is_valid = true
     WHERE a.person_id = $1
-      AND (a.activity_id IS NULL OR a.activity_id NOT IN ('AJH', 'L', 'PTH'))
+      AND a.activity_id = ANY($2::text[])
     GROUP BY a.event_date, a.work_date, a.activity_id
     ORDER BY COALESCE(a.work_date, a.event_date) DESC NULLS LAST
     LIMIT 500
     `,
-    [personId],
+    [personId, [...ABSENCE_ACTIVITY_CODES]],
     ),
     query<{ pct_actual_hours_rend: unknown; pct_actual_hours_hn: unknown; pct_abs_total: unknown }>(
       `
@@ -537,6 +558,16 @@ async function loadAbsenteeism(personId: string) {
       `,
       [personId],
     ),
+    // Denominador canon del % ausentismo: total de horas registradas en
+    // prod_fact_hours_cur (incluye presenciales productivas y H Normales).
+    query<{ actual_hours: unknown }>(
+      `
+      SELECT SUM(actual_hours)::numeric AS actual_hours
+      FROM slv.prod_fact_hours_cur
+      WHERE person_id = $1
+      `,
+      [personId],
+    ),
   ]);
   const rows = result.rows.map((row) => ({
     eventDate: toDate(row.event_date),
@@ -545,15 +576,30 @@ async function loadAbsenteeism(personId: string) {
     activityName: toText(row.activity_name),
     absenceHours: toNumber(row.absence_hours),
   }));
+  const totalAbsenceHours = rows.reduce((sum, row) => sum + row.absenceHours, 0);
+  const totalActualHoursFromFact = toNumber(factHoursResult.rows[0]?.actual_hours);
+
+  // % Ausentismo canon = SUM(absence) / SUM(actual_hours fact). Si la MV de
+  // exits tiene un valor pre-calculado para personas que ya salieron, se
+  // prefiere ese; caso contrario calculamos en app desde el fact.
+  const pctAbsFromFact = totalActualHoursFromFact > 0
+    ? totalAbsenceHours / totalActualHoursFromFact
+    : null;
+
   return {
-    totalHours: rows.reduce((sum, row) => sum + row.absenceHours, 0),
+    totalHours: totalAbsenceHours,
+    totalActualHours: totalActualHoursFromFact,
     metrics: metricsResult.rows[0]
       ? {
         pctActualHoursRend: percentToRatio(metricsResult.rows[0].pct_actual_hours_rend),
         pctActualHoursHn: percentToRatio(metricsResult.rows[0].pct_actual_hours_hn),
-        pctAbsTotal: percentToRatio(metricsResult.rows[0].pct_abs_total),
+        pctAbsTotal: percentToRatio(metricsResult.rows[0].pct_abs_total) ?? pctAbsFromFact,
       }
-      : null,
+      : {
+        pctActualHoursRend: null,
+        pctActualHoursHn: null,
+        pctAbsTotal: pctAbsFromFact,
+      },
     rows,
   };
 }
@@ -684,22 +730,22 @@ async function loadFollowups(personId: string): Promise<CollaboratorFollowup[]> 
  * Cuando la MV no tiene métricas, las derivamos en app desde:
  *
  * - `performance.totals.actualHoursRend` (horas en actividades dif. "H Normales")
- * - `performance.totals.actualHoursHn` (horas presenciales en "H Normales")
- * - `absenteeism.totalHours` (faltas + atrasos + permisos)
+ * - `performance.totals.actualHoursHn`   (horas presenciales en "H Normales")
+ * - `absenteeism.totalHours`             (F + P + ATR — solo categorías canon)
+ * - `absenteeism.totalActualHours`       (denominador canon: SUM de actual_hours
+ *                                         desde slv.prod_fact_hours_cur)
  *
- * Fórmulas (alineadas al canon del módulo):
+ * Fórmulas:
  *
  * - `% H Rendimiento` = `actualHoursRend / (actualHoursRend + actualHoursHn)`
  * - `% H Normales`    = `actualHoursHn / (actualHoursRend + actualHoursHn)`  (= 1 − %HR)
- * - `% Ausentismo`    = `absenceHours / (absenceHours + actualHoursRend + actualHoursHn)`
- *
- * Nota: la MV expone `pct_actual_hours_rend` ya con la fórmula canónica
- * `actualHoursRend / total`, por lo que ambas vías coinciden cuando hay datos.
+ * - `% Ausentismo`    = `absenceHours / totalActualHours` (canon RR.HH.)
  */
 function buildMetricsWithFallback(
   fromMv: CollaboratorAbsenteeismMetrics | null,
   performance: { totals: CollaboratorPerformanceWeek } | null,
   absenceHours: number,
+  totalActualHours: number,
 ): CollaboratorAbsenteeismMetrics | null {
   const rendHours = performance?.totals.actualHoursRend ?? 0;
   const hnHours = performance?.totals.actualHoursHn ?? 0;
@@ -708,11 +754,11 @@ function buildMetricsWithFallback(
   const fallback: CollaboratorAbsenteeismMetrics = {
     pctActualHoursRend: workedHours > 0 ? rendHours / workedHours : null,
     pctActualHoursHn: workedHours > 0 ? hnHours / workedHours : null,
-    pctAbsTotal: workedHours + absenceHours > 0 ? absenceHours / (workedHours + absenceHours) : null,
+    // Canon: ausentismo / total de horas registradas en el fact de horas.
+    pctAbsTotal: totalActualHours > 0 ? absenceHours / totalActualHours : null,
   };
 
   if (!fromMv) {
-    // Si ningún campo es accionable, retornar null para no mostrar tiles vacíos.
     if (
       fallback.pctActualHoursRend == null
       && fallback.pctActualHoursHn == null
@@ -754,7 +800,12 @@ export async function getCollaboratorDetail(
   const enrichedAbsenteeism = absenteeism
     ? {
         ...absenteeism,
-        metrics: buildMetricsWithFallback(absenteeism.metrics, performance, absenteeism.totalHours),
+        metrics: buildMetricsWithFallback(
+          absenteeism.metrics,
+          performance,
+          absenteeism.totalHours,
+          absenteeism.totalActualHours,
+        ),
       }
     : null;
 
