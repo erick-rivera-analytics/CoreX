@@ -51,6 +51,14 @@ export const PANEL_ACCESS_RESOURCES: AccessResource[] = [
   { resourceKey: "panel:tthh.followups.write",     label: "Seguimientos / Registrar",          section: "Paneles" },
   { resourceKey: "panel:tthh.followups.sensitive", label: "Seguimientos / Ver datos sensibles", section: "Paneles" },
   { resourceKey: "panel:tthh.followups.admin",     label: "Seguimientos / Corregir",            section: "Paneles" },
+  { resourceKey: "panel:tthh.collaborators.basic",       label: "Colaboradores / Informacion basica", section: "Paneles" },
+  { resourceKey: "panel:tthh.collaborators.performance", label: "Colaboradores / Rendimiento",        section: "Paneles" },
+  { resourceKey: "panel:tthh.collaborators.medical",     label: "Colaboradores / Ficha medica",       section: "Paneles" },
+  { resourceKey: "panel:tthh.collaborators.absenteeism", label: "Colaboradores / Ausentismo",         section: "Paneles" },
+  { resourceKey: "panel:tthh.collaborators.exits",       label: "Colaboradores / Salidas",            section: "Paneles" },
+  { resourceKey: "panel:tthh.collaborators.followups",   label: "Colaboradores / Seguimientos",       section: "Paneles" },
+  { resourceKey: "panel:tthh.collaborators.filter-area", label: "Colaboradores / Filtrar area",       section: "Paneles" },
+  { resourceKey: "panel:tthh.collaborators.filter-state", label: "Colaboradores / Filtrar estado",    section: "Paneles" },
 ];
 
 const MODULE_ACCESS_RESOURCES: AccessResource[] = ALL_MANAGED_MODULES.map((module) => ({
@@ -161,7 +169,7 @@ const API_ACCESS_RULES_UNSORTED: ApiAccessRule[] = [
   {
     pathnamePrefix: "/api/medical/person",
     policy: "resource-bound",
-    requiredResources: ["panel:person-sheet.medical"],
+    requiredResources: ["panel:person-sheet.medical", "panel:tthh.collaborators.medical"],
   },
   {
     pathnamePrefix: "/api/mortality",
@@ -276,6 +284,11 @@ const API_ACCESS_RULES_UNSORTED: ApiAccessRule[] = [
     pathnamePrefix: "/api/talento-humano/seguimientos",
     policy: "resource-bound",
     requiredResources: ["/dashboard/talento-humano/seguimientos"],
+  },
+  {
+    pathnamePrefix: "/api/talento-humano/colaboradores",
+    policy: "resource-bound",
+    requiredResources: ["/dashboard/talento-humano/colaboradores"],
   },
   {
     pathnamePrefix: "/api/talento-humano/catalogos",
