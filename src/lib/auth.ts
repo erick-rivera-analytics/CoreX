@@ -3,6 +3,7 @@ import crypto from "crypto";
 import bcrypt from "bcryptjs";
 
 import { getBaseAllowedResources } from "@/lib/access-control";
+import { logEvent } from "@/lib/logger";
 import { resolvePreviousSessionSecret, resolveSessionSecret } from "@/lib/session-secret";
 import { getUserByUsername, type User } from "@/lib/users";
 import { query } from "./db";
@@ -39,7 +40,9 @@ export async function validateCredentials(username: string, password: string): P
 
     return await bcrypt.compare(password, user.password_hash);
   } catch (error) {
-    console.error("[AUTH] Validation error", error instanceof Error ? error.message : error);
+    logEvent("error", "auth.validation_error", {
+      message: error instanceof Error ? error.message : String(error),
+    });
     return false;
   }
 }

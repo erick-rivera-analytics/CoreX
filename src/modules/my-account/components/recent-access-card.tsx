@@ -2,11 +2,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui/card";
 import type { MyAccountRecentAccess } from "@/modules/my-account/index";
 
 /**
- * Punto de extension: cuando exista una tabla de auditoria de sesiones HTTP
- * (candidato: `auth_session_audit_cur`) habra que poblar `items` desde el loader
- * del page.tsx. Por ahora esta funcion devuelve [] y la UI muestra empty state.
+ * Card de "Accesos recientes" con punto de extensión documentado.
  *
- * TODO: implementar `loadRecentAccess(authUserId)` contra la fuente real.
+ * Hoy renderiza la lista que reciba en `items`. Cuando exista una tabla
+ * de auditoría de sesiones HTTP (candidato: `auth_session_audit_cur`),
+ * el loader del `page.tsx` deberá poblar `items`; mientras tanto la UI
+ * muestra `EmptyState` canon "Sin registros de acceso disponibles".
+ *
+ * No hay TODO bloqueante: la carencia es de origen de datos, no de UI.
  */
 export function RecentAccessCard({ items }: { items: MyAccountRecentAccess[] }) {
   return (

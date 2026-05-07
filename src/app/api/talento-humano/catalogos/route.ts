@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 
 import { requireAuth, getCurrentUserAccess } from "@/lib/api-auth";
 import { apiJsonError, handleApiError } from "@/lib/api-error";
@@ -13,6 +14,86 @@ import {
 } from "@/lib/admin-masters";
 
 export const dynamic = "force-dynamic";
+
+// ── Schemas zod canon ─────────────────────────────────────────────────────────
+// Validamos el body en el edge para que errores de validación devuelvan 400 con
+// mensajes de zod uniformes en lugar de propagarse a la lib y caer en 500.
+
+const TrimmedNonEmpty = z.string().trim().min(1);
+const ChangeReason = z.string().trim().max(200).optional().nullable().default(null);
+
+const tthhDomainUpsertSchema = z.object({
+  kind: z.literal("domain"),
+  action: z.literal("upsert").default("upsert"),
+  domainCode: TrimmedNonEmpty.max(64),
+  domainName: TrimmedNonEmpty.max(120),
+  domainDescription: z.string().trim().optional().nullable(),
+  displayOrder: z.coerce.number().int().min(0).max(9999).optional().default(0),
+  isValid: z.boolean().optional().default(true),
+  changeReason: ChangeReason,
+});
+
+const tthhGroupUpsertSchema = z.object({
+  kind: z.literal("group"),
+  action: z.literal("upsert").default("upsert"),
+  catalogCode: TrimmedNonEmpty.max(64),
+  catalogName: TrimmedNonEmpty.max(120),
+  catalogDescription: z.string().trim().optional().nullable(),
+  domainCode: TrimmedNonEmpty.max(64),
+  isSystemCatalog: z.boolean().optional().default(false),
+  changeReason: ChangeReason,
+});
+
+const tthhItemUpsertSchema = z.object({
+  kind: z.literal("item"),
+  action: z.literal("upsert").default("upsert"),
+  catalogCode: TrimmedNonEmpty.max(64),
+  itemCode: TrimmedNonEmpty.max(64),
+  itemLabelEs: TrimmedNonEmpty.max(160),
+  itemLabelEn: z.string().trim().optional().nullable(),
+  itemDescription: z.string().trim().optional().nullable(),
+  displayOrder: z.coerce.number().int().min(0).max(9999).optional().default(0),
+  changeReason: ChangeReason,
+});
+
+const tthhValiditySchema = z.discriminatedUnion("kind", [
+  z.object({
+    kind: z.literal("domain"),
+    action: z.literal("set-validity"),
+    domainCode: TrimmedNonEmpty.max(64),
+    isValid: z.boolean(),
+    changeReason: ChangeReason,
+  }),
+  z.object({
+    kind: z.literal("group"),
+    action: z.literal("set-validity"),
+    catalogCode: TrimmedNonEmpty.max(64),
+    isValid: z.boolean(),
+    changeReason: ChangeReason,
+  }),
+  z.object({
+    kind: z.literal("item"),
+    action: z.literal("set-validity"),
+    catalogCode: TrimmedNonEmpty.max(64),
+    itemCode: TrimmedNonEmpty.max(64),
+    isValid: z.boolean(),
+    changeReason: ChangeReason,
+  }),
+]);
+
+const tthhCatalogMutationSchema = z.union([
+  tthhDomainUpsertSchema,
+  tthhGroupUpsertSchema,
+  tthhItemUpsertSchema,
+  tthhValiditySchema,
+]);
+
+function formatZodIssue(error: z.ZodError): string {
+  const first = error.issues[0];
+  if (!first) return "Datos inválidos.";
+  const path = first.path.length ? `${first.path.join(".")}: ` : "";
+  return `${path}${first.message}`;
+}
 
 export async function GET(request: NextRequest) {
   const requestId = getRequestId(request);
@@ -47,24 +128,37 @@ export async function POST(request: NextRequest) {
     });
   }
 
+  let rawBody: unknown;
   try {
-    const body = await request.json();
-    const kind = String(body.kind ?? "");
-    const action = String(body.action ?? "upsert");
+    rawBody = await request.json();
+  } catch {
+    return apiJsonError("Cuerpo JSON inválido.", 400, requestId);
+  }
 
-    if (kind === "domain" && action === "upsert") {
-      if (!body.domainCode || !body.domainName) return apiJsonError("Codigo y nombre de dominio son obligatorios.", 400, requestId);
+  const parsed = tthhCatalogMutationSchema.safeParse(rawBody);
+  if (!parsed.success) {
+    return apiJsonError(formatZodIssue(parsed.error), 400, requestId);
+  }
+
+  try {
+    const body = parsed.data;
+
+    if (body.kind === "domain" && body.action === "upsert") {
       await upsertTthhCatalogDomain({ ...body, actorId: access.username });
-    } else if (kind === "group" && action === "upsert") {
-      if (!body.catalogCode || !body.catalogName) return apiJsonError("Codigo y nombre de catalogo son obligatorios.", 400, requestId);
+    } else if (body.kind === "group" && body.action === "upsert") {
       await upsertTthhCatalogGroup({ ...body, actorId: access.username });
-    } else if (kind === "item" && action === "upsert") {
-      if (!body.catalogCode || !body.itemCode || !body.itemLabelEs) return apiJsonError("Catalogo, codigo y etiqueta son obligatorios.", 400, requestId);
+    } else if (body.kind === "item" && body.action === "upsert") {
       await upsertTthhCatalogItem({ ...body, actorId: access.username });
-    } else if ((kind === "domain" || kind === "group" || kind === "item") && action === "set-validity") {
-      await setTthhCatalogValidity(kind, { ...body, actorId: access.username, isValid: Boolean(body.isValid) });
-    } else {
-      return apiJsonError("Accion de catalogo no soportada.", 400, requestId);
+    } else if (body.action === "set-validity") {
+      // Normaliza el shape requerido por la lib (catalogCode siempre presente,
+      // los otros opcionales según el kind del discriminated union).
+      await setTthhCatalogValidity(body.kind, {
+        catalogCode: "catalogCode" in body ? body.catalogCode : "",
+        itemCode: "itemCode" in body ? body.itemCode : undefined,
+        domainCode: "domainCode" in body ? body.domainCode : undefined,
+        isValid: body.isValid,
+        actorId: access.username,
+      });
     }
 
     const data = await listTthhCatalogs();

@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useDeferredValue, useMemo, useState } from "react";
 import { UserX } from "lucide-react";
 import useSWR from "swr";
@@ -18,14 +19,32 @@ import {
   BarListCard,
   ContingencyTableCard,
   DonutBreakdownCard,
-  ExitScatterCard,
-  ExitTimeSeriesCard,
   getComplianceTone,
   SocialWorkerContingencyCard,
   type CrossGroup,
   type ExitGroup,
 } from "@/modules/talento-humano/components/desvinculacion-charts";
 import { ExitPeopleModal } from "@/modules/talento-humano/components/desvinculacion-people-modal";
+
+// Recharts es pesado (~80 KB gzip). Diferimos los charts grandes
+// (Scatter + AreaChart temporal) que son la última pieza visible
+// del scroll para que el bundle inicial baje y la primera pintura
+// del filtro/KPIs sea más rápida. ssr:false porque Recharts requiere
+// window al medir el ResponsiveContainer.
+const ExitScatterCard = dynamic(
+  () =>
+    import("@/modules/talento-humano/components/desvinculacion-charts").then((m) => ({
+      default: m.ExitScatterCard,
+    })),
+  { ssr: false },
+);
+const ExitTimeSeriesCard = dynamic(
+  () =>
+    import("@/modules/talento-humano/components/desvinculacion-charts").then((m) => ({
+      default: m.ExitTimeSeriesCard,
+    })),
+  { ssr: false },
+);
 
 const fetcher = (url: string) => fetchJson<TalentoExitData>(url, "No se pudo cargar desvinculacion personal.");
 

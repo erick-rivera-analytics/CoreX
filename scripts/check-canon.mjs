@@ -75,6 +75,7 @@ const officialDocs = new Set([
   "docs/audits/AUD-21-desvinculacion-ux-permisos-2026-05.md",
   "docs/audits/AUD-22-final-cleanup-pre-prod-2026-05.md",
   "docs/audits/AUD-23-mega-auditoria-rigurosa-2026-05.md",
+  "docs/audits/AUD-24-pulido-pre-prod-2026-05.md",
 ]);
 
 const legacyDocPrefix = "> LEGACY / reference only.";

@@ -47,6 +47,8 @@ function NavLeaf({
     <Link
       href={item.href}
       title={collapsed ? item.label : undefined}
+      aria-current={active ? "page" : undefined}
+      aria-label={collapsed ? item.label : undefined}
       style={!collapsed && depth > 0 ? { paddingLeft: `${indent}px` } : undefined}
       className={cn(
         "flex min-h-10 w-full items-center gap-2 rounded-[14px] px-3 py-2 text-[13px] transition-colors",
