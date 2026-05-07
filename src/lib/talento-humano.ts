@@ -281,7 +281,9 @@ export const defaultTalentoSnapshotFilters: TalentoFilters = {
 
 export const defaultTalentoExitFilters: TalentoExitFilters = {
   year: String(new Date().getFullYear()),
-  month: String(new Date().getMonth() + 1),
+  // Mes no se prefiltra a propósito: la vista por defecto muestra el año completo
+  // para que el analista pueda comparar tendencia mensual desde el primer click.
+  month: "all",
   areaGeneral: "all",
   area: "all",
   jobTitle: "all",

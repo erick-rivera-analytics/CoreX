@@ -94,7 +94,18 @@ export function ScrollFadeTable({
           <div ref={topInnerRef} style={{ height: 1 }} />
         </div>
       ) : null}
-      <div ref={ref} className={cn("overflow-x-auto show-scrollbar tabular-nums", innerClassName)}>
+      <div
+        ref={ref}
+        className={cn(
+          "overflow-x-auto tabular-nums",
+          // Cuando hay scrollbar superior sincronizado, oculta el inferior
+          // para evitar duplicación visual. El globals.css ya esconde el
+          // scrollbar nativo por defecto (*::-webkit-scrollbar display:none),
+          // así que basta con NO añadir `show-scrollbar` cuando topScrollbar=true.
+          topScrollbar ? null : "show-scrollbar",
+          innerClassName,
+        )}
+      >
         {children}
       </div>
       {showLeftFade ? <div className="pointer-events-none absolute inset-y-0 left-0 w-8 bg-gradient-to-r from-card to-transparent" /> : null}

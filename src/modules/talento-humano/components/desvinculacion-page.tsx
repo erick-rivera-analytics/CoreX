@@ -20,7 +20,6 @@ import {
   DonutBreakdownCard,
   ExitScatterCard,
   ExitTimeSeriesCard,
-  ExitVerticalBarCard,
   getComplianceTone,
   SocialWorkerContingencyCard,
   type CrossGroup,
@@ -225,11 +224,10 @@ export function TalentoDesvinculacionPage({ initialData }: { initialData: Talent
             <MetricTile label="% ausentismo total" value={formatPercent(current.summary.avgPctAbsTotal)} />
           </KpiGrid>
 
-          {/* Composición principal: BarChart vertical + 2 donuts */}
-          <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,460px),1fr))] gap-5">
-            <ExitVerticalBarCard
-              title="Top motivos de salida"
-              subtitle="Distribución cuantitativa de los motivos más frecuentes."
+          {/* Composición principal: 4 donuts canon (los 4 ejes de análisis) */}
+          <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
+            <DonutBreakdownCard
+              title="Motivo de salida"
               groups={groups.exitReason}
               onSelect={(group) => selectGroup("Motivo de salida", group)}
             />
@@ -239,9 +237,14 @@ export function TalentoDesvinculacionPage({ initialData }: { initialData: Talent
               onSelect={(group) => selectGroup("Motivo renuncia", group)}
             />
             <DonutBreakdownCard
-              title="Categorías de renuncia"
+              title="Categoría de renuncia"
               groups={groups.resignationCategory}
               onSelect={(group) => selectGroup("Categoría", group)}
+            />
+            <DonutBreakdownCard
+              title="Clasificación de renuncia"
+              groups={groups.resignationClassification}
+              onSelect={(group) => selectGroup("Clasificación", group)}
             />
           </div>
 
