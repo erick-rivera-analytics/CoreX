@@ -2,6 +2,8 @@ import { type NextRequest } from "next/server";
 
 import { requireAuth } from "@/lib/api-auth";
 import { handleApiError } from "@/lib/api-error";
+import { logEvent } from "@/lib/logger";
+import { getRequestId } from "@/lib/request-id";
 import {
   buildDrenchProductBlockRows,
   listDrenchWeekCalendar,
@@ -253,7 +255,11 @@ export async function POST(request: NextRequest) {
     return pdfBufferToResponse(pdf, filename);
   } catch (error) {
     if (error instanceof PdfCompileError) {
-      console.error("[pdf/drench] LaTeX error:", error.buildLog.slice(-1500));
+      logEvent("error", "pdf.drench.latex_compile_error", {
+        requestId: getRequestId(request),
+        buildLogTail: error.buildLog.slice(-1500),
+        jobId: error.jobId,
+      });
       return Response.json(
         { message: "Error al compilar el PDF de drench." },
         { status: 500 },

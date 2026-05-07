@@ -38,6 +38,7 @@ Cada AUD documenta:
 | 19 | [`AUD-19-colaboradores-canon-cleanup-2026-05.md`](./AUD-19-colaboradores-canon-cleanup-2026-05.md) | Pulido canon Colaboradores — charts a Recharts/ChartSurface, tablas a StandardTable, SearchInput, error banner, InfoField shared. Calificación módulo 9.5/10 | ✅ cerrado | 2026-05-07 | typecheck + canon + lint verdes | NO |
 | 21 | [`AUD-21-desvinculacion-ux-permisos-2026-05.md`](./AUD-21-desvinculacion-ux-permisos-2026-05.md) | Desvinculación interpretable (Scatter con cuadrantes + leyenda), tablas con scroll arriba, sidebar Explorador con icono, bulk toggle de permisos por subgrupo en Admin Usuarios | ✅ cerrado | 2026-05-08 | typecheck + canon + lint + build verdes | NO |
 | 22 | [`AUD-22-final-cleanup-pre-prod-2026-05.md`](./AUD-22-final-cleanup-pre-prod-2026-05.md) | Mega-auditoría final pre-producción — Inicio validado link-por-link (52/52), filtros canon, 14 fixes React Doctor (js-combine-iterations, no-array-index-as-key, a11y dialog), Restablecer canon en Solver, calificación global 9.6/10 | ✅ cerrado | 2026-05-08 | typecheck + canon + lint + build verdes | **GO** |
+| 23 | [`AUD-23-mega-auditoria-rigurosa-2026-05.md`](./AUD-23-mega-auditoria-rigurosa-2026-05.md) | Mega-auditoría rigurosa 13 dimensiones × subdimensiones — calificación 8.6/10 sin condescendencia. Fixes: buildMarkerSeries con Map, Limpiar→Restablecer × 2, 4 tildes Bodega, 5 handlers logEvent. Plan ROI top 5 documentado | ✅ cerrado | 2026-05-08 | typecheck + canon verdes | **GO** |
 
 ---
 

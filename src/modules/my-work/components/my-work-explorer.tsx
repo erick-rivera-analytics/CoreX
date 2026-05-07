@@ -162,7 +162,7 @@ export function MyWorkExplorer({ initialData }: { initialData: MyWorkInitialData
           <div className="flex flex-wrap items-center gap-2">
             <Button variant="outline" onClick={resetFilters}>
               <RefreshCcw className="size-4" aria-hidden="true" />
-              Limpiar filtros
+              Restablecer filtros
             </Button>
             <Button variant="outline" onClick={() => setSpacesManagerOpen(true)}>
               <Shapes className="size-4" aria-hidden="true" />

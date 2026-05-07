@@ -598,7 +598,7 @@ export function AdminGoalTargetsPage() {
                   onClick={resetFilters}
                 >
                   <X className="size-3.5" />
-                  Limpiar filtros
+                  Restablecer filtros
                 </Button>
               </div>
             )}

@@ -2,6 +2,8 @@ import { type NextRequest } from "next/server";
 
 import { requireAuth } from "@/lib/api-auth";
 import { handleApiError } from "@/lib/api-error";
+import { logEvent } from "@/lib/logger";
+import { getRequestId } from "@/lib/request-id";
 import { loadScheduledFollowups } from "@/lib/talento-humano-seguimientos-schedule";
 import { followupFiltersSchema } from "@/lib/talento-humano-seguimientos-schemas";
 import {
@@ -185,7 +187,11 @@ export async function GET(request: NextRequest) {
     return pdfBufferToResponse(pdf, `agenda_seguimientos_${stamp}.pdf`);
   } catch (error) {
     if (error instanceof PdfCompileError) {
-      console.error("[export-pdf/tthh] LaTeX error:", error.buildLog.slice(-1200));
+      logEvent("error", "pdf.tthh_seguimientos.latex_compile_error", {
+        requestId: getRequestId(request),
+        buildLogTail: error.buildLog.slice(-1200),
+        jobId: error.jobId,
+      });
       return Response.json({ message: "Error al compilar el PDF." }, { status: 500 });
     }
     return handleApiError(error, "No se pudo exportar la agenda.");

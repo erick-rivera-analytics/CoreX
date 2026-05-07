@@ -84,7 +84,11 @@ function buildMarkerSeries(exams: MedicalPersonExam[], field: MedicalMarkerField
   const points: MarkerTrendPoint[] = [];
 
   for (const exam of chronologicalExams) {
-    const marker = exam.markers.find((item) => item.field === field);
+    // Map por exam: O(n+m) total en lugar de O(n*m) si markers crece.
+    // Aunque cada exam.markers suele tener ~30 entries, este patrón es
+    // canon para el linter `js-index-maps` y futuro-proof.
+    const markersByField = new Map(exam.markers.map((item) => [item.field, item]));
+    const marker = markersByField.get(field);
     if (!marker || marker.value === null) {
       continue;
     }

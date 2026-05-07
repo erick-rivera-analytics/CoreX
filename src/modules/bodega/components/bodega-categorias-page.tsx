@@ -80,10 +80,10 @@ function validateForm(values: BodegaCategoryInput): FormErrors {
   const payload = buildPayload(values);
   const errors: FormErrors = {};
 
-  if (!payload.code) errors.code = "El codigo es obligatorio.";
+  if (!payload.code) errors.code = "El código es obligatorio.";
   if (!payload.name) errors.name = "El nombre es obligatorio.";
   if (payload.level === "subfamily" && !payload.parentCategoryId) {
-    errors.parentCategoryId = "Debes seleccionar una categoria superior.";
+    errors.parentCategoryId = "Debes seleccionar una categoría superior.";
   }
 
   return errors;
@@ -317,7 +317,7 @@ export function BodegaCategoriasPage({
       const method = isEditing ? "PATCH" : "POST";
       const response = await fetchJson<BodegaCategoryPayload>(
         endpoint,
-        "No se pudo guardar la categoria.",
+        "No se pudo guardar la categoría.",
         {
           method,
           headers: { "Content-Type": "application/json" },
@@ -325,14 +325,14 @@ export function BodegaCategoriasPage({
         },
       );
 
-      toast.success(isEditing ? "Categoria actualizada correctamente." : "Categoria creada correctamente.");
+      toast.success(isEditing ? "Categoría actualizada correctamente." : "Categoría creada correctamente.");
       await mutate();
       startTransition(() => {
         setEditorMode("edit");
         setSelectedCategoryId(response.data.categoryId);
       });
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "No se pudo guardar la categoria.");
+      toast.error(error instanceof Error ? error.message : "No se pudo guardar la categoría.");
     } finally {
       setIsSaving(false);
     }
@@ -362,7 +362,7 @@ export function BodegaCategoriasPage({
           <KpiGrid>
             <MetricTile label="Ramas activas" value={String(summary.total)} hint="Familias y subfamilias vigentes." />
             <MetricTile label="Familias raiz" value={String(summary.families)} hint="Ramas superiores del arbol." />
-            <MetricTile label="Ultima carga" value={summary.latest?.loadedAt ? formatDateTime(summary.latest.loadedAt) : "-"} hint="Fecha de la ultima version guardada." />
+            <MetricTile label="Última carga" value={summary.latest?.loadedAt ? formatDateTime(summary.latest.loadedAt) : "-"} hint="Fecha de la última versión guardada." />
           </KpiGrid>
 
           {initialError ? (

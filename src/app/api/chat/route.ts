@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { requireAuth } from "@/lib/api-auth";
 import { apiJsonError } from "@/lib/api-error";
+import { logEvent } from "@/lib/logger";
 import { getRequestId } from "@/lib/request-id";
 import { checkRequestRateLimit, getEnvNumber } from "@/server/security/rate-limit";
 
@@ -123,7 +124,10 @@ CONTEXTO JSON: ${contextStr}`;
     });
 
     if (!response.ok) {
-      console.error("[CHAT] Groq API error", response.status);
+      logEvent("error", "chat.groq_api_error", {
+        requestId,
+        status: response.status,
+      });
       return jsonError("No se pudo completar la respuesta del asistente.", 500, requestId);
     }
 
@@ -134,8 +138,11 @@ CONTEXTO JSON: ${contextStr}`;
     return NextResponse.json({
       content: data.choices[0]?.message?.content || "Sin respuesta",
     });
-  } catch {
-    console.error("[CHAT] Internal error");
+  } catch (error) {
+    logEvent("error", "chat.internal_error", {
+      requestId,
+      message: error instanceof Error ? error.message : String(error),
+    });
     return jsonError("Error interno del servidor.", 500, requestId);
   }
 }

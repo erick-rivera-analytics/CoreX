@@ -2,6 +2,8 @@ import { type NextRequest } from "next/server";
 
 import { requireAuth } from "@/lib/api-auth";
 import { handleApiError } from "@/lib/api-error";
+import { logEvent } from "@/lib/logger";
+import { getRequestId } from "@/lib/request-id";
 import { buildOrdenTrabajoDataTex } from "@/lib/postcosecha-clasificacion-pdf-builder";
 import type { PoscosechaClasificacionModeResult } from "@/lib/postcosecha-clasificacion-en-blanco-types";
 import {
@@ -52,7 +54,11 @@ export async function POST(request: NextRequest) {
     return pdfBufferToResponse(pdf, `orden_trabajo_clasificacion_en_blanco_${datestamp}.pdf`);
   } catch (error) {
     if (error instanceof PdfCompileError) {
-      console.error("[pdf/clasificacion] LaTeX compile error:", error.buildLog.slice(-1000));
+      logEvent("error", "pdf.clasificacion.latex_compile_error", {
+        requestId: getRequestId(request),
+        buildLogTail: error.buildLog.slice(-1000),
+        jobId: error.jobId,
+      });
       return Response.json({ message: "Error al compilar el PDF. Contacte al administrador." }, { status: 500 });
     }
     if (error instanceof PdfTemplateNotFoundError) {
