@@ -126,9 +126,9 @@ type YearGroup = {
   // Tallos/Planta: solo ciclos con plants_current > 0 (igual que ficha del bloque)
   totalStemsForRatio: number;
   totalPlantsForRatio: number;
-  // Meta ponderada año: Σ(greenKg_j * cajaCamaMeta_j) / Σ(greenKg_j) — solo ciclos con meta
-  totalMetaWeightedByGreenKg: number;
-  totalGreenKgForMeta: number;
+  // Meta ponderada por cajas: SUM(meta_ciclo * cajas_ciclo) / SUM(cajas_ciclo).
+  totalMetaWeightedByCajas: number;
+  totalCajasForMeta: number;
 };
 
 const esEcCollator = new Intl.Collator("es-EC", { numeric: true });
@@ -192,8 +192,8 @@ function groupRows(rows: ProductividadRow[]): YearGroup[] {
         totalDeadPlants: 0,
         totalStemsForRatio: 0,
         totalPlantsForRatio: 0,
-        totalMetaWeightedByGreenKg: 0,
-        totalGreenKgForMeta: 0,
+        totalMetaWeightedByCajas: 0,
+        totalCajasForMeta: 0,
       });
     }
     const yg = yearMap.get(year)!;
@@ -213,10 +213,10 @@ function groupRows(rows: ProductividadRow[]): YearGroup[] {
       yg.totalPlantsForRatio += cycle.plantsCurrentOrInitial!;
     }
 
-    // Meta ponderada año: Σ(greenKg_j × cajaCamaMeta_j) / Σ(greenKg_j)
-    if (cycle.cajaCamaMeta !== null && (cycle.greenWeightKg ?? 0) > 0) {
-      yg.totalMetaWeightedByGreenKg += cycle.greenWeightKg! * cycle.cajaCamaMeta;
-      yg.totalGreenKgForMeta += cycle.greenWeightKg!;
+    // Meta ponderada año por cajas aportadas: SUM(meta_ciclo * cajas_ciclo) / SUM(cajas_ciclo).
+    if (cycle.cajaCamaMeta !== null && (cycle.cajas ?? 0) > 0) {
+      yg.totalMetaWeightedByCajas += cycle.cajas! * cycle.cajaCamaMeta;
+      yg.totalCajasForMeta += cycle.cajas!;
     }
   }
 
@@ -570,9 +570,9 @@ function ProductividadTable({
             const yearMortality = yg.totalInitialPlusReseeds > 0
               ? (yg.totalDeadPlants / yg.totalInitialPlusReseeds) * 100
               : null;
-            // Meta ponderada año: Σ(greenKg_j × cajaCamaMeta_j) / Σ(greenKg_j)
-            const yearCajaCamaMeta = yg.totalGreenKgForMeta > 0
-              ? yg.totalMetaWeightedByGreenKg / yg.totalGreenKgForMeta
+            // Regla canónica: ponderar meta por cajas aportadas, no promedio simple.
+            const yearCajaCamaMeta = yg.totalCajasForMeta > 0
+              ? yg.totalMetaWeightedByCajas / yg.totalCajasForMeta
               : null;
             const yearCumplimiento = yearCajaCama !== null && yearCajaCamaMeta !== null && yearCajaCamaMeta !== 0
               ? yearCajaCama / yearCajaCamaMeta
