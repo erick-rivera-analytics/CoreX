@@ -11,6 +11,8 @@ import { decodeMultiSelectValue, encodeMultiSelectValue } from "@/lib/multi-sele
 import { MetricTile } from "@/shared/data-display/metric-tile";
 import { FilterPanel, KpiGrid } from "@/shared/layout/filter-panel";
 import { SectionPageShell } from "@/shared/layout/section-page-shell";
+import { DateField } from "@/shared/filters/date-field";
+import { MultiSelectField } from "@/shared/filters/multi-select-field";
 import { SingleSelectField } from "@/shared/filters/single-select-field";
 import { Badge } from "@/shared/ui/badge";
 import { Button } from "@/shared/ui/button";
@@ -24,6 +26,7 @@ import {
   type EditorMode,
   type EditorOption,
   type MetaEditorForm,
+  type VariantValue,
 } from "@/modules/admin-masters/components/admin-goal-target-editor";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -83,6 +86,10 @@ type GrainGroup = {
   targets: AdminGoalTarget[];
 };
 
+type BulkDraftRow = MetaEditorForm & {
+  rowId: string;
+};
+
 // ── Constants ──────────────────────────────────────────────────────────────────
 
 const ENDPOINT = "/api/admin/administracion-maestros/metas-objetivos";
@@ -104,6 +111,21 @@ const EMPTY_FORM: MetaEditorForm = {
   changeReason: "",
   variantValues: [],
 };
+
+function createBulkDraft(seed?: Partial<MetaEditorForm>): BulkDraftRow {
+  return {
+    ...EMPTY_FORM,
+    validFromDate: localDateString(),
+    ...seed,
+    variantValues: seed?.variantValues?.map((level) => ({ ...level })) ?? [],
+    rowId: globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`,
+  };
+}
+
+function labelOf(opts: EditorOption[]) {
+  const map = new Map(opts.map((option) => [option.code, option.label] as const));
+  return (value: string) => map.get(value) ?? value;
+}
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -174,6 +196,41 @@ function buildScopeJsonb(grainCode: string, variantValues: MetaEditorForm["varia
   };
 }
 
+function slugPart(value: string): string {
+  return value
+    .trim()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, 28);
+}
+
+function buildDeterministicTargetCode(metricCode: string, variantValues: VariantValue[]): string {
+  const parts = [
+    slugPart(metricCode || "target"),
+    ...variantValues.map((v) => slugPart(v.value_code || v.value_label)).filter(Boolean),
+  ].filter(Boolean);
+  return parts.join("_").replace(/_+/g, "_").slice(0, 96);
+}
+
+function scopeValidationError(variantValues: VariantValue[]): string | null {
+  const keys = new Set<string>();
+  for (const [index, level] of variantValues.entries()) {
+    const key = level.level_key.trim();
+    const value = level.value_code.trim();
+    if (!key || !level.level_label.trim() || !value || !level.value_label.trim()) {
+      return `Completa todos los campos del nivel ${index + 1}.`;
+    }
+    if (keys.has(key)) {
+      return `La clave ${key} está repetida en el camino.`;
+    }
+    keys.add(key);
+  }
+  return null;
+}
+
 function buildTargetName(metricName: string | null | undefined, variantValues: MetaEditorForm["variantValues"]): string {
   const labels = variantValues.flatMap((v) => v.value_label.trim() ? [v.value_label.trim()] : []).join(" ");
   return [metricName, labels].filter(Boolean).join(" ");
@@ -203,6 +260,8 @@ export function AdminGoalTargetsPage() {
   const [selectedVariantCode, setSelectedVariantCode] = useState<string | null>(null);
   const [selectedGrainCode, setSelectedGrainCode] = useState<string | null>(null);
   const [form, setForm] = useState<MetaEditorForm>(EMPTY_FORM);
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [bulkRows, setBulkRows] = useState<BulkDraftRow[]>([]);
 
   // List state
   const [search, setSearch] = useState("");
@@ -358,8 +417,18 @@ export function AdminGoalTargetsPage() {
       return;
     }
 
+    if (editorMode !== "edit-variant") {
+      const scopeError = scopeValidationError(form.variantValues);
+      if (scopeError) {
+        toast.error(scopeError);
+        return;
+      }
+    }
+
     const metricName = metrics.find((m) => m.metricCode === form.metricCode)?.metricName;
-    const targetName = buildTargetName(metricName, form.variantValues) || form.targetCode || form.grainCode;
+    const generatedTargetCode = form.targetCode.trim()
+      || buildDeterministicTargetCode(form.metricCode, form.variantValues);
+    const targetName = buildTargetName(metricName, form.variantValues) || generatedTargetCode || form.grainCode;
     const scopeJsonb = buildScopeJsonb(form.grainCode, form.variantValues);
 
     if (editorMode === "edit-variant") {
@@ -398,8 +467,8 @@ export function AdminGoalTargetsPage() {
     }
 
     // create-meta or add-variant → POST
-    if (!form.targetCode.trim()) {
-      toast.error("El código de variante es obligatorio.");
+    if (!generatedTargetCode) {
+      toast.error("No se pudo generar el código de variante. Completa métrica o niveles.");
       return;
     }
 
@@ -408,7 +477,7 @@ export function AdminGoalTargetsPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          targetCode: form.targetCode.trim(),
+          targetCode: generatedTargetCode,
           targetName,
           metricCode: form.metricCode || null,
           operatorCode: form.operatorCode || null,
@@ -452,6 +521,87 @@ export function AdminGoalTargetsPage() {
   }
 
   // ── List helpers ───────────────────────────────────────────────────────────
+
+  function addBulkRow(seed?: Partial<MetaEditorForm>) {
+    setBulkOpen(true);
+    setBulkRows((rows) => [...rows, createBulkDraft(seed)]);
+  }
+
+  function updateBulkRow(rowId: string, patch: Partial<MetaEditorForm>) {
+    setBulkRows((rows) =>
+      rows.map((row) => (row.rowId === rowId ? { ...row, ...patch } : row)),
+    );
+  }
+
+  function updateBulkLevel(rowId: string, index: number, patch: Partial<VariantValue>) {
+    setBulkRows((rows) =>
+      rows.map((row) => {
+        if (row.rowId !== rowId) return row;
+        return {
+          ...row,
+          variantValues: row.variantValues.map((level, i) =>
+            i === index ? { ...level, ...patch } : level,
+          ),
+        };
+      }),
+    );
+  }
+
+  async function submitBulkRows() {
+    if (bulkRows.length === 0) {
+      toast.error("Agrega al menos una fila.");
+      return;
+    }
+
+    const rows = [];
+    for (const [index, row] of bulkRows.entries()) {
+      const scopeError = scopeValidationError(row.variantValues);
+      if (scopeError) {
+        toast.error(`Fila ${index + 1}: ${scopeError}`);
+        return;
+      }
+      const targetCode = row.targetCode.trim()
+        || buildDeterministicTargetCode(row.metricCode, row.variantValues);
+      if (!targetCode) {
+        toast.error(`Fila ${index + 1}: no se pudo generar el código.`);
+        return;
+      }
+      const metricName = metrics.find((m) => m.metricCode === row.metricCode)?.metricName;
+      rows.push({
+        targetCode,
+        targetName: buildTargetName(metricName, row.variantValues) || targetCode,
+        metricCode: row.metricCode || null,
+        operatorCode: row.operatorCode || null,
+        valueMin: row.valueMin === "" ? null : Number(row.valueMin),
+        valueMax: row.valueMax === "" ? null : Number(row.valueMax),
+        valueText: row.valueText.trim() || null,
+        notesText: row.notesText.trim() || null,
+        domainCodes: decodeMultiSelectValue(row.domainCodesEncoded),
+        typeItemCodes: decodeMultiSelectValue(row.typeItemCodesEncoded),
+        validFromDate: row.validFromDate,
+        changeReason: "bulk_create",
+        targetScopeJsonb: buildScopeJsonb(row.grainCode, row.variantValues),
+      });
+    }
+
+    try {
+      await fetchJson<{ targets: AdminGoalTarget[] }>(
+        `${ENDPOINT}/bulk`,
+        "No se pudo cargar metas en bloque.",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ rows }),
+        },
+      );
+      toast.success(`${bulkRows.length} metas creadas.`);
+      setBulkRows([]);
+      setBulkOpen(false);
+      await mutate(undefined, { revalidate: true });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Error al cargar metas.");
+    }
+  }
 
   function toggleGroup(grain: string) {
     setExpandedGroups((prev) => {
@@ -565,6 +715,10 @@ export function AdminGoalTargetsPage() {
               <Plus className="size-4" />
               Nueva meta
             </Button>
+            <Button type="button" variant="outline" className="rounded-full" onClick={() => addBulkRow()}>
+              <Plus className="size-4" />
+              Carga rápida
+            </Button>
           </div>
         )}
       >
@@ -619,6 +773,195 @@ export function AdminGoalTargetsPage() {
           </KpiGrid>
         </FilterPanel>
       </SectionPageShell>
+
+      {bulkOpen && (
+        <Card className="starter-panel border-border/70 bg-card/84">
+          <CardHeader>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <CardTitle className="text-lg">Carga rápida de caminos</CardTitle>
+                <CardDescription>
+                  Tabla editable para crear varias hojas con niveles libres. Cada fila genera su propio JSONB de alcance.
+                </CardDescription>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button type="button" variant="outline" className="rounded-full" onClick={() => addBulkRow()}>
+                  <Plus className="size-4" />
+                  Agregar fila
+                </Button>
+                <Button type="button" className="rounded-full" onClick={() => void submitBulkRows()}>
+                  Guardar filas
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="rounded-full"
+                  onClick={() => {
+                    setBulkOpen(false);
+                    setBulkRows([]);
+                  }}
+                >
+                  Cerrar
+                </Button>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {bulkRows.map((row, rowIndex) => (
+              <div key={row.rowId} className="rounded-[18px] border border-border/70 bg-background/80 p-3">
+                <div className="mb-3 flex items-center justify-between gap-2">
+                  <span className="text-sm font-semibold">Fila {rowIndex + 1}</span>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="rounded-full text-muted-foreground"
+                    onClick={() => setBulkRows((rows) => rows.filter((item) => item.rowId !== row.rowId))}
+                  >
+                    <X className="size-4" />
+                    Quitar
+                  </Button>
+                </div>
+                <div className="grid gap-3 lg:grid-cols-4">
+                  <div className="space-y-2">
+                    <Label>Código</Label>
+                    <Input
+                      className="rounded-xl font-mono text-xs"
+                      value={row.targetCode}
+                      placeholder="Auto"
+                      onChange={(e) => updateBulkRow(row.rowId, { targetCode: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Grain code</Label>
+                    <Input
+                      className="rounded-xl font-mono text-xs"
+                      value={row.grainCode}
+                      onChange={(e) => updateBulkRow(row.rowId, { grainCode: e.target.value })}
+                    />
+                  </div>
+                  <SingleSelectField
+                    id={`bulk-metric-${row.rowId}`}
+                    label="Métrica"
+                    value={row.metricCode || "all"}
+                    options={metricOptions.map((o) => o.code)}
+                    displayValue={labelOf(metricOptions)}
+                    emptyLabel="Sin métrica"
+                    onChange={(value) => updateBulkRow(row.rowId, { metricCode: value === "all" ? "" : value })}
+                  />
+                  <SingleSelectField
+                    id={`bulk-operator-${row.rowId}`}
+                    label="Operador"
+                    value={row.operatorCode || "all"}
+                    options={operatorOptions.map((o) => o.code)}
+                    displayValue={labelOf(operatorOptions)}
+                    emptyLabel="Sin operador"
+                    onChange={(value) => updateBulkRow(row.rowId, { operatorCode: value === "all" ? "" : value })}
+                  />
+                  <MultiSelectField
+                    id={`bulk-domain-${row.rowId}`}
+                    label="Dominios"
+                    value={row.domainCodesEncoded}
+                    options={domainOptions.map((o) => o.code)}
+                    displayValue={labelOf(domainOptions)}
+                    onChange={(value) => updateBulkRow(row.rowId, { domainCodesEncoded: value })}
+                  />
+                  <MultiSelectField
+                    id={`bulk-type-${row.rowId}`}
+                    label="Tipo"
+                    value={row.typeItemCodesEncoded}
+                    options={goalTypeOptions.map((o) => o.code)}
+                    displayValue={labelOf(goalTypeOptions)}
+                    onChange={(value) => updateBulkRow(row.rowId, { typeItemCodesEncoded: value })}
+                  />
+                  <div className="space-y-2">
+                    <Label>Valor</Label>
+                    <Input
+                      type="number"
+                      className="rounded-xl"
+                      value={row.valueMin}
+                      onChange={(e) => updateBulkRow(row.rowId, { valueMin: e.target.value })}
+                    />
+                  </div>
+                  <DateField
+                    id={`bulk-valid-${row.rowId}`}
+                    label="Vigente desde"
+                    value={row.validFromDate}
+                    onChange={(value) => updateBulkRow(row.rowId, { validFromDate: value })}
+                  />
+                </div>
+                <div className="mt-3 overflow-x-auto rounded-xl border border-border/60">
+                  <table className="w-full min-w-[920px] text-xs">
+                    <thead className="bg-muted/50 text-muted-foreground">
+                      <tr>
+                        <th className="px-2 py-2 text-left">Nivel</th>
+                        <th className="px-2 py-2 text-left">level_key</th>
+                        <th className="px-2 py-2 text-left">Etiqueta nivel</th>
+                        <th className="px-2 py-2 text-left">value_code</th>
+                        <th className="px-2 py-2 text-left">Etiqueta valor</th>
+                        <th className="px-2 py-2 text-right">Acción</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {row.variantValues.map((level, levelIndex) => (
+                        <tr key={`${row.rowId}-${levelIndex}`} className="border-t border-border/60">
+                          <td className="px-2 py-2 font-mono">{levelIndex + 1}</td>
+                          <td className="px-2 py-2">
+                            <Input className="h-8 font-mono text-xs" value={level.level_key} onChange={(e) => updateBulkLevel(row.rowId, levelIndex, { level_key: e.target.value })} />
+                          </td>
+                          <td className="px-2 py-2">
+                            <Input className="h-8 text-xs" value={level.level_label} onChange={(e) => updateBulkLevel(row.rowId, levelIndex, { level_label: e.target.value })} />
+                          </td>
+                          <td className="px-2 py-2">
+                            <Input className="h-8 font-mono text-xs" value={level.value_code} onChange={(e) => updateBulkLevel(row.rowId, levelIndex, { value_code: e.target.value })} />
+                          </td>
+                          <td className="px-2 py-2">
+                            <Input className="h-8 text-xs" value={level.value_label} onChange={(e) => updateBulkLevel(row.rowId, levelIndex, { value_label: e.target.value })} />
+                          </td>
+                          <td className="px-2 py-2 text-right">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="rounded-full"
+                              onClick={() =>
+                                updateBulkRow(row.rowId, {
+                                  variantValues: row.variantValues.filter((_, index) => index !== levelIndex),
+                                })
+                              }
+                            >
+                              Quitar
+                            </Button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="mt-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="rounded-full"
+                    onClick={() =>
+                      updateBulkRow(row.rowId, {
+                        variantValues: [
+                          ...row.variantValues,
+                          { level_key: "", level_label: "", value_code: "", value_label: "" },
+                        ],
+                      })
+                    }
+                  >
+                    <Plus className="size-3.5" />
+                    Agregar nivel
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
         {/* ── Left: catálogo de metas ──────────────────────────────────── */}

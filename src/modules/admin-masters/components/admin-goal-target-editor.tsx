@@ -1,6 +1,6 @@
 "use client";
 
-import { Plus, Save, X } from "lucide-react";
+import { ArrowDown, ArrowUp, Plus, Save, X } from "lucide-react";
 
 import { Badge } from "@/shared/ui/badge";
 import { DateField } from "@/shared/filters/date-field";
@@ -35,7 +35,6 @@ export type MetaEditorForm = {
 };
 
 export type EditorOption = { code: string; label: string };
-
 export type EditorMode = "idle" | "create-meta" | "add-variant" | "edit-variant";
 
 type Props = {
@@ -57,6 +56,143 @@ const RANGE_OPS = new Set(["between"]);
 function labelOf(opts: EditorOption[]) {
   const map = new Map(opts.map((o) => [o.code, o.label] as const));
   return (v: string) => map.get(v) ?? v;
+}
+
+function ScopeLevelEditor({
+  values,
+  setForm,
+}: {
+  values: VariantValue[];
+  setForm: React.Dispatch<React.SetStateAction<MetaEditorForm>>;
+}) {
+  function updateLevel(index: number, patch: Partial<VariantValue>) {
+    setForm((current) => ({
+      ...current,
+      variantValues: current.variantValues.map((level, i) =>
+        i === index ? { ...level, ...patch } : level,
+      ),
+    }));
+  }
+
+  function moveLevel(index: number, direction: -1 | 1) {
+    setForm((current) => {
+      const nextIndex = index + direction;
+      if (nextIndex < 0 || nextIndex >= current.variantValues.length) return current;
+      const nextValues = [...current.variantValues];
+      const [item] = nextValues.splice(index, 1);
+      if (!item) return current;
+      nextValues.splice(nextIndex, 0, item);
+      return { ...current, variantValues: nextValues };
+    });
+  }
+
+  return (
+    <div className="space-y-3">
+      {values.length === 0 && (
+        <p className="rounded-xl border border-dashed border-border/70 px-3 py-4 text-xs text-muted-foreground">
+          Sin niveles definidos. Puedes crear caminos con 3, 4, 6 o cualquier cantidad de niveles.
+        </p>
+      )}
+
+      {values.map((level, index) => (
+        <div key={`${index}-${level.level_key || "level"}`} className="rounded-lg border border-border/50 bg-background/60 p-3">
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <span className="text-xs font-semibold text-muted-foreground">Nivel {index + 1}</span>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                className="rounded-full p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-30"
+                disabled={index === 0}
+                title="Subir nivel"
+                onClick={() => moveLevel(index, -1)}
+              >
+                <ArrowUp className="size-3.5" />
+              </button>
+              <button
+                type="button"
+                className="rounded-full p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-30"
+                disabled={index === values.length - 1}
+                title="Bajar nivel"
+                onClick={() => moveLevel(index, 1)}
+              >
+                <ArrowDown className="size-3.5" />
+              </button>
+              <button
+                type="button"
+                className="rounded-full p-1 text-muted-foreground transition-colors hover:text-destructive"
+                title="Quitar nivel"
+                onClick={() =>
+                  setForm((current) => ({
+                    ...current,
+                    variantValues: current.variantValues.filter((_, i) => i !== index),
+                  }))
+                }
+              >
+                <X className="size-3.5" />
+              </button>
+            </div>
+          </div>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <div className="space-y-1">
+              <Label className="text-[11px] text-muted-foreground">Clave (level_key)</Label>
+              <Input
+                className="rounded-lg font-mono text-xs"
+                value={level.level_key}
+                placeholder="variety_code"
+                onChange={(e) => updateLevel(index, { level_key: e.target.value })}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-[11px] text-muted-foreground">Etiqueta dimensión</Label>
+              <Input
+                className="rounded-lg text-xs"
+                value={level.level_label}
+                placeholder="Variedad"
+                onChange={(e) => updateLevel(index, { level_label: e.target.value })}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-[11px] text-muted-foreground">Código del valor</Label>
+              <Input
+                className="rounded-lg font-mono text-xs"
+                value={level.value_code}
+                placeholder="CLO"
+                onChange={(e) => updateLevel(index, { value_code: e.target.value })}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-[11px] text-muted-foreground">Etiqueta del valor</Label>
+              <Input
+                className="rounded-lg text-xs"
+                value={level.value_label}
+                placeholder="CLO"
+                onChange={(e) => updateLevel(index, { value_label: e.target.value })}
+              />
+            </div>
+          </div>
+        </div>
+      ))}
+
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        className="rounded-full gap-1.5"
+        onClick={() =>
+          setForm((current) => ({
+            ...current,
+            variantValues: [
+              ...current.variantValues,
+              { level_key: "", level_label: "", value_code: "", value_label: "" },
+            ],
+          }))
+        }
+      >
+        <Plus className="size-3.5" />
+        Agregar nivel
+      </Button>
+    </div>
+  );
 }
 
 export function AdminGoalTargetEditor({
@@ -93,19 +229,17 @@ export function AdminGoalTargetEditor({
       <CardHeader>
         <CardTitle className="text-lg">
           {isCreate && "Nueva meta"}
-          {isAdd && `Agregar variante — ${grainLabel ?? ""}`}
+          {isAdd && `Agregar camino - ${grainLabel ?? ""}`}
           {isEdit && (grainLabel ?? "Editar variante")}
         </CardTitle>
         <CardDescription>
-          {isCreate && "Define la identidad de la meta (métrica + dominio) y las dimensiones de alcance. Luego agrega las variantes una por una con el botón + en el catálogo."}
-          {isAdd && "El esquema de dimensiones está heredado de la meta. Completa los valores para esta variante específica."}
+          {isCreate && "Define la identidad de la meta y el primer camino. Cada camino puede tener sus propios niveles."}
+          {isAdd && "Crea una hoja nueva. Puedes reutilizar niveles existentes o cambiarlos libremente sin afectar otras ramas."}
           {isEdit && "Solo puedes modificar el valor objetivo. Al guardar se cierra la versión vigente y se inserta una nueva (SCD2)."}
         </CardDescription>
       </CardHeader>
       <CardContent>
         <form className="space-y-5" onSubmit={onSubmit}>
-
-          {/* ── 1. Identidad de la meta (solo create-meta) ──────────────── */}
           {isCreate && (
             <div className="space-y-4 rounded-xl border border-border/60 bg-muted/20 p-4">
               <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -118,7 +252,7 @@ export function AdminGoalTargetEditor({
                     id="grain-code"
                     className="rounded-xl font-mono text-sm"
                     value={form.grainCode}
-                    onChange={(e) => setForm((c) => ({ ...c, grainCode: e.target.value }))}
+                    onChange={(e) => setForm((current) => ({ ...current, grainCode: e.target.value }))}
                     placeholder="ej: boxes_per_bed"
                   />
                 </div>
@@ -130,7 +264,7 @@ export function AdminGoalTargetEditor({
                     options={metricOptions.map((o) => o.code)}
                     displayValue={labelOf(metricOptions)}
                     emptyLabel="Sin métrica"
-                    onChange={(v) => setForm((c) => ({ ...c, metricCode: v === "all" ? "" : v }))}
+                    onChange={(v) => setForm((current) => ({ ...current, metricCode: v === "all" ? "" : v }))}
                   />
                 </div>
                 <div className="space-y-2 md:col-span-2">
@@ -140,7 +274,7 @@ export function AdminGoalTargetEditor({
                     value={form.domainCodesEncoded}
                     options={domainOptions.map((o) => o.code)}
                     displayValue={labelOf(domainOptions)}
-                    onChange={(v) => setForm((c) => ({ ...c, domainCodesEncoded: v }))}
+                    onChange={(v) => setForm((current) => ({ ...current, domainCodesEncoded: v }))}
                   />
                 </div>
                 <div className="space-y-2 md:col-span-2">
@@ -150,14 +284,13 @@ export function AdminGoalTargetEditor({
                     value={form.typeItemCodesEncoded}
                     options={goalTypeOptions.map((o) => o.code)}
                     displayValue={labelOf(goalTypeOptions)}
-                    onChange={(v) => setForm((c) => ({ ...c, typeItemCodesEncoded: v }))}
+                    onChange={(v) => setForm((current) => ({ ...current, typeItemCodesEncoded: v }))}
                   />
                 </div>
               </div>
             </div>
           )}
 
-          {/* ── 2. Valor objetivo (operador + valor) ────────────────────── */}
           <div className="space-y-3 rounded-xl border border-border/60 bg-muted/20 p-4">
             <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               Valor objetivo
@@ -171,7 +304,7 @@ export function AdminGoalTargetEditor({
                   options={operatorOptions.map((o) => o.code)}
                   displayValue={labelOf(operatorOptions)}
                   emptyLabel="Sin operador"
-                  onChange={(v) => setForm((c) => ({ ...c, operatorCode: v === "all" ? "" : v }))}
+                  onChange={(v) => setForm((current) => ({ ...current, operatorCode: v === "all" ? "" : v }))}
                 />
               </div>
               <div className="space-y-2">
@@ -181,7 +314,7 @@ export function AdminGoalTargetEditor({
                   type="number"
                   className="rounded-xl"
                   value={form.valueMin}
-                  onChange={(e) => setForm((c) => ({ ...c, valueMin: e.target.value }))}
+                  onChange={(e) => setForm((current) => ({ ...current, valueMin: e.target.value }))}
                 />
               </div>
               {showRange && (
@@ -192,165 +325,39 @@ export function AdminGoalTargetEditor({
                     type="number"
                     className="rounded-xl"
                     value={form.valueMax}
-                    onChange={(e) => setForm((c) => ({ ...c, valueMax: e.target.value }))}
+                    onChange={(e) => setForm((current) => ({ ...current, valueMax: e.target.value }))}
                   />
                 </div>
               )}
             </div>
           </div>
 
-          {/* ── 3a. Dimensiones de alcance (create-meta: define el esquema + primera variante) ── */}
-          {isCreate && (
+          {(isCreate || isAdd) && (
             <div className="space-y-3 rounded-xl border border-border/60 bg-muted/30 p-4">
               <div className="flex items-center justify-between">
                 <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Dimensiones de alcance
+                  Camino / niveles dinámicos
                 </Label>
                 <span className="text-[11px] text-muted-foreground">
-                  {form.variantValues.length} {form.variantValues.length === 1 ? "dimensión" : "dimensiones"}
+                  {form.variantValues.length} {form.variantValues.length === 1 ? "nivel" : "niveles"}
                 </span>
               </div>
               <p className="text-[11px] text-muted-foreground">
-                Define los ejes de segmentación de esta meta (variedad, semana, origen, etc.) y los valores de la primera variante.
+                El JSONB genera `levels` y `filters` desde estas claves. Un mismo grain puede tener ramas con distinta profundidad.
               </p>
-              {form.variantValues.map((v, idx) => (
-                <div key={v.level_key} className="rounded-lg border border-border/50 bg-background/60 p-3">
-                  <div className="mb-2 flex items-center justify-between">
-                    <span className="text-xs font-semibold text-muted-foreground">Dimensión {idx + 1}</span>
-                    <button
-                      type="button"
-                      className="rounded-full p-1 text-muted-foreground transition-colors hover:text-destructive"
-                      onClick={() => setForm((c) => ({
-                        ...c,
-                        variantValues: c.variantValues.filter((_, i) => i !== idx),
-                      }))}
-                    >
-                      <X className="size-3.5" />
-                    </button>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="space-y-1">
-                      <Label className="text-[11px] text-muted-foreground">Clave (level_key)</Label>
-                      <Input
-                        className="rounded-lg font-mono text-xs"
-                        value={v.level_key}
-                        placeholder="variety_code"
-                        onChange={(e) => setForm((c) => ({
-                          ...c,
-                          variantValues: c.variantValues.map((l, i) => i === idx ? { ...l, level_key: e.target.value } : l),
-                        }))}
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-[11px] text-muted-foreground">Etiqueta dimensión</Label>
-                      <Input
-                        className="rounded-lg text-xs"
-                        value={v.level_label}
-                        placeholder="Variedad"
-                        onChange={(e) => setForm((c) => ({
-                          ...c,
-                          variantValues: c.variantValues.map((l, i) => i === idx ? { ...l, level_label: e.target.value } : l),
-                        }))}
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-[11px] text-muted-foreground">Código del valor</Label>
-                      <Input
-                        className="rounded-lg font-mono text-xs"
-                        value={v.value_code}
-                        placeholder="CLO"
-                        onChange={(e) => setForm((c) => ({
-                          ...c,
-                          variantValues: c.variantValues.map((l, i) => i === idx ? { ...l, value_code: e.target.value } : l),
-                        }))}
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-[11px] text-muted-foreground">Etiqueta del valor</Label>
-                      <Input
-                        className="rounded-lg text-xs"
-                        value={v.value_label}
-                        placeholder="Clavel Oriental"
-                        onChange={(e) => setForm((c) => ({
-                          ...c,
-                          variantValues: c.variantValues.map((l, i) => i === idx ? { ...l, value_label: e.target.value } : l),
-                        }))}
-                      />
-                    </div>
-                  </div>
-                </div>
-              ))}
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="rounded-full gap-1.5"
-                onClick={() => setForm((c) => ({
-                  ...c,
-                  variantValues: [...c.variantValues, { level_key: "", level_label: "", value_code: "", value_label: "" }],
-                }))}
-              >
-                <Plus className="size-3.5" />
-                Agregar dimensión
-              </Button>
+              <ScopeLevelEditor values={form.variantValues} setForm={setForm} />
             </div>
           )}
 
-          {/* ── 3b. Valores de variante (add-variant: hereda esquema, solo rellena valores) ── */}
-          {isAdd && (
-            <div className="space-y-3 rounded-xl border border-border/60 bg-muted/30 p-4">
-              <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Valores de alcance para esta variante
-              </Label>
-              {form.variantValues.length === 0 && (
-                <p className="text-[11px] text-muted-foreground italic">
-                  Esta meta no tiene dimensiones de alcance definidas.
-                </p>
-              )}
-              {form.variantValues.map((v, idx) => (
-                <div key={v.level_key} className="space-y-2 rounded-lg border border-border/50 bg-background/60 p-3">
-                  <p className="text-xs font-semibold text-muted-foreground">{v.level_label}</p>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="space-y-1">
-                      <Label className="text-[11px] text-muted-foreground">Código del valor</Label>
-                      <Input
-                        className="rounded-lg font-mono text-xs"
-                        value={v.value_code}
-                        placeholder="CLO"
-                        onChange={(e) => setForm((c) => ({
-                          ...c,
-                          variantValues: c.variantValues.map((l, i) => i === idx ? { ...l, value_code: e.target.value } : l),
-                        }))}
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-[11px] text-muted-foreground">Etiqueta del valor</Label>
-                      <Input
-                        className="rounded-lg text-xs"
-                        value={v.value_label}
-                        placeholder="Clavel Oriental"
-                        onChange={(e) => setForm((c) => ({
-                          ...c,
-                          variantValues: c.variantValues.map((l, i) => i === idx ? { ...l, value_label: e.target.value } : l),
-                        }))}
-                      />
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* ── 3c. Scope read-only (edit-variant) ──────────────────────── */}
           {isEdit && form.variantValues.length > 0 && (
             <div className="space-y-2 rounded-xl border border-border/60 bg-muted/30 p-3">
               <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Alcance — solo lectura
+                Alcance - solo lectura
               </Label>
               <div className="flex flex-wrap gap-1.5 pt-1">
-                {form.variantValues.map((l) => (
-                  <Badge key={l.level_key} variant="outline" className="rounded-full px-2 py-0.5 text-[11px] font-normal">
-                    <span className="font-medium">{l.level_label}:</span>&nbsp;{l.value_label}
+                {form.variantValues.map((level) => (
+                  <Badge key={level.level_key} variant="outline" className="rounded-full px-2 py-0.5 text-[11px] font-normal">
+                    <span className="font-medium">{level.level_label}:</span>&nbsp;{level.value_label}
                   </Badge>
                 ))}
               </div>
@@ -360,7 +367,6 @@ export function AdminGoalTargetEditor({
             </div>
           )}
 
-          {/* ── Código de variante (create-meta y add-variant) ──────────── */}
           {!isEdit && (
             <div className="space-y-2">
               <Label htmlFor="target-code">Código de variante</Label>
@@ -368,25 +374,23 @@ export function AdminGoalTargetEditor({
                 id="target-code"
                 className="rounded-xl font-mono text-sm"
                 value={form.targetCode}
-                onChange={(e) => setForm((c) => ({ ...c, targetCode: e.target.value }))}
-                placeholder="ej: boxes_per_bed_clo_agr_s12_nal"
+                onChange={(e) => setForm((current) => ({ ...current, targetCode: e.target.value }))}
+                placeholder="Se autogenera si lo dejas vacío"
               />
               <p className="text-[11px] text-muted-foreground">
-                Identificador único de esta variante. El nombre se auto-construye de métrica + valores.
+                Avanzado. Si queda vacío, se genera desde métrica + niveles.
               </p>
             </div>
           )}
 
-          {/* ── Vigencia ────────────────────────────────────────────────── */}
           <DateField
             id="target-valid-from"
             label="Vigente desde"
             value={form.validFromDate}
-            onChange={(v) => setForm((c) => ({ ...c, validFromDate: v }))}
+            onChange={(v) => setForm((current) => ({ ...current, validFromDate: v }))}
             helperText={isEdit ? "La versión anterior se cierra automáticamente un día antes." : undefined}
           />
 
-          {/* ── Notas y motivo ──────────────────────────────────────────── */}
           <div className="space-y-3">
             <div className="space-y-2">
               <Label htmlFor="target-notes">Notas</Label>
@@ -395,7 +399,7 @@ export function AdminGoalTargetEditor({
                 rows={2}
                 className="flex min-h-[64px] w-full rounded-xl border border-input bg-background px-3 py-2 text-sm"
                 value={form.notesText}
-                onChange={(e) => setForm((c) => ({ ...c, notesText: e.target.value }))}
+                onChange={(e) => setForm((current) => ({ ...current, notesText: e.target.value }))}
               />
             </div>
             {isEdit && (
@@ -405,14 +409,13 @@ export function AdminGoalTargetEditor({
                   id="target-reason"
                   className="rounded-xl"
                   value={form.changeReason}
-                  onChange={(e) => setForm((c) => ({ ...c, changeReason: e.target.value }))}
+                  onChange={(e) => setForm((current) => ({ ...current, changeReason: e.target.value }))}
                   placeholder="Opcional. Se registra en el historial."
                 />
               </div>
             )}
           </div>
 
-          {/* ── Acciones ────────────────────────────────────────────────── */}
           <div className="flex justify-end gap-2">
             <Button type="button" variant="ghost" className="rounded-full" onClick={onCancel}>
               Cancelar
@@ -424,7 +427,7 @@ export function AdminGoalTargetEditor({
             )}
             <Button type="submit" className="rounded-full">
               <Save className="size-4" />
-              {isEdit ? "Guardar nueva versión" : isAdd ? "Agregar variante" : "Crear meta"}
+              {isEdit ? "Guardar nueva versión" : isAdd ? "Agregar camino" : "Crear meta"}
             </Button>
           </div>
         </form>

@@ -235,6 +235,10 @@ export type UpsertGoalTargetInput = {
   targetScopeJsonb?: TargetScopeJsonb | null;
 };
 
+function normalizedScopeJsonb(scopeJsonb: TargetScopeJsonb | null | undefined): TargetScopeJsonb {
+  return scopeJsonb ?? {};
+}
+
 async function insertBridges(
   client: PoolClient,
   targetCode: string,
@@ -297,7 +301,7 @@ export async function createGoalTarget(input: UpsertGoalTargetInput): Promise<vo
        VALUES ($1, $2, $3::timestamptz, true, true, $4, $5, $6)`,
       [crypto.randomUUID(), input.targetCode, validFromIso, RUN_ID, actor, reason],
     );
-    const scopeJsonb = input.targetScopeJsonb ?? null;
+    const scopeJsonb = normalizedScopeJsonb(input.targetScopeJsonb);
     const grainCode = scopeJsonb?.grain_code ?? null;
 
     await client.query(
@@ -324,7 +328,7 @@ export async function createGoalTarget(input: UpsertGoalTargetInput): Promise<vo
         input.valueText ?? null,
         input.notesText ?? null,
         (input.domainCodes ?? [])[0] ?? null,
-        scopeJsonb !== null ? JSON.stringify(scopeJsonb) : null,
+        JSON.stringify(scopeJsonb),
         grainCode,
         validFromIso,
         RUN_ID,
@@ -334,6 +338,81 @@ export async function createGoalTarget(input: UpsertGoalTargetInput): Promise<vo
     );
 
     await insertBridges(client, input.targetCode, validFromIso, input.domainCodes ?? [], input.typeItemCodes ?? [], actor, reason);
+  });
+}
+
+export async function createGoalTargetsBulk(inputs: UpsertGoalTargetInput[]): Promise<void> {
+  if (inputs.length === 0) return;
+
+  await withAdminTransaction(async (client) => {
+    for (const [index, input] of inputs.entries()) {
+      const validFromIso = `${input.validFromDate}T00:00:00Z`;
+      const actor = input.actorId ?? null;
+      const reason = input.changeReason ?? "bulk_create";
+      const scopeJsonb = normalizedScopeJsonb(input.targetScopeJsonb);
+      const grainCode = scopeJsonb?.grain_code ?? null;
+
+      const existing = await client.query<{ target_code: string }>(
+        `SELECT target_code
+         FROM ${PROFILE_TABLE}
+         WHERE target_code = $1 AND is_current = true AND is_valid = true
+         LIMIT 1`,
+        [input.targetCode],
+      );
+      if ((existing.rowCount ?? 0) > 0) {
+        throw new Error(`Fila ${index + 1}: ya existe una meta activa con codigo ${input.targetCode}`);
+      }
+
+      await client.query(
+        `INSERT INTO ${CORE_TABLE}
+          (record_id, target_code, valid_from, is_current, is_valid, run_id, actor_id, change_reason)
+         VALUES ($1, $2, $3::timestamptz, true, true, $4, $5, $6)`,
+        [crypto.randomUUID(), input.targetCode, validFromIso, RUN_ID, actor, reason],
+      );
+
+      await client.query(
+        `INSERT INTO ${PROFILE_TABLE}
+          (record_id, target_code, target_name, target_description,
+           metric_code, operator_code,
+           value_min, value_max, value_text, notes_text, domain_code,
+           target_scope_jsonb, target_grain_code,
+           valid_from, is_current, is_valid, run_id, actor_id, change_reason)
+         VALUES ($1, $2, $3, $4,
+                 $5, $6,
+                 $7, $8, $9, $10, $11,
+                 $12::jsonb, $13,
+                 $14::timestamptz, true, true, $15, $16, $17)`,
+        [
+          crypto.randomUUID(),
+          input.targetCode,
+          input.targetName,
+          input.targetDescription ?? null,
+          input.metricCode ?? null,
+          input.operatorCode ?? null,
+          input.valueMin ?? null,
+          input.valueMax ?? null,
+          input.valueText ?? null,
+          input.notesText ?? null,
+          (input.domainCodes ?? [])[0] ?? null,
+          JSON.stringify(scopeJsonb),
+          grainCode,
+          validFromIso,
+          RUN_ID,
+          actor,
+          reason,
+        ],
+      );
+
+      await insertBridges(
+        client,
+        input.targetCode,
+        validFromIso,
+        input.domainCodes ?? [],
+        input.typeItemCodes ?? [],
+        actor,
+        reason,
+      );
+    }
   });
 }
 
@@ -384,7 +463,7 @@ export async function updateGoalTarget(input: UpsertGoalTargetInput): Promise<vo
        VALUES ($1, $2, $3::timestamptz, true, true, $4, $5, $6)`,
       [crypto.randomUUID(), input.targetCode, newValidFromIso, RUN_ID, actor, reason],
     );
-    const scopeJsonb = input.targetScopeJsonb ?? null;
+    const scopeJsonb = normalizedScopeJsonb(input.targetScopeJsonb);
     const grainCode = scopeJsonb?.grain_code ?? null;
 
     await client.query(
@@ -411,7 +490,7 @@ export async function updateGoalTarget(input: UpsertGoalTargetInput): Promise<vo
         input.valueText ?? null,
         input.notesText ?? null,
         (input.domainCodes ?? [])[0] ?? null,
-        scopeJsonb !== null ? JSON.stringify(scopeJsonb) : null,
+        JSON.stringify(scopeJsonb),
         grainCode,
         newValidFromIso,
         RUN_ID,

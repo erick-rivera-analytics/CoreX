@@ -155,6 +155,10 @@ export const adminGoalTargetUpsertSchema = z.object({
   changeReason: ChangeReason,
 });
 
+export const adminGoalTargetBulkUpsertSchema = z.object({
+  rows: z.array(adminGoalTargetUpsertSchema).min(1).max(500),
+});
+
 const adminGoalTargetUpdatePatchSchema = adminGoalTargetUpsertSchema.extend({
   action: z.literal("update"),
 });

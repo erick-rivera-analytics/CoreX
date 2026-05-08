@@ -28,6 +28,17 @@ const ORIGIN_DW_TO_META: Record<string, string> = {
   PRECLASIFICACION: "preclassification",
 };
 
+function resolveMetaOriginCode(variety: string, originCode: string): string | null {
+  const normalizedVariety = variety.trim().toUpperCase();
+  if (normalizedVariety !== "CLO") return originCode;
+
+  // Corrección negocio: CLO no existe como GV ni Preclasificación. Los valores
+  // cargados originalmente como preclassification son la meta real de Apertura.
+  if (originCode === "preclassification") return "opening";
+  if (originCode === "gv") return null;
+  return originCode;
+}
+
 // ── Query row types (snake_case, DB output) ──────────────────────────────────
 type ProductividadQueryRow = {
   cycle_key: string;
@@ -278,7 +289,9 @@ function computeWeightedBoxesPerBedMeta(
   for (const [dwLabel, originCode] of Object.entries(ORIGIN_DW_TO_META)) {
     const kg = toNumber(originKgJsonb[dwLabel]) ?? 0;
     if (kg <= 0) continue;
-    const meta = targetIndex.get(`${originCode}|${variety}|${spType}|${isoWeekStr}`);
+    const resolvedOriginCode = resolveMetaOriginCode(variety, originCode);
+    if (!resolvedOriginCode) continue;
+    const meta = targetIndex.get(`${resolvedOriginCode}|${variety}|${spType}|${isoWeekStr}`);
     if (meta === undefined) continue;
     const share = kg / totalKg;
     weighted += share * meta;
