@@ -2,11 +2,19 @@ import "server-only";
 
 import { query } from "@/lib/db";
 import { decodeMultiSelectValue, matchesMultiSelectValue } from "@/lib/multi-select";
+import {
+  RULES_CONSTANTS,
+  classifyEstado,
+  isoWeekSubtract,
+  type DesvinculacionEstado,
+  type WeekDatum,
+} from "@/lib/talento-humano-desvinculacion-rules";
 
 export type DesvinculacionToolFilters = {
   weekId: string;
   area: string;
   jobClassification: string;
+  estado: string;
   q: string;
 };
 
@@ -19,24 +27,33 @@ export type DesvinculacionToolRow = {
   areaGeneral: string | null;
   jobTitle: string | null;
   jobClassificationCode: string | null;
+  // Métricas de la SEMANA filtrada (la última en `window`).
   actualHoursRend: number;
   actualHoursHn: number;
   totalActualHours: number;
   rendimiento: number | null;
   rendimientoMin: number | null;
   cumplimiento: number | null;
+  // Veredicto + soporte estadístico sobre la ventana de 12 semanas.
+  estado: DesvinculacionEstado;
+  validWeeks: number;
+  totalWeeksInWindow: number;
+  lastIsValid: boolean;
+  mkTau: number | null;
+  mkZ: number | null;
+  slopePerWeek: number | null;
+  // Serie completa de 12 sem (ordenada ASC) para alimentar el chart sin
+  // segundo fetch.
+  window: WeekDatum[];
 };
+
+export type DesvinculacionToolEstadoCounts = Record<DesvinculacionEstado, number>;
 
 export type DesvinculacionToolSummary = {
   weekId: string;
+  weekIdFrom: string;
   totalCollaborators: number;
-  totalCollaboratorsWithRend: number;
-  avgRendimiento: number | null;
-  avgRendimientoMin: number | null;
-  avgCumplimiento: number | null;
-  totalActualHoursRend: number;
-  totalActualHoursHn: number;
-  totalActualHours: number;
+  estadoCounts: DesvinculacionToolEstadoCounts;
 };
 
 export type DesvinculacionToolOptions = {
@@ -51,23 +68,6 @@ export type DesvinculacionToolData = {
   options: DesvinculacionToolOptions;
   summary: DesvinculacionToolSummary;
   rows: DesvinculacionToolRow[];
-};
-
-export type DesvinculacionPersonWeek = {
-  isoWeekId: string;
-  rendimiento: number | null;
-  rendimientoMin: number | null;
-  cumplimiento: number | null;
-  actualHoursRend: number;
-  actualHoursHn: number;
-  totalActualHours: number;
-  pctHoursRend: number | null;
-};
-
-export type DesvinculacionPersonHistory = {
-  personId: string;
-  personName: string;
-  weeks: DesvinculacionPersonWeek[];
 };
 
 const WEEK_PATTERN = /^\d{6}$/;
@@ -130,14 +130,16 @@ export async function normalizeDesvinculacionFilters(
       weekId,
       area: normalizeMulti(raw.area ?? null),
       jobClassification: normalizeMulti(raw.jobClassification ?? null),
+      estado: normalizeMulti(raw.estado ?? null),
       q: (raw.q ?? "").trim(),
     },
     weeks,
   };
 }
 
-type RawRow = {
+type RawWindowRow = {
   person_id: string;
+  iso_week_id: string;
   person_name: string | null;
   national_id: string | null;
   area_id: string | null;
@@ -152,10 +154,25 @@ type RawRow = {
   rend_min: number | string | null;
 };
 
-async function loadDesvinculacionRows(weekId: string): Promise<DesvinculacionToolRow[]> {
-  if (!weekId) return [];
+type PersonAccumulator = {
+  personId: string;
+  personName: string;
+  nationalId: string | null;
+  areaId: string | null;
+  areaName: string | null;
+  areaGeneral: string | null;
+  jobTitle: string | null;
+  jobClassificationCode: string | null;
+  weeksByIsoId: Map<string, RawWindowRow>;
+};
 
-  const result = await query<RawRow>(
+async function loadDesvinculacionWindow(
+  weekIdFrom: string,
+  weekIdTo: string,
+): Promise<Map<string, PersonAccumulator>> {
+  if (!weekIdFrom || !weekIdTo) return new Map();
+
+  const result = await query<RawWindowRow>(
     `
     WITH active_persons AS (
       SELECT DISTINCT ON (e.person_id)
@@ -177,30 +194,33 @@ async function loadDesvinculacionRows(weekId: string): Promise<DesvinculacionToo
       WHERE is_current = true AND is_valid = true
       ORDER BY person_id, valid_from DESC NULLS LAST
     ),
-    rend_week AS (
+    rend_window AS (
       SELECT
-        r.person_id,
-        SUM(r.actual_hours_rend)              AS actual_hours_rend,
-        SUM(r.actual_hours_hn)                AS actual_hours_hn,
-        SUM(r.total_actual_hours)             AS total_actual_hours,
-        SUM(r.rend * r.actual_hours_rend)     AS rend_weighted_num,
-        SUM(r.rend_min * r.actual_hours_rend) AS rend_min_weighted_num
+        trim(r.person_id::text)                  AS person_id,
+        r.iso_week_id::text                      AS iso_week_id,
+        SUM(r.actual_hours_rend)                 AS actual_hours_rend,
+        SUM(r.actual_hours_hn)                   AS actual_hours_hn,
+        SUM(r.total_actual_hours)                AS total_actual_hours,
+        SUM(r.rend * r.actual_hours_rend)        AS rend_weighted_num,
+        SUM(r.rend_min * r.actual_hours_rend)    AS rend_min_weighted_num
       FROM gld.prod_rend_adj_cur r
-      WHERE r.iso_week_id::text = $1
-      GROUP BY r.person_id
+      WHERE r.iso_week_id::text BETWEEN $1 AND $2
+        AND r.iso_week_id IS NOT NULL
+      GROUP BY trim(r.person_id::text), r.iso_week_id
     )
     SELECT
       ap.person_id,
-      COALESCE(p.person_name, ap.person_id)         AS person_name,
+      rw.iso_week_id,
+      COALESCE(p.person_name, ap.person_id) AS person_name,
       p.national_id,
       ap.area_id,
       ar.area_name,
       ar.area_general,
       p.job_title,
       p.job_classification_code,
-      COALESCE(rw.actual_hours_rend, 0)::numeric    AS actual_hours_rend,
-      COALESCE(rw.actual_hours_hn, 0)::numeric      AS actual_hours_hn,
-      COALESCE(rw.total_actual_hours, 0)::numeric   AS total_actual_hours,
+      COALESCE(rw.actual_hours_rend, 0)::numeric  AS actual_hours_rend,
+      COALESCE(rw.actual_hours_hn, 0)::numeric    AS actual_hours_hn,
+      COALESCE(rw.total_actual_hours, 0)::numeric AS total_actual_hours,
       CASE WHEN COALESCE(rw.actual_hours_rend, 0) > 0
            THEN rw.rend_weighted_num / rw.actual_hours_rend
            ELSE NULL END                            AS rend,
@@ -211,33 +231,50 @@ async function loadDesvinculacionRows(weekId: string): Promise<DesvinculacionToo
     LEFT JOIN profiles p ON p.person_id = ap.person_id
     LEFT JOIN slv.camp_dim_area_profile_scd2 ar
       ON ar.area_id = ap.area_id AND ar.is_current = true AND ar.is_valid = true
-    LEFT JOIN rend_week rw ON rw.person_id = ap.person_id
-    ORDER BY COALESCE(p.person_name, ap.person_id)
+    INNER JOIN rend_window rw ON rw.person_id = ap.person_id
+    ORDER BY COALESCE(p.person_name, ap.person_id), rw.iso_week_id ASC
     `,
-    [weekId],
+    [weekIdFrom, weekIdTo],
   );
 
-  return result.rows.map((row) => {
+  const acc = new Map<string, PersonAccumulator>();
+  for (const row of result.rows) {
+    const existing = acc.get(row.person_id);
+    if (existing) {
+      existing.weeksByIsoId.set(row.iso_week_id, row);
+    } else {
+      const weeksByIsoId = new Map<string, RawWindowRow>();
+      weeksByIsoId.set(row.iso_week_id, row);
+      acc.set(row.person_id, {
+        personId: row.person_id,
+        personName: toText(row.person_name) ?? row.person_id,
+        nationalId: toText(row.national_id),
+        areaId: toText(row.area_id),
+        areaName: toText(row.area_name),
+        areaGeneral: toText(row.area_general),
+        jobTitle: toText(row.job_title),
+        jobClassificationCode: toText(row.job_classification_code),
+        weeksByIsoId,
+      });
+    }
+  }
+  return acc;
+}
+
+function rawWindowToWeekData(rows: RawWindowRow[]): WeekDatum[] {
+  return rows.map((row) => {
+    const actualHoursRend = toNumber(row.actual_hours_rend);
+    const totalActualHours = toNumber(row.total_actual_hours);
     const rendimiento = row.rend == null ? null : toNumber(row.rend);
     const rendimientoMin = row.rend_min == null ? null : toNumber(row.rend_min);
     const cumplimiento = rendimiento !== null && rendimientoMin !== null && rendimientoMin > 0
       ? rendimiento / rendimientoMin
       : null;
     return {
-      personId: row.person_id,
-      personName: toText(row.person_name) ?? row.person_id,
-      nationalId: toText(row.national_id),
-      areaId: toText(row.area_id),
-      areaName: toText(row.area_name),
-      areaGeneral: toText(row.area_general),
-      jobTitle: toText(row.job_title),
-      jobClassificationCode: toText(row.job_classification_code),
-      actualHoursRend: toNumber(row.actual_hours_rend),
-      actualHoursHn: toNumber(row.actual_hours_hn),
-      totalActualHours: toNumber(row.total_actual_hours),
-      rendimiento,
-      rendimientoMin,
+      isoWeekId: row.iso_week_id,
       cumplimiento,
+      actualHoursRend,
+      totalActualHours,
     };
   });
 }
@@ -263,6 +300,13 @@ function rowMatchesArea(row: DesvinculacionToolRow, encoded: string): boolean {
   return candidates.some((candidate) => selected.includes(candidate));
 }
 
+function rowMatchesEstado(row: DesvinculacionToolRow, encoded: string): boolean {
+  if (!encoded || encoded === "all") return true;
+  const selected = decodeMultiSelectValue(encoded);
+  if (selected.length === 0) return true;
+  return selected.includes(row.estado);
+}
+
 function buildOptions(
   rows: DesvinculacionToolRow[],
   weeks: string[],
@@ -282,126 +326,32 @@ function buildOptions(
   };
 }
 
-function buildSummary(rows: DesvinculacionToolRow[], weekId: string): DesvinculacionToolSummary {
-  let totalRendNum = 0;
-  let totalRendMinNum = 0;
-  let totalActualHoursRend = 0;
-  let totalActualHoursHn = 0;
-  let totalActualHours = 0;
-  let withRend = 0;
+const EMPTY_ESTADO_COUNTS: DesvinculacionToolEstadoCounts = {
+  salida: 0,
+  advertencia: 0,
+  bajo_sin_tendencia: 0,
+  advertencia_nuevo: 0,
+  cumple_con_caida: 0,
+  en_observacion_nuevo: 0,
+  ok: 0,
+  sin_senal_actual: 0,
+  sin_datos: 0,
+};
 
+function buildSummary(
+  rows: DesvinculacionToolRow[],
+  weekId: string,
+  weekIdFrom: string,
+): DesvinculacionToolSummary {
+  const estadoCounts: DesvinculacionToolEstadoCounts = { ...EMPTY_ESTADO_COUNTS };
   for (const row of rows) {
-    if (row.actualHoursRend > 0 && row.rendimiento !== null) {
-      totalRendNum += row.rendimiento * row.actualHoursRend;
-      withRend += 1;
-    }
-    if (row.actualHoursRend > 0 && row.rendimientoMin !== null) {
-      totalRendMinNum += row.rendimientoMin * row.actualHoursRend;
-    }
-    totalActualHoursRend += row.actualHoursRend;
-    totalActualHoursHn += row.actualHoursHn;
-    totalActualHours += row.totalActualHours;
+    estadoCounts[row.estado] += 1;
   }
-
-  const avgRendimiento = totalActualHoursRend > 0 ? totalRendNum / totalActualHoursRend : null;
-  const avgRendimientoMin = totalActualHoursRend > 0 ? totalRendMinNum / totalActualHoursRend : null;
-  const avgCumplimiento = avgRendimiento !== null && avgRendimientoMin !== null && avgRendimientoMin > 0
-    ? avgRendimiento / avgRendimientoMin
-    : null;
-
   return {
     weekId,
+    weekIdFrom,
     totalCollaborators: rows.length,
-    totalCollaboratorsWithRend: withRend,
-    avgRendimiento,
-    avgRendimientoMin,
-    avgCumplimiento,
-    totalActualHoursRend,
-    totalActualHoursHn,
-    totalActualHours,
-  };
-}
-
-export async function getDesvinculacionPersonHistory(
-  personId: string,
-): Promise<DesvinculacionPersonHistory> {
-  type RawWeek = {
-    iso_week_id: string | number;
-    rend: number | string | null;
-    rend_min: number | string | null;
-    actual_hours_rend: number | string | null;
-    actual_hours_hn: number | string | null;
-    total_actual_hours: number | string | null;
-  };
-
-  type RawProfile = { person_name: string | null };
-
-  // El canon para `gld.prod_rend_adj_cur` usa `trim(person_id::text) = $1`
-  // — la columna puede venir con padding o tipo no-text — y `iso_week_id::int`
-  // para ordenar (ver `getPersonRendimiento` en `talento-humano-rendimiento-loader`).
-  // `Promise.allSettled` evita que un fallo aislado tumbe toda la respuesta.
-  const normalizedPersonId = personId.trim();
-  const [historyResult, profileResult] = await Promise.allSettled([
-    query<RawWeek>(
-      `
-      SELECT
-        iso_week_id::text AS iso_week_id,
-        rend,
-        rend_min,
-        actual_hours_rend,
-        actual_hours_hn,
-        total_actual_hours
-      FROM gld.prod_rend_adj_cur
-      WHERE trim(person_id::text) = $1
-        AND iso_week_id IS NOT NULL
-      ORDER BY iso_week_id::int ASC
-      `,
-      [normalizedPersonId],
-    ),
-    query<RawProfile>(
-      `
-      SELECT person_name
-      FROM slv.tthh_dim_person_profile_scd2
-      WHERE trim(person_id::text) = $1
-        AND is_current = true
-        AND is_valid = true
-      ORDER BY valid_from DESC NULLS LAST
-      LIMIT 1
-      `,
-      [normalizedPersonId],
-    ),
-  ]);
-
-  const historyRows: RawWeek[] = historyResult.status === "fulfilled" ? historyResult.value.rows : [];
-  const profileRow: RawProfile | undefined = profileResult.status === "fulfilled"
-    ? profileResult.value.rows[0]
-    : undefined;
-
-  const weeks: DesvinculacionPersonWeek[] = historyRows.map((row) => {
-    const rendimiento = row.rend == null ? null : toNumber(row.rend);
-    const rendimientoMin = row.rend_min == null ? null : toNumber(row.rend_min);
-    const cumplimiento = rendimiento !== null && rendimientoMin !== null && rendimientoMin > 0
-      ? rendimiento / rendimientoMin
-      : null;
-    const actualHoursRend = toNumber(row.actual_hours_rend);
-    const actualHoursHn = toNumber(row.actual_hours_hn);
-    const totalActualHours = toNumber(row.total_actual_hours);
-    return {
-      isoWeekId: String(row.iso_week_id),
-      rendimiento,
-      rendimientoMin,
-      cumplimiento,
-      actualHoursRend,
-      actualHoursHn,
-      totalActualHours,
-      pctHoursRend: totalActualHours > 0 ? actualHoursRend / totalActualHours : null,
-    };
-  });
-
-  return {
-    personId: normalizedPersonId,
-    personName: toText(profileRow?.person_name) ?? normalizedPersonId,
-    weeks,
+    estadoCounts,
   };
 }
 
@@ -412,25 +362,72 @@ export async function getDesvinculacionToolData(
   const weeks = weeksOverride ?? await loadAvailableWeeks();
   const fallbackWeek = weeks[0] ?? "";
   const weekId = normalizeWeek(filters.weekId) ?? fallbackWeek;
+  const weekIdFrom = weekId ? isoWeekSubtract(weekId, RULES_CONSTANTS.WINDOW_WEEKS - 1) : "";
 
   const normalized: DesvinculacionToolFilters = {
     weekId,
     area: normalizeMulti(filters.area),
     jobClassification: normalizeMulti(filters.jobClassification),
+    estado: normalizeMulti(filters.estado),
     q: filters.q?.trim() ?? "",
   };
 
-  const rawRows = await loadDesvinculacionRows(weekId);
-  // Filtro canon: solo personas con cumplimiento calculable en la semana.
-  // Si la persona no tuvo horas con rendimiento o rendMin = 0, no tiene
-  // sentido mostrarla — no aporta señal de desvinculación.
-  const allRows = rawRows.filter((row) => row.cumplimiento !== null);
-  const options = buildOptions(allRows, weeks);
+  const accumulator = await loadDesvinculacionWindow(weekIdFrom, weekId);
+
+  const allRows: DesvinculacionToolRow[] = [];
+  for (const person of accumulator.values()) {
+    const sortedRawRows = Array.from(person.weeksByIsoId.values())
+      .sort((a, b) => a.iso_week_id.localeCompare(b.iso_week_id));
+    const windowData = rawWindowToWeekData(sortedRawRows);
+
+    const lastRaw = person.weeksByIsoId.get(weekId);
+    const actualHoursRend = lastRaw ? toNumber(lastRaw.actual_hours_rend) : 0;
+    const actualHoursHn = lastRaw ? toNumber(lastRaw.actual_hours_hn) : 0;
+    const totalActualHours = lastRaw ? toNumber(lastRaw.total_actual_hours) : 0;
+    const rendimiento = lastRaw && lastRaw.rend != null ? toNumber(lastRaw.rend) : null;
+    const rendimientoMin = lastRaw && lastRaw.rend_min != null ? toNumber(lastRaw.rend_min) : null;
+    const cumplimiento = rendimiento !== null && rendimientoMin !== null && rendimientoMin > 0
+      ? rendimiento / rendimientoMin
+      : null;
+
+    const classification = classifyEstado(windowData, weekId);
+
+    allRows.push({
+      personId: person.personId,
+      personName: person.personName,
+      nationalId: person.nationalId,
+      areaId: person.areaId,
+      areaName: person.areaName,
+      areaGeneral: person.areaGeneral,
+      jobTitle: person.jobTitle,
+      jobClassificationCode: person.jobClassificationCode,
+      actualHoursRend,
+      actualHoursHn,
+      totalActualHours,
+      rendimiento,
+      rendimientoMin,
+      cumplimiento,
+      estado: classification.estado,
+      validWeeks: classification.validWeeks,
+      totalWeeksInWindow: classification.totalWeeks,
+      lastIsValid: classification.lastIsValid,
+      mkTau: classification.mannKendall?.tau ?? null,
+      mkZ: classification.mannKendall?.z ?? null,
+      slopePerWeek: classification.theilSenSlope,
+      window: windowData,
+    });
+  }
+
+  // Filtro canon: excluimos "sin_datos" — sin base de análisis no aporta
+  // señal. Las demás categorías (incluso `sin_senal_actual`) sí entran.
+  const visibleRows = allRows.filter((row) => row.estado !== "sin_datos");
+  const options = buildOptions(visibleRows, weeks);
   const tokens = searchTokens(normalized.q);
 
-  const filteredRows = allRows.filter((row) =>
+  const filteredRows = visibleRows.filter((row) =>
     rowMatchesArea(row, normalized.area)
       && matchesMultiSelectValue(normalized.jobClassification, row.jobClassificationCode)
+      && rowMatchesEstado(row, normalized.estado)
       && rowMatchesSearch(row, tokens),
   );
 
@@ -438,7 +435,7 @@ export async function getDesvinculacionToolData(
     generatedAt: new Date().toISOString(),
     filters: normalized,
     options,
-    summary: buildSummary(filteredRows, weekId),
+    summary: buildSummary(filteredRows, weekId, weekIdFrom),
     rows: filteredRows,
   };
 }

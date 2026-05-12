@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 
 import type { DesvinculacionToolRow } from "@/lib/talento-humano-herramienta-desvinculacion";
+import { estadoMeta, estadoSeverityRank } from "@/lib/talento-humano-desvinculacion-rules";
 import { SearchInput } from "@/shared/forms/search-input";
 import { DetailSection } from "@/shared/layout/filter-panel";
 import {
@@ -25,7 +26,8 @@ type SortKey =
   | "pctHoursHn"
   | "rendimiento"
   | "rendimientoMin"
-  | "cumplimiento";
+  | "cumplimiento"
+  | "estado";
 
 const collator = new Intl.Collator("es-EC", { numeric: true, sensitivity: "base" });
 
@@ -56,6 +58,7 @@ function rowSortValue(row: DesvinculacionToolRow, key: SortKey): string | number
     case "rendimiento": return row.rendimiento;
     case "rendimientoMin": return row.rendimientoMin;
     case "cumplimiento": return row.cumplimiento;
+    case "estado": return estadoSeverityRank(row.estado);
     default: return null;
   }
 }
@@ -77,6 +80,24 @@ function formatRatioPct(value: number | null): string {
     });
 }
 
+function estadoTooltip(row: DesvinculacionToolRow): string {
+  const meta = estadoMeta(row.estado);
+  const lines: string[] = [];
+  lines.push(`${meta.emoji} ${meta.label}`);
+  lines.push(meta.description);
+  lines.push("");
+  lines.push(`Semanas válidas: ${row.validWeeks} de ${row.totalWeeksInWindow}`);
+  lines.push(`Última semana válida: ${row.lastIsValid ? "Sí" : "No"}`);
+  if (row.mkTau !== null) lines.push(`Mann-Kendall τ: ${row.mkTau.toFixed(2)}`);
+  if (row.mkZ !== null) lines.push(`Mann-Kendall Z: ${row.mkZ.toFixed(2)}`);
+  if (row.slopePerWeek !== null) {
+    const pp = row.slopePerWeek * 100;
+    const sign = pp >= 0 ? "+" : "";
+    lines.push(`Pendiente Theil-Sen: ${sign}${pp.toFixed(2)} pp/sem`);
+  }
+  return lines.join("\n");
+}
+
 export function DesvinculacionDetailTable({
   rows,
   weekId,
@@ -94,7 +115,7 @@ export function DesvinculacionDetailTable({
   selectedPersonId: string | null;
   onSelectPerson: (personId: string) => void;
 }) {
-  const [sortKey, setSortKey] = useState<SortKey>("cumplimiento");
+  const [sortKey, setSortKey] = useState<SortKey>("estado");
   const [direction, setDirection] = useState<SortDirection>("asc");
 
   const handleSort = (key: string) => {
@@ -130,7 +151,7 @@ export function DesvinculacionDetailTable({
             </div>
           </div>
           <p className="text-xs text-muted-foreground">
-            {formatInteger(rows.length)} colaboradores con cumplimiento · semana {formatIsoWeekLabel(weekId)} · {isValidating ? "actualizando…" : "datos al día"}
+            {formatInteger(rows.length)} colaboradores · semana {formatIsoWeekLabel(weekId)} · {isValidating ? "actualizando…" : "datos al día"}
           </p>
         </CardHeader>
         <CardContent>
@@ -147,6 +168,7 @@ export function DesvinculacionDetailTable({
                   <SortableHeader label="Rendimiento" sortKey="rendimiento" activeSortKey={sortKey} direction={direction} onSort={handleSort} align="right" />
                   <SortableHeader label="Rend. mínimo" sortKey="rendimientoMin" activeSortKey={sortKey} direction={direction} onSort={handleSort} align="right" />
                   <SortableHeader label="Cumplimiento" sortKey="cumplimiento" activeSortKey={sortKey} direction={direction} onSort={handleSort} align="right" />
+                  <SortableHeader label="Estado" sortKey="estado" activeSortKey={sortKey} direction={direction} onSort={handleSort} align="right" />
                 </tr>
               </thead>
               <tbody>
@@ -176,6 +198,7 @@ function DesvinculacionRowItem({
   isSelected: boolean;
   onSelect: (personId: string) => void;
 }) {
+  const meta = estadoMeta(row.estado);
   return (
     <tr
       role="button"
@@ -225,6 +248,13 @@ function DesvinculacionRowItem({
             })}
           </Badge>
         )}
+      </StandardTd>
+      <StandardTd align="right">
+        <span title={estadoTooltip(row)} className="inline-flex">
+          <Badge variant={meta.badgeVariant}>
+            {meta.emoji} {meta.label}
+          </Badge>
+        </span>
       </StandardTd>
     </tr>
   );
