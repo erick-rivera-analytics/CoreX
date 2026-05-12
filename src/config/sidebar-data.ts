@@ -1,6 +1,7 @@
 import type { LucideIcon } from "lucide-react";
 import {
   BadgeCheck,
+  BriefcaseBusiness,
   CalendarDays,
   ClipboardList,
   DatabaseZap,
@@ -38,6 +39,7 @@ const GROUP_ICON_BY_LABEL: Record<string, LucideIcon> = {
   Explorador: UserSearch,
   Bodega: DatabaseZap,
   Campo: Sprout,
+  Comercial: BriefcaseBusiness,
   Laboratorio: Beaker,
   Postcosecha: Factory,
   "Talento Humano": Users,
@@ -56,6 +58,7 @@ const GROUP_ICON_BY_LABEL: Record<string, LucideIcon> = {
 const ORDER_BY_LABEL: Record<string, number> = {
   Inicio: 0,
   Campo: 10,
+  Comercial: 12,
   Postcosecha: 20,
   Calidad: 30,
   Bodega: 35,

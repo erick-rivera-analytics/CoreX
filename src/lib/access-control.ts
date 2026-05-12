@@ -1,4 +1,4 @@
-import {
+﻿import {
   ACTIVE_MODULES,
   ALL_MANAGED_MODULES,
   type ModuleAccessSection,
@@ -44,20 +44,20 @@ function buildAccessLabel(eyebrow: string, title: string) {
  * Convencion: `panel:<dominio>.<subseccion>`.
  */
 export const PANEL_ACCESS_RESOURCES: AccessResource[] = [
-  { resourceKey: "panel:person-sheet.info",        label: "Ficha del personal / Información",  section: "Paneles" },
+  { resourceKey: "panel:person-sheet.info",        label: "Ficha del personal / InformaciÃ³n",  section: "Paneles" },
   { resourceKey: "panel:person-sheet.performance", label: "Ficha del personal / Rendimiento",  section: "Paneles" },
-  { resourceKey: "panel:person-sheet.medical",     label: "Ficha del personal / Ficha médica", section: "Paneles" },
+  { resourceKey: "panel:person-sheet.medical",     label: "Ficha del personal / Ficha mÃ©dica", section: "Paneles" },
   { resourceKey: "panel:tthh.followups.view",      label: "Seguimientos / Ver",                section: "Paneles" },
   { resourceKey: "panel:tthh.followups.write",     label: "Seguimientos / Registrar",          section: "Paneles" },
   { resourceKey: "panel:tthh.followups.sensitive", label: "Seguimientos / Ver datos sensibles", section: "Paneles" },
   { resourceKey: "panel:tthh.followups.admin",     label: "Seguimientos / Corregir",            section: "Paneles" },
-  { resourceKey: "panel:tthh.collaborators.basic",       label: "Colaboradores / Información básica", section: "Paneles" },
+  { resourceKey: "panel:tthh.collaborators.basic",       label: "Colaboradores / InformaciÃ³n bÃ¡sica", section: "Paneles" },
   { resourceKey: "panel:tthh.collaborators.performance", label: "Colaboradores / Rendimiento",        section: "Paneles" },
-  { resourceKey: "panel:tthh.collaborators.medical",     label: "Colaboradores / Ficha médica",       section: "Paneles" },
+  { resourceKey: "panel:tthh.collaborators.medical",     label: "Colaboradores / Ficha mÃ©dica",       section: "Paneles" },
   { resourceKey: "panel:tthh.collaborators.absenteeism", label: "Colaboradores / Ausentismo",         section: "Paneles" },
   { resourceKey: "panel:tthh.collaborators.exits",       label: "Colaboradores / Salidas",            section: "Paneles" },
   { resourceKey: "panel:tthh.collaborators.followups",   label: "Colaboradores / Seguimientos",       section: "Paneles" },
-  { resourceKey: "panel:tthh.collaborators.filter-area", label: "Colaboradores / Filtrar área",       section: "Paneles" },
+  { resourceKey: "panel:tthh.collaborators.filter-area", label: "Colaboradores / Filtrar Ã¡rea",       section: "Paneles" },
   { resourceKey: "panel:tthh.collaborators.filter-state", label: "Colaboradores / Filtrar estado",    section: "Paneles" },
 ];
 
@@ -152,6 +152,16 @@ const API_ACCESS_RULES_UNSORTED: ApiAccessRule[] = [
     requiredResources: ["/dashboard/calidad/punto-apertura"],
   },
   {
+    pathnamePrefix: "/api/calidad/reclamos",
+    policy: "resource-bound",
+    requiredResources: ["/dashboard/calidad/reclamos"],
+  },
+  {
+    pathnamePrefix: "/api/comercial/reclamos",
+    policy: "resource-bound",
+    requiredResources: ["/dashboard/comercial/reclamos"],
+  },
+  {
     pathnamePrefix: "/api/me/profile",
     policy: "resource-bound",
     requiredResources: ["/dashboard/mi-cuenta"],
@@ -190,6 +200,56 @@ const API_ACCESS_RULES_UNSORTED: ApiAccessRule[] = [
     pathnamePrefix: "/api/laboratorio/administrar-maestros/tipos-elaboracion",
     policy: "resource-bound",
     requiredResources: ["/dashboard/laboratorio/administrar-maestros/tipos-elaboracion"],
+  },
+  {
+    pathnamePrefix: "/api/ventas/administrar-maestros/clientes",
+    policy: "resource-bound",
+    requiredResources: ["/dashboard/comercial/administrar-maestros/clientes"],
+  },
+  {
+    pathnamePrefix: "/api/ventas/administrar-maestros/comercializadoras",
+    policy: "resource-bound",
+    requiredResources: ["/dashboard/comercial/administrar-maestros/comercializadoras"],
+  },
+  {
+    pathnamePrefix: "/api/ventas/administrar-maestros/ejecutivos-cuenta",
+    policy: "resource-bound",
+    requiredResources: ["/dashboard/comercial/administrar-maestros/ejecutivos-cuenta"],
+  },
+  {
+    pathnamePrefix: "/api/comercial/administrar-maestros/clientes",
+    policy: "resource-bound",
+    requiredResources: ["/dashboard/comercial/administrar-maestros/clientes"],
+  },
+  {
+    pathnamePrefix: "/api/comercial/administrar-maestros/comercializadoras",
+    policy: "resource-bound",
+    requiredResources: ["/dashboard/comercial/administrar-maestros/comercializadoras"],
+  },
+  {
+    pathnamePrefix: "/api/comercial/administrar-maestros/ejecutivos-cuenta",
+    policy: "resource-bound",
+    requiredResources: ["/dashboard/comercial/administrar-maestros/ejecutivos-cuenta"],
+  },
+  {
+    pathnamePrefix: "/api/general/administrar-maestros/variedades",
+    policy: "resource-bound",
+    requiredResources: ["/dashboard/general/administrar-maestros/variedades"],
+  },
+  {
+    pathnamePrefix: "/api/postcosecha/administrar-maestros/destinos",
+    policy: "resource-bound",
+    requiredResources: ["/dashboard/postcosecha/administrar-maestros/destinos"],
+  },
+  {
+    pathnamePrefix: "/api/general/administrar-maestros/fincas",
+    policy: "resource-bound",
+    requiredResources: ["/dashboard/general/administrar-maestros/fincas"],
+  },
+  {
+    pathnamePrefix: "/api/comercial/administrar-maestros/problemas-reclamo",
+    policy: "resource-bound",
+    requiredResources: ["/dashboard/comercial/administrar-maestros/problemas-reclamo"],
   },
   {
     pathnamePrefix: "/api/bodega/planificacion/programaciones",
@@ -430,3 +490,4 @@ export function getApiAccessRule(pathname: string): ApiAccessRule | null {
 export function matchesApiPrefix(pathname: string, prefix: string) {
   return pathname === prefix || pathname.startsWith(`${prefix}/`);
 }
+

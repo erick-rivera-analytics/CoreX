@@ -63,6 +63,18 @@ if (process.env.NODE_ENV === "production") {
       hint: "Necesario para los modulos de postcosecha (balanzas, solver, registros).",
     },
     {
+      name: "GENERAL_DATABASE_NAME",
+      hint: "Necesario para los maestros transversales (fincas y variedades).",
+    },
+    {
+      name: "QUALITY_DATABASE_NAME",
+      hint: "Necesario para los modulos propios de calidad.",
+    },
+    {
+      name: "COMMERCIAL_DATABASE_NAME",
+      hint: "Necesario para los maestros comerciales y el flujo transaccional de reclamos.",
+    },
+    {
       name: "CAMP_DATABASE_NAME",
       hint: "Necesario para el pool db_camp usado por el modulo Campo.",
     },

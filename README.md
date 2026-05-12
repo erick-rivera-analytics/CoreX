@@ -89,6 +89,44 @@ Variables importantes adicionales:
 - `DATABASE_POOL_MAX`
 - `DATABASE_IDLE_TIMEOUT_MS`
 - `SLOW_QUERY_THRESHOLD_MS`
+- `COMMERCIAL_DATABASE_NAME=db_commercial`
+- `COMMERCIAL_CLAIMS_NAS_ROOT` para fotos de `Comercial / Reclamos`
+
+## Comercial - Fotos de reclamos
+
+El modulo `Gestion / Comercial / Reclamos` guarda fotos por API y este flujo debe quedar desacoplado del usuario final.
+
+Ruta NAS actual:
+
+- `\\10.0.2.15\06_transformacion\Vigentes\PROYECTOS\PLANIFICACION\lakehouse\data\nosql\comercial\img`
+
+Estado actual en desarrollo local:
+
+- cuando CoreX corre en `localhost`, la API escribe y lee con la cuenta Windows del usuario que levanta `Next.js`
+- esto sirve para desarrollo y pruebas locales, pero no es el modelo correcto para servidor
+
+Requisito obligatorio al pasar a servidor:
+
+1. publicar CoreX en un servidor central
+2. ejecutar el proceso `Next.js` / `node` con una cuenta de servicio de dominio
+3. dar permisos `Read`, `Write` y `Modify` sobre `COMMERCIAL_CLAIMS_NAS_ROOT` solo a esa cuenta de servicio
+4. no dar permisos directos del NAS a los usuarios funcionales del modulo
+5. mantener la visualizacion de fotos solo por API:
+   - `POST /api/comercial/reclamos/[claimId]/photo`
+   - `GET /api/comercial/reclamos/[claimId]/attachments/[attachmentId]`
+
+Regla de consistencia para produccion:
+
+- cargadores, aprobadores y aplicadores no deben depender de permisos directos al share
+- el aprobador debe poder ver la foto desde CoreX aunque no tenga acceso a la carpeta NAS
+- la cuenta que necesita permiso real sobre la ruta es la cuenta tecnica del backend
+
+Referencia operativa:
+
+- ver `docs/despliegue.md` para el checklist de servidor
+- cuenta sugerida para despliegue: `GRUPO-MALIMA\\svc_corex`
+
+Si esta implementacion no se respeta al mover el modulo a servidor, la carga y visualizacion de fotos volvera a depender del usuario Windows que ejecute la app, y eso no es aceptable para operacion estable.
 
 ## Arquitectura corta
 

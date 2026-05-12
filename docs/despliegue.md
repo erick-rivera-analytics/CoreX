@@ -81,6 +81,16 @@ Si se usa configuracion separada por host/usuario en vez de URL, aplicar el SQL 
 
 `HUMAN_TALENT_DATABASE_URL` o `HUMAN_TALENT_DATABASE_NAME=db_human_talent` es requerido para `/dashboard/talento-humano/seguimientos` (Seguimientos Trabajo Social). El modulo carga con selectores vacios si la BD no esta disponible (degradacion graceful), pero registrar respuestas falla hasta que el SQL se aplique.
 
+`COMMERCIAL_DATABASE_NAME=db_commercial` es requerido para los maestros de `Comercial` y para el modulo transaccional `Gestion / Comercial / Reclamos`.
+
+`COMMERCIAL_CLAIMS_NAS_ROOT` es requerido para guardar y servir fotos de reclamos comerciales.
+
+Ruta NAS actual esperada:
+
+```env
+COMMERCIAL_CLAIMS_NAS_ROOT=\\10.0.2.15\06_transformacion\Vigentes\PROYECTOS\PLANIFICACION\lakehouse\data\nosql\comercial\img
+```
+
 Antes de habilitar ese modulo, aplicar manualmente en `db_human_talent`:
 
 ```bash
@@ -104,6 +114,28 @@ TRUSTED_ORIGINS=http://tu-host-o-dominio:7777
 API_ORIGIN_CHECK_ENABLED=true
 TZ=UTC
 ```
+
+## Comercial / Reclamos - requisito de servidor
+
+Para el modulo `Gestion / Comercial / Reclamos`, las fotos no deben depender del usuario final que abre la app.
+
+Regla de despliegue obligatoria:
+
+1. CoreX debe correr en un servidor central, no como `localhost` de cada usuario final.
+2. El proceso `Next.js` / `node` debe ejecutarse con una cuenta de servicio de dominio.
+3. Solo esa cuenta de servicio debe tener permisos sobre `COMMERCIAL_CLAIMS_NAS_ROOT`.
+4. Los usuarios funcionales y aprobadores no requieren permisos directos al NAS.
+5. La visualizacion de fotos debe ocurrir exclusivamente por la API:
+   - `POST /api/comercial/reclamos/[claimId]/photo`
+   - `GET /api/comercial/reclamos/[claimId]/attachments/[attachmentId]`
+
+Recomendacion operativa:
+
+- cuenta sugerida: `GRUPO-MALIMA\\svc_corex`
+- permisos minimos en la carpeta NAS: `Read`, `Write`, `Modify`
+- no otorgar permisos amplios del share a todos los usuarios del modulo
+
+Si CoreX se ejecuta localmente en la PC del usuario, la API seguira leyendo/escribiendo con esa cuenta Windows local y no con una cuenta tecnica central.
 
 `TZ=UTC` es obligatorio en servidor y contenedor para evitar drift de fechas tipo `YYYY-MM-DD` y errores off-by-one al normalizar fechas de BD.
 

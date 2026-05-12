@@ -54,6 +54,13 @@ const LEGACY_SOLVER_PYTHON = resolve(
 
 const SOFT_MODE_MIN_COMPLIANCE = 0.97;
 const SOFT_SKU_TARGET_MIN_PCT = -0.03;
+const SOLVER_BRIDGE_TIMEOUT_MS = 300_000;
+const MAX_SOLVE_ATTEMPTS_PER_MODE = 6;
+const MAX_SKU_REBALANCE_PASSES = 1;
+const MAX_UNDER_TARGET_SKUS_PER_PASS = 1;
+const MAX_DONOR_SKUS_PER_PASS = 0;
+const MAX_DONOR_AMOUNTS_PER_SKU = 0;
+const MAX_SELF_REDUCTION_OPTIONS = 1;
 
 function ensureSolverEngineAvailable() {
   if (!existsSync(BRIDGE_SCRIPT_PATH)) {
@@ -96,6 +103,12 @@ export async function runBridge<T>(
       env: process.env,
       stdio: ["pipe", "pipe", "pipe"],
     });
+    const timeout = setTimeout(() => {
+      child.kill();
+      rejectPromise(
+        new Error("El solver de clasificacion en blanco excedio el tiempo maximo de ejecucion."),
+      );
+    }, SOLVER_BRIDGE_TIMEOUT_MS);
 
     let stdout = "";
     let stderr = "";
@@ -109,10 +122,12 @@ export async function runBridge<T>(
     });
 
     child.on("error", (error) => {
+      clearTimeout(timeout);
       rejectPromise(error);
     });
 
     child.on("close", (code) => {
+      clearTimeout(timeout);
       if (code !== 0) {
         rejectPromise(new Error(stderr.trim() || "No se pudo ejecutar el solver de clasificacion en blanco."));
         return;
@@ -353,15 +368,15 @@ function countRowDemand(row: PoscosechaClasificacionOrderRow) {
   );
 }
 
-function reduceSoftDemandForSku(
-  softOrders: PoscosechaClasificacionOrderRow[],
+function reduceDemandForSku(
+  rows: PoscosechaClasificacionOrderRow[],
   sku: string,
   amount: number,
 ) {
   let remaining = Math.max(amount, 0);
-  if (remaining <= 0) return softOrders.map((row) => ({ ...row }));
+  if (remaining <= 0) return rows.map((row) => ({ ...row }));
 
-  const nextRows = softOrders.map((row) => ({ ...row }));
+  const nextRows = rows.map((row) => ({ ...row }));
   const rowIndex = nextRows.findIndex((row) => row.sku === sku);
   if (rowIndex < 0) return null;
 
@@ -377,6 +392,32 @@ function reduceSoftDemandForSku(
   return remaining > 0 ? null : nextRows;
 }
 
+function reduceDemandAcrossOrderSets(
+  strictOrders: PoscosechaClasificacionOrderRow[],
+  softOrders: PoscosechaClasificacionOrderRow[],
+  sku: string,
+  amount: number,
+) {
+  const nextSoft = softOrders.map((row) => ({ ...row }));
+  const nextStrict = strictOrders.map((row) => ({ ...row }));
+
+  const softRow = nextSoft.find((row) => row.sku === sku);
+  const softAvailable = softRow ? countRowDemand(softRow) : 0;
+  const consumeSoft = Math.min(Math.max(amount, 0), softAvailable);
+  const consumeStrict = Math.max(amount - consumeSoft, 0);
+
+  const reducedSoft = consumeSoft > 0 ? reduceDemandForSku(nextSoft, sku, consumeSoft) : nextSoft;
+  if (!reducedSoft) return null;
+
+  const reducedStrict = consumeStrict > 0 ? reduceDemandForSku(nextStrict, sku, consumeStrict) : nextStrict;
+  if (!reducedStrict) return null;
+
+  return {
+    strictOrders: reducedStrict,
+    softOrders: reducedSoft,
+  };
+}
+
 function getUnderTargetSkus(result: PoscosechaClasificacionResult | null) {
   if (!result) return [];
 
@@ -387,9 +428,25 @@ function getUnderTargetSkus(result: PoscosechaClasificacionResult | null) {
       pct: Number(row.sobrepesoPct ?? 0),
       pedidoResuelto: Math.max(toInteger(row.pedidoResuelto, 0), 0),
       pesoRealTotal: Math.max(toNumber(row.pesoRealTotal, 0), 0),
+      pesoIdealBunch: Math.max(toNumber(row.pesoIdealBunch, 0), 0),
       pesoMinObjetivo: Math.max(toNumber(row.pesoMinObjetivo, 0), 0),
+      tallosPromedioRamo: Math.max(toNumber(row.tallosPromedioRamo, 0), 0),
+      tallosMax: Math.max(toInteger(row.tallosMax, 0), 0),
     }))
     .sort((left, right) => left.pct - right.pct);
+}
+
+function getResolvedSkuMetrics(result: PoscosechaClasificacionResult | null) {
+  if (!result) return [];
+
+  return result.orderRows
+    .filter((row) => Number(row.pedidoResuelto ?? 0) > 0)
+    .map((row) => ({
+      sku: row.sku,
+      pct: Number(row.sobrepesoPct ?? 0),
+      pedidoResuelto: Math.max(toInteger(row.pedidoResuelto, 0), 0),
+      pesoIdealBunch: Math.max(toNumber(row.pesoIdealBunch, 0), 0),
+    }));
 }
 
 function getSkuDeviationScore(result: PoscosechaClasificacionResult | null) {
@@ -417,6 +474,11 @@ function getMacroCompliance(result: PoscosechaClasificacionResult | null) {
   return Number.isFinite(value) ? value : 1;
 }
 
+function isSolverTimeoutError(error: unknown) {
+  return error instanceof Error
+    && error.message.includes("excedio el tiempo maximo de ejecucion");
+}
+
 async function solveModeOnce(
   skuMaster: PoscosechaSkuRecord[],
   orders: PoscosechaClasificacionOrderRow[],
@@ -440,134 +502,297 @@ async function solveModeWithSoftGuardrails(
   mode: PoscosechaClasificacionRunMode,
   hasFutureMode: boolean,
 ) {
-  const fullResult = await solveModeOnce(skuMaster, orders, availability, settings);
-  const fullCompliance = getMacroCompliance(fullResult);
+  let solveAttempts = 0;
+  const trySolveModeOnce = async (
+    candidateOrders: PoscosechaClasificacionOrderRow[],
+    candidateAvailability: PoscosechaClasificacionAvailabilityRow[],
+    fallbackOnTimeout: boolean,
+  ) => {
+    if (solveAttempts >= MAX_SOLVE_ATTEMPTS_PER_MODE) {
+      return null;
+    }
 
-  if (!hasFutureMode || fullCompliance >= SOFT_MODE_MIN_COMPLIANCE) {
-    return fullResult;
+    solveAttempts += 1;
+    try {
+      return await solveModeOnce(skuMaster, candidateOrders, candidateAvailability, settings);
+    } catch (error) {
+      if (fallbackOnTimeout && isSolverTimeoutError(error)) {
+        return null;
+      }
+      throw error;
+    }
+  };
+
+  const fullResult = await trySolveModeOnce(orders, availability, false);
+  if (!fullResult) {
+    throw new Error("El solver excedio el presupuesto interno de rebalanceo.");
   }
+  const fullCompliance = getMacroCompliance(fullResult);
 
   const strictOrders = buildStrictOrdersByMode(orders, orderSlots, mode);
   const softOrders = buildSoftOrdersByMode(orders, orderSlots, mode);
-  const strictDemand = countOrderDemand(strictOrders);
   const totalSoftDemand = countOrderDemand(softOrders);
   if (totalSoftDemand <= 0) {
     return fullResult;
   }
 
+  const strictDemand = countOrderDemand(strictOrders);
   let bestDemand = 0;
   let bestResult: PoscosechaClasificacionResult | null = null;
   let bestSoftOrders: PoscosechaClasificacionOrderRow[] | null = null;
+  let selectedResult = fullResult;
+  let selectedSoftOrders = softOrders.map((row) => ({ ...row }));
+  let currentStrictOrders = strictOrders.map((row) => ({ ...row }));
 
-  if (strictDemand > 0) {
-    const strictOnlyResult = await solveModeOnce(skuMaster, strictOrders, availability, settings);
-    if (getMacroCompliance(strictOnlyResult) < SOFT_MODE_MIN_COMPLIANCE) {
-      return fullResult;
+  if (hasFutureMode && fullCompliance < SOFT_MODE_MIN_COMPLIANCE) {
+    if (strictDemand > 0) {
+      const strictOnlyResult = await trySolveModeOnce(strictOrders, availability, true);
+      if (!strictOnlyResult) {
+        return fullResult;
+      }
+      if (getMacroCompliance(strictOnlyResult) < SOFT_MODE_MIN_COMPLIANCE) {
+        return fullResult;
+      }
+      bestResult = strictOnlyResult;
+      bestSoftOrders = softOrders.map((row) => ({ ...row, fecha_1: 0, fecha_2: 0, fecha_3: 0, fecha_4: 0, fecha_5: 0 }));
     }
-    bestResult = strictOnlyResult;
-    bestSoftOrders = softOrders.map((row) => ({ ...row, fecha_1: 0, fecha_2: 0, fecha_3: 0, fecha_4: 0, fecha_5: 0 }));
-  }
 
-  let low = 0;
-  let high = totalSoftDemand;
-  if (strictDemand <= 0) {
-    low = 1;
-  }
+    let low = 0;
+    let high = totalSoftDemand;
+    if (strictDemand <= 0) {
+      low = 1;
+    }
 
-  while (low <= high) {
-    const mid = Math.floor((low + high) / 2);
-    const candidateSoft = clampSoftDemand(softOrders, mid);
-    const candidateOrders = mergeOrderDemand(strictOrders, candidateSoft);
-    const candidateResult = await solveModeOnce(skuMaster, candidateOrders, availability, settings);
-    const candidateCompliance = getMacroCompliance(candidateResult);
+    while (low <= high) {
+      const mid = Math.floor((low + high) / 2);
+      const candidateSoft = clampSoftDemand(softOrders, mid);
+      const candidateOrders = mergeOrderDemand(strictOrders, candidateSoft);
+      const candidateResult = await trySolveModeOnce(candidateOrders, availability, true);
+      if (!candidateResult) {
+        break;
+      }
+      const candidateCompliance = getMacroCompliance(candidateResult);
 
-    if (candidateCompliance >= SOFT_MODE_MIN_COMPLIANCE) {
-      bestDemand = mid;
-      bestResult = candidateResult;
-      bestSoftOrders = candidateSoft;
-      low = mid + 1;
-    } else {
-      high = mid - 1;
+      if (candidateCompliance >= SOFT_MODE_MIN_COMPLIANCE) {
+        bestDemand = mid;
+        bestResult = candidateResult;
+        bestSoftOrders = candidateSoft;
+        low = mid + 1;
+      } else {
+        high = mid - 1;
+      }
+    }
+
+    selectedResult = bestResult ?? fullResult;
+    selectedSoftOrders = bestSoftOrders ?? clampSoftDemand(softOrders, bestDemand);
+    let selectedDistance = Math.abs(getMacroCompliance(selectedResult) - 1);
+    const refinementStart = Math.max(bestDemand - 3, strictDemand > 0 ? 0 : 1);
+
+    for (let demand = refinementStart; demand <= bestDemand; demand += 1) {
+      const refinedSoft = clampSoftDemand(softOrders, demand);
+      const refinedOrders = mergeOrderDemand(strictOrders, refinedSoft);
+      const refinedResult = await trySolveModeOnce(refinedOrders, availability, true);
+      if (!refinedResult) {
+        break;
+      }
+      const refinedCompliance = getMacroCompliance(refinedResult);
+      if (refinedCompliance < SOFT_MODE_MIN_COMPLIANCE) continue;
+
+      const refinedDistance = Math.abs(refinedCompliance - 1);
+      if (refinedDistance < selectedDistance) {
+        selectedResult = refinedResult;
+        selectedSoftOrders = refinedSoft;
+        selectedDistance = refinedDistance;
+      }
     }
   }
 
-  let selectedResult = bestResult ?? fullResult;
-  let selectedSoftOrders = bestSoftOrders ?? clampSoftDemand(softOrders, bestDemand);
-  let selectedDistance = Math.abs(getMacroCompliance(selectedResult) - 1);
-  const refinementStart = Math.max(bestDemand - 3, strictDemand > 0 ? 0 : 1);
-
-  for (let demand = refinementStart; demand <= bestDemand; demand += 1) {
-    const refinedSoft = clampSoftDemand(softOrders, demand);
-    const refinedOrders = mergeOrderDemand(strictOrders, refinedSoft);
-    const refinedResult = await solveModeOnce(skuMaster, refinedOrders, availability, settings);
-    const refinedCompliance = getMacroCompliance(refinedResult);
-    if (refinedCompliance < SOFT_MODE_MIN_COMPLIANCE) continue;
-
-    const refinedDistance = Math.abs(refinedCompliance - 1);
-    if (refinedDistance < selectedDistance) {
-      selectedResult = refinedResult;
-      selectedSoftOrders = refinedSoft;
-      selectedDistance = refinedDistance;
-    }
-  }
-
+  let selectedOrders = mergeOrderDemand(currentStrictOrders, selectedSoftOrders);
   let skuRebalanceIterations = countOrderDemand(selectedSoftOrders);
-  while (skuRebalanceIterations > 0) {
+  let skuRebalancePass = 0;
+  while (skuRebalanceIterations > 0 && skuRebalancePass < MAX_SKU_REBALANCE_PASSES) {
+    skuRebalancePass += 1;
     const underTargetSkus = getUnderTargetSkus(selectedResult);
     if (underTargetSkus.length === 0) {
       break;
     }
 
     let improved = false;
+    const resolvedSkuMetrics = getResolvedSkuMetrics(selectedResult);
 
-    for (const underTargetSku of underTargetSkus) {
-      const currentSoftRow = selectedSoftOrders.find((row) => row.sku === underTargetSku.sku);
-      const availableSoftDemand = currentSoftRow ? countRowDemand(currentSoftRow) : 0;
-      if (availableSoftDemand <= 0) {
+    for (const underTargetSku of underTargetSkus.slice(0, MAX_UNDER_TARGET_SKUS_PER_PASS)) {
+      const donorCandidates = resolvedSkuMetrics
+        .filter((candidate) => candidate.sku !== underTargetSku.sku)
+        .map((candidate) => {
+          const softRow = selectedSoftOrders.find((row) => row.sku === candidate.sku);
+          const availableSoftDemand = softRow ? countRowDemand(softRow) : 0;
+          return {
+            ...candidate,
+            availableSoftDemand,
+          };
+        })
+        .filter((candidate) => candidate.availableSoftDemand > 0 && candidate.pct > underTargetSku.pct)
+        .sort((left, right) => {
+          if (Math.abs(right.pct - left.pct) > 1e-9) {
+            return right.pct - left.pct;
+          }
+          return right.availableSoftDemand - left.availableSoftDemand;
+        })
+        .slice(0, MAX_DONOR_SKUS_PER_PASS);
+
+      const currentScore = getSkuDeviationScore(selectedResult);
+      const underTargetIdealWeight = underTargetSku.pesoIdealBunch * underTargetSku.pedidoResuelto;
+      const underTargetWeightGap = Math.max(underTargetIdealWeight - underTargetSku.pesoRealTotal, 0);
+
+      for (const donorSku of donorCandidates) {
+        const donorIdealWeight = Math.max(donorSku.pesoIdealBunch, 1);
+        const estimatedRelease = Math.max(Math.ceil(underTargetWeightGap / donorIdealWeight), 1);
+        const candidateAmounts = Array.from(new Set([
+          1,
+          Math.min(estimatedRelease, donorSku.availableSoftDemand),
+          Math.min(estimatedRelease + 1, donorSku.availableSoftDemand),
+        ]))
+          .filter((amount) => amount > 0)
+          .slice(0, MAX_DONOR_AMOUNTS_PER_SKU);
+
+        for (const amount of candidateAmounts) {
+          const reducedSoftOrders = reduceDemandForSku(
+            selectedSoftOrders,
+            donorSku.sku,
+            amount,
+          );
+          if (!reducedSoftOrders) {
+            continue;
+          }
+
+          const candidateOrders = mergeOrderDemand(strictOrders, reducedSoftOrders);
+          if (countOrderDemand(candidateOrders) <= 0) {
+            continue;
+          }
+
+          const candidateResult = await trySolveModeOnce(candidateOrders, availability, true);
+          if (!candidateResult) {
+            break;
+          }
+          if (getMacroCompliance(candidateResult) < SOFT_MODE_MIN_COMPLIANCE) {
+            continue;
+          }
+
+          const candidateScore = getSkuDeviationScore(candidateResult);
+          const isBetter =
+            candidateScore.maxAbsPct + 1e-9 < currentScore.maxAbsPct
+            || (
+              Math.abs(candidateScore.maxAbsPct - currentScore.maxAbsPct) <= 1e-9
+              && candidateScore.sumAbsPct + 1e-9 < currentScore.sumAbsPct
+            );
+
+          if (!isBetter) {
+            continue;
+          }
+
+          selectedSoftOrders = reducedSoftOrders;
+          selectedOrders = candidateOrders;
+          selectedResult = candidateResult;
+          skuRebalanceIterations = Math.max(skuRebalanceIterations - amount, 0);
+          improved = true;
+          break;
+        }
+
+        if (improved) {
+          break;
+        }
+      }
+
+      if (improved) {
+        break;
+      }
+
+      const currentTotalRow = selectedOrders.find((row) => row.sku === underTargetSku.sku);
+      const totalAvailableDemand = currentTotalRow ? countRowDemand(currentTotalRow) : 0;
+      if (totalAvailableDemand <= 0) {
         continue;
       }
 
+      const maxResolvableAtIdealWeight = underTargetSku.pesoIdealBunch > 0
+        ? Math.floor(underTargetSku.pesoRealTotal / underTargetSku.pesoIdealBunch)
+        : underTargetSku.pedidoResuelto;
       const maxResolvableAtMinWeight = underTargetSku.pesoMinObjetivo > 0
         ? Math.floor(underTargetSku.pesoRealTotal / underTargetSku.pesoMinObjetivo)
         : underTargetSku.pedidoResuelto;
-      const requiredReduction = Math.max(underTargetSku.pedidoResuelto - maxResolvableAtMinWeight, 1);
-      const reducedSoftOrders = reduceSoftDemandForSku(
-        selectedSoftOrders,
-        underTargetSku.sku,
-        Math.min(requiredReduction, availableSoftDemand),
-      );
-      if (!reducedSoftOrders) {
-        continue;
-      }
+      const stemsDrivenReduction = underTargetSku.tallosMax > 0 && underTargetSku.tallosPromedioRamo > 0
+        ? Math.max(
+          underTargetSku.pedidoResuelto
+          - Math.floor((underTargetSku.pedidoResuelto * underTargetSku.tallosPromedioRamo) / underTargetSku.tallosMax),
+          1,
+        )
+        : 1;
+      const fallbackReductionCandidates = Array.from(new Set([
+        stemsDrivenReduction,
+        Math.max(underTargetSku.pedidoResuelto - maxResolvableAtIdealWeight, 1),
+        Math.max(underTargetSku.pedidoResuelto - maxResolvableAtMinWeight, 1),
+      ]))
+        .map((amount) => Math.min(amount, countRowDemand(selectedOrders.find((row) => row.sku === underTargetSku.sku) ?? {
+          skuId: "",
+          sku: underTargetSku.sku,
+          fecha_1: 0,
+          fecha_2: 0,
+          fecha_3: 0,
+          fecha_4: 0,
+          fecha_5: 0,
+        })))
+        .filter((amount) => amount > 0)
+        .sort((left, right) => right - left)
+        .slice(0, MAX_SELF_REDUCTION_OPTIONS);
 
-      const candidateOrders = mergeOrderDemand(strictOrders, reducedSoftOrders);
-      if (countOrderDemand(candidateOrders) <= 0) {
-        continue;
-      }
-
-      const candidateResult = await solveModeOnce(skuMaster, candidateOrders, availability, settings);
-      if (getMacroCompliance(candidateResult) < SOFT_MODE_MIN_COMPLIANCE) {
-        continue;
-      }
-
-      const currentScore = getSkuDeviationScore(selectedResult);
-      const candidateScore = getSkuDeviationScore(candidateResult);
-      const isBetter =
-        candidateScore.maxAbsPct + 1e-9 < currentScore.maxAbsPct
-        || (
-          Math.abs(candidateScore.maxAbsPct - currentScore.maxAbsPct) <= 1e-9
-          && candidateScore.sumAbsPct + 1e-9 < currentScore.sumAbsPct
+      for (const reductionAmount of fallbackReductionCandidates) {
+        const reducedOrders = reduceDemandAcrossOrderSets(
+          currentStrictOrders,
+          selectedSoftOrders,
+          underTargetSku.sku,
+          reductionAmount,
         );
+        if (!reducedOrders) {
+          continue;
+        }
 
-      if (!isBetter) {
-        continue;
+        const candidateOrders = mergeOrderDemand(reducedOrders.strictOrders, reducedOrders.softOrders);
+        if (countOrderDemand(candidateOrders) <= 0) {
+          continue;
+        }
+
+        const candidateResult = await trySolveModeOnce(candidateOrders, availability, true);
+        if (!candidateResult) {
+          break;
+        }
+        if (getMacroCompliance(candidateResult) < SOFT_MODE_MIN_COMPLIANCE) {
+          continue;
+        }
+
+        const currentScore = getSkuDeviationScore(selectedResult);
+        const candidateScore = getSkuDeviationScore(candidateResult);
+        const isBetter =
+          candidateScore.maxAbsPct + 1e-9 < currentScore.maxAbsPct
+          || (
+            Math.abs(candidateScore.maxAbsPct - currentScore.maxAbsPct) <= 1e-9
+            && candidateScore.sumAbsPct + 1e-9 < currentScore.sumAbsPct
+          );
+
+        if (!isBetter) {
+          continue;
+        }
+
+        currentStrictOrders = reducedOrders.strictOrders;
+        selectedSoftOrders = reducedOrders.softOrders;
+        selectedOrders = candidateOrders;
+        selectedResult = candidateResult;
+        skuRebalanceIterations = Math.max(skuRebalanceIterations - reductionAmount, 0);
+        improved = true;
+        break;
       }
 
-      selectedSoftOrders = reducedSoftOrders;
-      selectedResult = candidateResult;
-      skuRebalanceIterations = Math.max(skuRebalanceIterations - Math.min(requiredReduction, availableSoftDemand), 0);
-      improved = true;
-      break;
+      if (improved) {
+        break;
+      }
     }
 
     if (!improved) {
