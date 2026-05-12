@@ -194,22 +194,52 @@ function dateToIsoWeek(date: Date): { year: number; week: number } {
 }
 
 /**
- * Resta `n` semanas a un `weekId` en formato `YYYYWW` (6 dígitos).
+ * Resta `n` semanas a un `weekId`. Maneja ambos formatos:
+ *  - YYYYWW (6 dígitos, p.ej. "202619")
+ *  - YYWW   (4 dígitos, p.ej. "2619" — el formato del repo en
+ *           `gld.prod_rend_adj_cur` y otros MVs)
+ *
+ * Devuelve el resultado en el MISMO formato que el input (4→4, 6→6), así
+ * la comparación contra `iso_week_id::text` en SQL queda consistente.
+ *
  * Maneja cruces de año y años de 53 semanas (p. ej. 2020).
  *
  * Ejemplos:
- *   isoWeekSubtract("202602", 12) → "202542"
- *   isoWeekSubtract("202103", 4)  → "202053"   // 2020 tiene 53 semanas
+ *   isoWeekSubtract("202602", 12) → "202542"   // 6 digit
+ *   isoWeekSubtract("2602", 12)   → "2542"     // 4 digit
+ *   isoWeekSubtract("202103", 4)  → "202052"
  */
-export function isoWeekSubtract(weekId6: string, n: number): string {
-  const match = weekId6.match(/^(\d{4})(\d{2})$/);
-  if (!match) return weekId6;
-  const year = Number(match[1]);
-  const week = Number(match[2]);
+export function isoWeekSubtract(weekId: string, n: number): string {
+  const trimmed = weekId.trim();
+  if (!trimmed) return weekId;
+
+  let year: number;
+  let week: number;
+  let format: "yyyyww" | "yyww";
+
+  const m6 = trimmed.match(/^(\d{4})(\d{2})$/);
+  if (m6) {
+    year = Number(m6[1]);
+    week = Number(m6[2]);
+    format = "yyyyww";
+  } else {
+    const m4 = trimmed.match(/^(\d{2})(\d{2})$/);
+    if (!m4) return weekId;
+    // Asumimos siglo XXI para el formato YYWW (consistente con
+    // `currentIsoWeek` en `talento-humano-utils`).
+    year = 2000 + Number(m4[1]);
+    week = Number(m4[2]);
+    format = "yyww";
+  }
+
   const monday = isoWeekMonday(year, week);
   const shifted = new Date(monday.getTime() - n * 7 * 86400000);
   const result = dateToIsoWeek(shifted);
-  return `${result.year}${String(result.week).padStart(2, "0")}`;
+
+  if (format === "yyyyww") {
+    return `${result.year}${String(result.week).padStart(2, "0")}`;
+  }
+  return `${String(result.year % 100).padStart(2, "0")}${String(result.week).padStart(2, "0")}`;
 }
 
 // ── Clasificación principal ──────────────────────────────────────────────────

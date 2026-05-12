@@ -138,6 +138,18 @@ describe("isoWeekSubtract", () => {
   it("input mal formado se devuelve tal cual", () => {
     expect(isoWeekSubtract("abc", 1)).toBe("abc");
   });
+  it("YYWW (4 dígitos) — formato canon del repo", () => {
+    // "2619" = año 26 semana 19; 11 sem atrás = "2608"
+    expect(isoWeekSubtract("2619", 11)).toBe("2608");
+    // cruce de año: "2602" - 12 sem
+    expect(isoWeekSubtract("2602", 12)).toBe("2542");
+    // mismo formato out: 4-digit input → 4-digit output
+    expect(isoWeekSubtract("2619", 5)).toBe("2614");
+  });
+  it("preserva formato del input (6 → 6, 4 → 4)", () => {
+    expect(isoWeekSubtract("202619", 1)).toHaveLength(6);
+    expect(isoWeekSubtract("2619", 1)).toHaveLength(4);
+  });
 });
 
 describe("classifyEstado", () => {

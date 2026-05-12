@@ -87,7 +87,8 @@ export type DesvinculacionToolData = {
   rows: DesvinculacionToolRow[];
 };
 
-const WEEK_PATTERN = /^\d{6}$/;
+const WEEK_PATTERN_6 = /^\d{6}$/;
+const WEEK_PATTERN_4 = /^\d{4}$/;
 
 function toText(value: unknown): string | null {
   if (value == null) return null;
@@ -111,7 +112,10 @@ function normalizeWeek(value: string | undefined | null): string | null {
   if (!value) return null;
   const trimmed = String(value).trim();
   if (!trimmed) return null;
-  if (WEEK_PATTERN.test(trimmed)) return trimmed;
+  // Aceptamos ambos formatos almacenados en el dataset:
+  // YYYYWW (6 dígitos) y YYWW (4 dígitos canon del repo).
+  if (WEEK_PATTERN_6.test(trimmed)) return trimmed;
+  if (WEEK_PATTERN_4.test(trimmed)) return trimmed;
   const dashed = trimmed.match(/^(\d{4})-(\d{1,2})$/);
   if (dashed) {
     const year = dashed[1];
@@ -279,6 +283,12 @@ async function loadDesvinculacionWindow(
       });
     }
   }
+  // Logging defensivo para diagnosticar embudos vacíos en runtime. Sale en
+  // la terminal del dev/prod server, no expone al cliente.
+  const sampleId = result.rows[0]?.person_id;
+  console.error(
+    `[desvinculacion-window] range=${weekIdFrom}..${weekIdTo} rows=${result.rows.length} people=${acc.size}${sampleId ? ` sample_person_id=${JSON.stringify(sampleId)}` : ""}`,
+  );
   return acc;
 }
 
@@ -425,6 +435,10 @@ export async function getDesvinculacionToolData(
 
   const accumulator = await loadDesvinculacionWindow(weekIdFrom, weekId);
 
+  console.error(
+    `[desvinculacion-data] filters: weekId=${weekId} weekIdFrom=${weekIdFrom} area=${normalized.area} clasif=${normalized.jobClassification} estado=${normalized.estado} q=${normalized.q || "(empty)"}`,
+  );
+
   const allRows: DesvinculacionToolRow[] = [];
   for (const person of accumulator.values()) {
     const sortedRawRows = Array.from(person.weeksByIsoId.values())
@@ -469,6 +483,15 @@ export async function getDesvinculacionToolData(
       window: windowData,
     });
   }
+
+  // Distribución pre-filter para diagnóstico runtime.
+  const preFilterCounts: Record<string, number> = {};
+  for (const row of allRows) {
+    preFilterCounts[row.estado] = (preFilterCounts[row.estado] ?? 0) + 1;
+  }
+  console.error(
+    `[desvinculacion-classify] allRows=${allRows.length} estadoCounts=${JSON.stringify(preFilterCounts)}`,
+  );
 
   // Filtro canon: excluimos "sin_datos" — sin base de análisis no aporta
   // señal. Las demás categorías (incluso `sin_senal_actual`) sí entran.
