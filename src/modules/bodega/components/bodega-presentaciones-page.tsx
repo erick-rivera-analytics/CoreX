@@ -481,7 +481,7 @@ export function BodegaPresentacionesPage({
                   id="bodega-presentaciones-search"
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
-                  placeholder="Buscar por codigo, producto o nombre comercial..."
+                  placeholder="Buscar por codigo, producto o nombre comercial…"
                   className="pl-10"
                 />
               </div>
@@ -587,7 +587,7 @@ export function BodegaPresentacionesPage({
                       value={productSearch}
                       onChange={(event) => updateProductSearch(event.target.value)}
                       onBlur={resolveProductSearch}
-                      placeholder="Ej. EC153 o Capuchon Xlence..."
+                      placeholder="Ej. EC153 o Capuchon Xlence…"
                     />
                     <datalist id="bodega-product-options">
                       {products.map((product) => (
@@ -807,7 +807,7 @@ export function BodegaPresentacionesPage({
                   </Button>
                   <Button type="submit" className="rounded-full" disabled={isSaving}>
                     {isSaving ? (
-                      <>Guardando...</>
+                      <>Guardando…</>
                     ) : (
                       <>
                         <Save className="size-4" />

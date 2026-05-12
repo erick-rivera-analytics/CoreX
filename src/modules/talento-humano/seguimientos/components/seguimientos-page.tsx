@@ -138,7 +138,7 @@ export function SeguimientosPage({ initialCatalogs, initialWorkers, initialAreas
         eyebrow="Gestión / Talento Humano / Registros"
         title="Seguimientos Trabajo Social"
         subtitle="Consulta seguimientos programados y registra respuestas AGR/ADM."
-        icon={<UserSquare className="h-5 w-5" />}
+        icon={<UserSquare className="size-5" />}
       >
         <FilterPanel>
           <div className="space-y-3">

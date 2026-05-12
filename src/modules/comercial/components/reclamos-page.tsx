@@ -671,7 +671,7 @@ export function ComercialReclamosPage({
                       label="Cliente *"
                       value={formValues.customerId}
                       options={moduleData.options.customers}
-                      placeholder="Buscar por nombre o codigo..."
+                      placeholder="Buscar por nombre o codigo…"
                       emptyText="No hay clientes que coincidan con el filtro."
                       onChange={(value) => updateField("customerId", value)}
                       onClear={() => updateField("customerId", "")}
@@ -686,7 +686,7 @@ export function ComercialReclamosPage({
                       label="Comercializadora *"
                       value={formValues.commercializerId}
                       options={moduleData.options.commercializers}
-                      placeholder="Buscar por nombre o codigo..."
+                      placeholder="Buscar por nombre o codigo…"
                       emptyText="No hay comercializadoras que coincidan con el filtro."
                       onChange={(value) => updateField("commercializerId", value)}
                       onClear={() => updateField("commercializerId", "")}
@@ -701,7 +701,7 @@ export function ComercialReclamosPage({
                       label="Ejecutivo de venta *"
                       value={formValues.accountExecutiveId}
                       options={moduleData.options.accountExecutives}
-                      placeholder="Buscar por codigo, nombre o correo..."
+                      placeholder="Buscar por codigo, nombre o correo…"
                       emptyText="No hay ejecutivos que coincidan con el filtro."
                       helperText={selectedExecutive?.meta ? `Codigo seleccionado: ${selectedExecutive.meta}` : undefined}
                       onChange={(value) => updateField("accountExecutiveId", value)}
@@ -919,7 +919,7 @@ export function ComercialReclamosPage({
                   </Button>
                   <Button type="submit" className="rounded-full" disabled={isSubmitting}>
                     <Save className="size-4" />
-                    {isSubmitting ? "Guardando..." : "Registrar reclamo"}
+                    {isSubmitting ? "Guardando…" : "Registrar reclamo"}
                   </Button>
                 </div>
               </form>
@@ -1062,7 +1062,7 @@ export function ComercialReclamosPage({
               <div>
                 <p className="text-xs uppercase tracking-[0.22em] text-muted-foreground">Detalle de reclamo</p>
                 <h3 className="text-lg font-semibold">
-                  {selectedClaimDetail?.record.claimCode ?? "Cargando detalle..."}
+                  {selectedClaimDetail?.record.claimCode ?? "Cargando detalle…"}
                 </h3>
               </div>
               <Button type="button" variant="outline" className="rounded-full" onClick={() => setSelectedClaimId(null)}>

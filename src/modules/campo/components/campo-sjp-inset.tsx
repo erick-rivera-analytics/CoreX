@@ -137,7 +137,7 @@ export function CampoMapInset({
 
       {loading ? (
         <div className="flex h-[220px] sm:h-[280px] items-center justify-center rounded-[22px] bg-muted/40 text-sm text-muted-foreground">
-          Cargando geometria...
+          Cargando geometria…
         </div>
       ) : error ? (
         <div className="flex h-[220px] sm:h-[280px] items-center justify-center rounded-[22px] border border-dashed border-border/70 bg-muted/20 px-4 text-center text-sm text-muted-foreground">

@@ -82,7 +82,7 @@ export function PoscosechaClasificacionRecipeOverlay({
           <div className="flex min-h-[280px] items-center justify-center">
             <div className="flex items-center gap-3 rounded-full border border-border/70 bg-background/80 px-4 py-3 text-sm text-muted-foreground">
               <LoaderCircle className="size-4 animate-spin" />
-              Construyendo receta del SKU...
+              Construyendo receta del SKU…
             </div>
           </div>
         ) : error ? (

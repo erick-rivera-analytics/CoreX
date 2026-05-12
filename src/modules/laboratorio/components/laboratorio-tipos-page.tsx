@@ -247,7 +247,7 @@ export function LaboratorioTiposPage({ initialData, initialError }: LaboratorioT
                   id="laboratory-types-search"
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
-                  placeholder="Buscar por codigo o nombre..."
+                  placeholder="Buscar por codigo o nombre…"
                   className="pl-10"
                 />
               </div>
@@ -369,7 +369,7 @@ export function LaboratorioTiposPage({ initialData, initialError }: LaboratorioT
                 </Button>
                 <Button type="submit" className="rounded-full" disabled={isSaving}>
                   {isSaving ? (
-                    <>Guardando...</>
+                    <>Guardando…</>
                   ) : (
                     <>
                       <Save className="size-4" />

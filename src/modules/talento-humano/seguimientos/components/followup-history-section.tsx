@@ -79,7 +79,7 @@ function HistoryItemDetail({ eventId, catalogs }: { eventId: string; catalogs: E
   const [selectedGroupKey, setSelectedGroupKey] = useState<string | null>(null);
 
   if (isLoading) {
-    return <p className="mt-2 text-center text-xs text-muted-foreground">Cargando...</p>;
+    return <p className="mt-2 text-center text-xs text-muted-foreground">Cargando…</p>;
   }
   if (error) {
     return <p className="mt-2 text-center text-xs text-destructive/70">No se pudo cargar el detalle.</p>;
@@ -183,7 +183,7 @@ export function FollowupHistorySection({ personId, currentUniqueFollowUpCode, ca
       {open ? (
         <div className="border-t border-border/50 px-4 pb-4 pt-3">
           {!data ? (
-            <p className="text-center text-xs text-muted-foreground">Cargando historial...</p>
+            <p className="text-center text-xs text-muted-foreground">Cargando historial…</p>
           ) : responses.length === 0 ? (
             <p className="text-center text-xs text-muted-foreground">Sin seguimientos previos registrados.</p>
           ) : (

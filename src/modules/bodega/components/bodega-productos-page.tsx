@@ -510,7 +510,7 @@ export function BodegaProductosPage({
                   id="bodega-productos-search"
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
-                  placeholder="Buscar por codigo, nombre, categoria o unidad..."
+                  placeholder="Buscar por codigo, nombre, categoria o unidad…"
                   className="pl-10"
                 />
               </div>
@@ -648,7 +648,7 @@ export function BodegaProductosPage({
                         updateField("categoryId", match?.categoryId ?? "");
                         setFormErrors((current) => ({ ...current, categorySearch: undefined }));
                       }}
-                      placeholder="Escribe para buscar una rama del arbol..."
+                      placeholder="Escribe para buscar una rama del arbol…"
                     />
                     <datalist id="bodega-category-options">
                       {leafOptions.map((category) => (
@@ -740,7 +740,7 @@ export function BodegaProductosPage({
                               value={activitySearchValues[index] ?? ""}
                               onChange={(event) => updateAssignmentSearch(index, event.target.value)}
                               onBlur={() => resolveAssignmentSearch(index)}
-                              placeholder="Ej. FM11, Drench o nombre de actividad..."
+                              placeholder="Ej. FM11, Drench o nombre de actividad…"
                             />
                             <datalist id={`bodega-activity-options-${index}`}>
                               {activities.map((activity) => (
@@ -812,7 +812,7 @@ export function BodegaProductosPage({
                   </Button>
                   <Button type="submit" className="rounded-full" disabled={isSaving}>
                     {isSaving ? (
-                      <>Guardando...</>
+                      <>Guardando…</>
                     ) : (
                       <>
                         <Save className="size-4" />

@@ -262,7 +262,7 @@ export function BalanzasNodeDetailDialog({ node, filters, open, presetDestinatio
         {isLoading && !detail ? (
           <div className="flex items-center gap-3 py-12 text-sm text-muted-foreground">
             <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
-            Cargando detalle...
+            Cargando detalle…
           </div>
         ) : detail && detail.columns.length > 0 ? (
           isFlatTable ? (

@@ -269,7 +269,7 @@ export function BodegaUnidadesPage({
                   id="bodega-unidades-search"
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
-                  placeholder="Buscar por codigo, nombre o simbolo..."
+                  placeholder="Buscar por codigo, nombre o simbolo…"
                   className="pl-10"
                 />
               </div>
@@ -424,7 +424,7 @@ export function BodegaUnidadesPage({
                 </Button>
                 <Button type="submit" className="rounded-full" disabled={isSaving}>
                   {isSaving ? (
-                    <>Guardando...</>
+                    <>Guardando…</>
                   ) : (
                     <>
                       <Save className="size-4" />

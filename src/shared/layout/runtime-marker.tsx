@@ -39,7 +39,7 @@ export function RuntimeMarker() {
       className="pointer-events-none fixed bottom-3 right-3 z-[var(--z-toast)] select-none rounded-full border border-border/70 bg-card/95 px-3 py-1.5 text-[10px] font-medium tracking-[0.04em] text-muted-foreground shadow-[var(--shadow-card)] backdrop-blur"
     >
       <span className="mr-1 inline-block size-1.5 rounded-full bg-chart-success-bold align-middle" aria-hidden="true" />
-      {label} — <span className="font-semibold text-foreground">{commit}</span>
+      {label}: <span className="font-semibold text-foreground">{commit}</span>
       <span className="ml-1 text-muted-foreground/70">/ {branch}</span>
     </div>
   );

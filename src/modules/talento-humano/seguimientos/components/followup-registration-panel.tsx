@@ -191,7 +191,7 @@ export function FollowupRegistrationPanel({ followup, catalogs, permissions, asO
           </div>
           <Button variant="ghost" size="icon" onClick={onClose} aria-label="Cerrar seguimiento"><X className="size-4" /></Button>
         </div>
-        {loadingDetail ? <div className="rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">Cargando respuestas registradas...</div> : null}
+        {loadingDetail ? <div className="rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">Cargando respuestas registradas…</div> : null}
         {!catalogsReady ? <CatalogWarning missingCatalogs={missingCatalogs} /> : null}
       </CardHeader>
       <CardContent>
@@ -237,7 +237,7 @@ export function FollowupRegistrationPanel({ followup, catalogs, permissions, asO
           {permissions.canWrite ? (
             <Button className="w-full rounded-full" onClick={handleSubmit} disabled={submitting || !catalogsReady}>
               <Save className={cn("size-4", submitting && "animate-pulse")} />
-              {submitting ? "Guardando..." : isEditing ? "Guardar cambios" : "Registrar seguimiento"}
+              {submitting ? "Guardando…" : isEditing ? "Guardar cambios" : "Registrar seguimiento"}
             </Button>
           ) : <p className="text-center text-xs text-muted-foreground">Solo lectura. No tienes permiso para registrar.</p>}
         </div>

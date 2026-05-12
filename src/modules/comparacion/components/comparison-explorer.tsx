@@ -230,7 +230,7 @@ function CycleSelectorPanel({
             id={`panel-q-${tone}`}
             value={panelFilters.q}
             onChange={(v) => update("q", v)}
-            placeholder="Ciclo, bloque, variedad..."
+            placeholder="Ciclo, bloque, variedad…"
           />
         </div>
         <div className="space-y-1.5">

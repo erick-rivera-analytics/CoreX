@@ -25,7 +25,7 @@ export function PersonQuickCard({ personId, asOfDate }: Props) {
   if (isLoading) {
     return (
       <div className="rounded-[20px] border border-border/70 bg-background/80 p-4 text-sm text-muted-foreground animate-pulse">
-        Cargando perfil...
+        Cargando perfil…
       </div>
     );
   }

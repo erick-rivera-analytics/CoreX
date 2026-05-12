@@ -166,7 +166,7 @@ export function ProcessViewerOverlay({
 
             {loading ? (
               <div className="absolute inset-0 flex items-center justify-center text-sm text-muted-foreground">
-                Cargando diagrama del macroproceso...
+                Cargando diagrama del macroproceso…
               </div>
             ) : null}
 

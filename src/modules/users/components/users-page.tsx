@@ -179,7 +179,7 @@ export function UsersPage() {
           {isLoading ? (
             <div className="flex items-center justify-center gap-2 py-16 text-sm text-muted-foreground">
               <LoaderCircle className="size-4 animate-spin" />
-              Cargando usuarios...
+              Cargando usuarios…
             </div>
           ) : error ? (
             <div className="px-6 py-16 text-center text-sm text-destructive">{error.message}</div>

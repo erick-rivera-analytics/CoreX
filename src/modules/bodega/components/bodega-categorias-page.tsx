@@ -393,7 +393,7 @@ export function BodegaCategoriasPage({
                   id="bodega-categorias-search"
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
-                  placeholder="Buscar por codigo, nombre o ruta..."
+                  placeholder="Buscar por codigo, nombre o ruta…"
                   className="pl-10"
                 />
               </div>
@@ -558,7 +558,7 @@ export function BodegaCategoriasPage({
                 </Button>
                 <Button type="submit" className="rounded-full" disabled={isSaving}>
                   {isSaving ? (
-                    <>Guardando...</>
+                    <>Guardando…</>
                   ) : (
                     <>
                       <Save className="size-4" />

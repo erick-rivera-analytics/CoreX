@@ -53,8 +53,8 @@ export default function LoginPage() {
   return (
     <main className="relative flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-900/12 via-background to-accent/12 px-6 py-10 overflow-hidden">
       {/* Decorative gradient orbs */}
-      <div className="absolute -top-40 -right-40 h-80 w-80 rounded-full bg-gradient-to-br from-slate-900/20 to-transparent blur-3xl" />
-      <div className="absolute -bottom-40 -left-40 h-80 w-80 rounded-full bg-gradient-to-tr from-accent/20 to-transparent blur-3xl" />
+      <div className="absolute -top-40 -right-40 size-80 rounded-full bg-gradient-to-br from-slate-900/20 to-transparent blur-3xl" />
+      <div className="absolute -bottom-40 -left-40 size-80 rounded-full bg-gradient-to-tr from-accent/20 to-transparent blur-3xl" />
 
       <Card className="relative w-full max-w-md border border-slate-400/20 bg-card/95 shadow-2xl shadow-slate-900/20 backdrop-blur-xl transition-all duration-300 hover:shadow-2xl hover:shadow-slate-900/30 hover:border-slate-400/40 dark:border-slate-600/20 dark:hover:border-slate-600/40">
         <CardHeader className="space-y-4">

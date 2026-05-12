@@ -985,7 +985,7 @@ export function CampoDrenchProgramPage({
                 {selectedGroup ? (
                   <Button type="button" variant="outline" className="rounded-full border-rose-300 text-rose-700 hover:bg-rose-50 hover:text-rose-800" onClick={onDeleteSelectedGroup} disabled={isDeleting || isSaving}>
                     <Trash2 className="size-4" />
-                    {isDeleting ? "Eliminando..." : "Eliminar grupo base"}
+                    {isDeleting ? "Eliminando…" : "Eliminar grupo base"}
                   </Button>
                 ) : null}
                 <Button type="button" variant="outline" className="rounded-full" onClick={openCreateStandalone}>
@@ -1002,7 +1002,7 @@ export function CampoDrenchProgramPage({
                   id="drench-group-search"
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
-                  placeholder="Busca por variedad, tipo SP o semana..."
+                  placeholder="Busca por variedad, tipo SP o semana…"
                   className="pl-10"
                 />
               </div>
@@ -1083,7 +1083,7 @@ export function CampoDrenchProgramPage({
                 {editorMode === "edit" && selectedRule ? (
                   <Button type="button" variant="outline" className="rounded-full border-rose-300 text-rose-700 hover:bg-rose-50 hover:text-rose-800" onClick={onDeleteSelectedWeek} disabled={isSaving || isDeleting}>
                     <Trash2 className="size-4" />
-                    {isDeleting ? "Eliminando..." : "Eliminar semana"}
+                    {isDeleting ? "Eliminando…" : "Eliminar semana"}
                   </Button>
                 ) : null}
                 <div className="rounded-full bg-slate-900/10 p-3 text-slate-700 dark:bg-slate-900/20 dark:text-white">
@@ -1518,7 +1518,7 @@ export function CampoDrenchProgramPage({
                 </Button>
                 <Button type="submit" className="rounded-full" disabled={isSaving || isDeleting}>
                   {isSaving ? (
-                    <>Guardando...</>
+                    <>Guardando…</>
                   ) : (
                     <>
                       <Save className="size-4" />

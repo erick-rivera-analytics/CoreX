@@ -96,7 +96,7 @@ export function HoursPerformanceDonut({
     <div className="rounded-2xl border border-border/60 bg-card px-4 py-4 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
       <div className="flex items-center gap-4">
         <div
-          className="relative h-28 w-28 shrink-0 rounded-full shadow-inner"
+          className="relative size-28 shrink-0 rounded-full shadow-inner"
           style={chartStyle}
           aria-hidden="true"
         >

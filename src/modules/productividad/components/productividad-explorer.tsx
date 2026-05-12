@@ -360,7 +360,7 @@ function CycleDetailRows({
     return (
       <tr><TD colSpan={13}>
         <div className="ml-10 flex items-center gap-2 py-2 text-xs text-muted-foreground">
-          <LoaderCircle className="size-3.5 animate-spin" /> Cargando detalle...
+          <LoaderCircle className="size-3.5 animate-spin" /> Cargando detalle…
         </div>
       </TD></tr>
     );
