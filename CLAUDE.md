@@ -99,6 +99,7 @@ Analítica:
 - Postcosecha: Balanzas
 - Calidad: Punto de apertura
 - Talento Humano: Composición laboral, Demografía del personal, Rotación laboral, **Desvinculación personal**, Indicador Seguimientos
+- Talento Humano (Explorador): Colaboradores, **Simulador de Vacaciones**, **Herramienta de Desvinculación**
 
 Gestión:
 

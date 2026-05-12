@@ -291,6 +291,16 @@ const API_ACCESS_RULES_UNSORTED: ApiAccessRule[] = [
     requiredResources: ["/dashboard/talento-humano/colaboradores"],
   },
   {
+    pathnamePrefix: "/api/talento-humano/simulador-vacaciones",
+    policy: "resource-bound",
+    requiredResources: ["/dashboard/talento-humano/simulador-vacaciones"],
+  },
+  {
+    pathnamePrefix: "/api/talento-humano/herramienta-desvinculacion",
+    policy: "resource-bound",
+    requiredResources: ["/dashboard/talento-humano/herramienta-desvinculacion"],
+  },
+  {
     pathnamePrefix: "/api/talento-humano/catalogos",
     policy: "resource-bound",
     requiredResources: [
