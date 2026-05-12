@@ -405,6 +405,48 @@ El editor de Metas (`/dashboard/admin/administracion-maestros/metas-objetivos`) 
 - El canon UX/UI de explorers principales queda cerrado; nuevas divergencias deben documentarse como excepción antes de crecer.
 - El build puede emitir warning de Turbopack/NFT por rutas dinámicas del solver de postcosecha; mantenerlo vigilado.
 
+### React-doctor run 2 (mayo 2026) — findings dejados como deuda
+
+Reporte completo en
+`%TEMP%\react-doctor-dc4689b6-...`. Tras integrar reclamos (commit
+`e9f3cdc`) corrí react-doctor. Apliqué solo los fixes mecánicos
+(TIER 1 — correctness/perf/a11y, TIER 2 — tipografía/shorthand). Lo
+siguiente queda como deuda registrada:
+
+| Rule | Count | Razón para skip |
+| --- | --- | --- |
+| `no-derived-useState` | 21 | Patrón canon `useState(initialData)` + SWR `fallbackData`. Tocarlo rompería la sincronización con SWR. |
+| `no-cascading-set-state` | 8 | Refactor a `useReducer`. Alto riesgo, beneficio bajo. |
+| `no-derived-state-effect` (solver-sku-info-overlay) | 1 | El effect resetea `formValues` que el user EDITA; fix correcto requiere `key` en el componente padre, no es mecánico. |
+| `no-array-index-as-key` (admin-goal-target-editor, claim-problems-page) | 2 | Requieren agregar `clientId` al state model — refactor del shape, no mecánico. |
+| `rerender-state-only-in-handlers` (campo-explorer:188) | 1 | `pendingValveNav` SE LEE en `useEffect` deps; `useRef` rompería la reactividad. |
+| `no-effect-event-handler` (use-clasificacion-en-blanco-explorer:142) | 1 | Hook complejo del solver; requiere review profundo del flow. |
+| `rendering-hydration-mismatch-time` (my-work-explorer:250) | 2 | Falso positivo: el `new Date()` está adentro de un event handler (`onChangeMonth`), no en render path. |
+| `js-hoist-intl` (format.ts:16, 26) | 2 | Falso positivo: las líneas son el cache getter (`NUMBER_FORMAT_CACHE`/`DATE_TIME_FORMAT_CACHE`), construyen solo una vez por `(locale + options)`. El linter no entiende el patrón cache. |
+| `no-static-element-interactions` (programaciones-explorer:145) | 1 | Falso positivo: el div ya tiene `role`/`tabIndex`/`onKeyDown` condicionales. |
+| `no-z-index-9999` | 6 | Leaflet (`campo-map.tsx`, `campo-sub-map-modal.tsx`) requiere z-index altos por requerimiento del lib externo. |
+| `design-no-default-tailwind-palette` | 313 | Cosmético masivo. Refactor del design system fuera de alcance. |
+| `design-no-redundant-padding-axes` | 81 | Cosmético masivo. |
+| `prefer-useReducer` | 31 | Refactor amplio por componente. |
+| `js-combine-iterations` | 97 | Refactor por loop, no trivial. |
+| `js-flatmap-filter` | 40 | Micro-optimización funcional dudosa. |
+| `js-tosorted-immutable` | 34 | Micro-cambios `.sort()` inmutable. |
+| `js-set-map-lookups` | 18 | Mínimo impacto. |
+| `js-index-maps` | 14 | Idem. |
+| `js-min-max-loop` | 14 | Idem. |
+| `async-parallel` | 66 | `Promise.all` paralelización; algunos sí merecen pero hay que validar dependencias 1×1. |
+| `async-await-in-loop` | 41 | Algunos son intencionales (paginación, rate limit). |
+| `server-sequential-independent-await` | 18 | Idem. |
+| `knip-files/exports/types` | ~166 total | Dead code; algunos son barrels que knip no detecta. Riesgo de borrar exports usados via dynamic imports. |
+| `prefer-dynamic-import` | 22 | Code splitting; requiere medición de bundle. |
+| `prefer-use-effect-event` | 17 | `useEffectEvent` API experimental; mejor esperar a estable. |
+| `no-giant-component` | 28 | Componentes grandes ya en `hugeFileAllowlist` con justificación. |
+| `design-no-em-dash-in-jsx-text` | 3 restantes | Los `—` placeholder en tablas para celdas vacías son convención canon. |
+
+Si en una próxima iteración querés atacar alguno de estos, mirá primero
+si sigue siendo crítico tras los fixes de TIER 1/2, y validá con tests
++ smoke runtime antes de tocar varios a la vez.
+
 ### Reclamos / Frente Comercial (integrado vía commit `e9f3cdc` — mayo 2026)
 
 Deuda pendiente registrada al integrar el frente comercial. Los dos
