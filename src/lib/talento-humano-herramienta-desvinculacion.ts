@@ -283,12 +283,6 @@ async function loadDesvinculacionWindow(
       });
     }
   }
-  // Logging defensivo para diagnosticar embudos vacíos en runtime. Sale en
-  // la terminal del dev/prod server, no expone al cliente.
-  const sampleId = result.rows[0]?.person_id;
-  console.error(
-    `[desvinculacion-window] range=${weekIdFrom}..${weekIdTo} rows=${result.rows.length} people=${acc.size}${sampleId ? ` sample_person_id=${JSON.stringify(sampleId)}` : ""}`,
-  );
   return acc;
 }
 
@@ -435,10 +429,6 @@ export async function getDesvinculacionToolData(
 
   const accumulator = await loadDesvinculacionWindow(weekIdFrom, weekId);
 
-  console.error(
-    `[desvinculacion-data] filters: weekId=${weekId} weekIdFrom=${weekIdFrom} area=${normalized.area} clasif=${normalized.jobClassification} estado=${normalized.estado} q=${normalized.q || "(empty)"}`,
-  );
-
   const allRows: DesvinculacionToolRow[] = [];
   for (const person of accumulator.values()) {
     const sortedRawRows = Array.from(person.weeksByIsoId.values())
@@ -483,15 +473,6 @@ export async function getDesvinculacionToolData(
       window: windowData,
     });
   }
-
-  // Distribución pre-filter para diagnóstico runtime.
-  const preFilterCounts: Record<string, number> = {};
-  for (const row of allRows) {
-    preFilterCounts[row.estado] = (preFilterCounts[row.estado] ?? 0) + 1;
-  }
-  console.error(
-    `[desvinculacion-classify] allRows=${allRows.length} estadoCounts=${JSON.stringify(preFilterCounts)}`,
-  );
 
   // Filtro canon: excluimos "sin_datos" — sin base de análisis no aporta
   // señal. Las demás categorías (incluso `sin_senal_actual`) sí entran.

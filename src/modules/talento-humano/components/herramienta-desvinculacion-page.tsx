@@ -310,9 +310,10 @@ export function HerramientaDesvinculacionPage({ initialData }: { initialData: De
           <p>
             <strong>Tendencia decreciente</strong>: doble señal (OR) sobre los cumplimientos de las
             semanas válidas: <code>Mann-Kendall Z &lt; {RULES_CONSTANTS.MK_Z_DECLINE_THRESHOLD}</code>
-            {" "}(~ 70 % de confianza one-sided, captura consistencia direccional) o pendiente
-            {" "}<code>Theil-Sen &lt; {RULES_CONSTANTS.SLOPE_DECLINE_THRESHOLD}</code> (≥ 0.5 pp/sem,
-            captura magnitud aún con ruido).
+            {" "}(≈ 60 % de confianza one-sided, captura consistencia direccional) o pendiente
+            {" "}<code>Theil-Sen &lt; {RULES_CONSTANTS.SLOPE_DECLINE_THRESHOLD}</code> (≥ 0.3 pp/sem,
+            captura magnitud aún con ruido). El doble filtro con cumplimiento absoluto mantiene
+            la rigurosidad incluso con umbrales relajados.
           </p>
           <p>
             <strong>🔴 Salida</strong> requiere las TRES condiciones simultáneas: ≥ {RULES_CONSTANTS.MIN_VALID_FOR_ESTABLISHED} semanas válidas,

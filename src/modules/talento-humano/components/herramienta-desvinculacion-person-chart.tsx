@@ -44,9 +44,8 @@ import { Button } from "@/shared/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui/card";
 
 const COLOR_CUMPLIMIENTO = "var(--color-chart-success-bold)";
-const COLOR_HREND = "var(--color-chart-info-bold)";
-const COLOR_HORAS_VALID = "var(--color-chart-warning)";
-const COLOR_HORAS_INVALID = "var(--color-chart-neutral)";
+const COLOR_HREND_VALID = "var(--color-chart-info-bold)";
+const COLOR_HREND_INVALID = "var(--color-chart-neutral)";
 
 type ChartDatum = {
   isoWeekId: string;
@@ -155,8 +154,8 @@ export function PersonEvolutionChart({
           <ChartSection>
             <div className="grid gap-4 xl:grid-cols-2">
               <ChartSurface
-                title="Cumplimiento y % H rend"
-                subtitle={`Punto relleno = semana válida (≥ ${RULES_CONSTANTS.MIN_HOURS_PRESENCIALES}h y H rend > ${(RULES_CONSTANTS.MIN_H_REND_RATIO * 100).toFixed(0)}%).`}
+                title="Cumplimiento por semana"
+                subtitle="Líneas de referencia en 100 % (objetivo) y 90 % (alerta). Punto relleno = semana válida."
               >
                 <div className="h-[260px]">
                   <ResponsiveContainer width="100%" height="100%">
@@ -199,18 +198,8 @@ export function PersonEvolutionChart({
                         dataKey="cumplimiento"
                         name="Cumplimiento"
                         stroke={COLOR_CUMPLIMIENTO}
-                        strokeWidth={2}
+                        strokeWidth={2.5}
                         dot={<ValidityDot stroke={COLOR_CUMPLIMIENTO} />}
-                        connectNulls
-                        isAnimationActive={false}
-                      />
-                      <Line
-                        type="monotone"
-                        dataKey="pctHoursRend"
-                        name="H rend %"
-                        stroke={COLOR_HREND}
-                        strokeWidth={2}
-                        dot={<ValidityDot stroke={COLOR_HREND} />}
                         connectNulls
                         isAnimationActive={false}
                       />
@@ -220,34 +209,34 @@ export function PersonEvolutionChart({
                 <div className="mt-3 flex flex-wrap gap-3 text-xs text-muted-foreground">
                   <span className="inline-flex items-center gap-1.5">
                     <span className="size-2 rounded-full" style={{ backgroundColor: COLOR_CUMPLIMIENTO }} aria-hidden="true" />
-                    Cumplimiento
+                    Semana válida
                   </span>
                   <span className="inline-flex items-center gap-1.5">
-                    <span className="size-2 rounded-full" style={{ backgroundColor: COLOR_HREND }} aria-hidden="true" />
-                    H rend %
-                  </span>
-                  <span className="inline-flex items-center gap-1.5">
-                    <span className="size-2 rounded-full border" style={{ backgroundColor: "transparent", borderColor: COLOR_CUMPLIMIENTO }} aria-hidden="true" />
+                    <span
+                      className="size-2 rounded-full border"
+                      style={{ backgroundColor: "transparent", borderColor: COLOR_CUMPLIMIENTO }}
+                      aria-hidden="true"
+                    />
                     Semana inválida
                   </span>
                 </div>
               </ChartSurface>
 
               <ChartSurface
-                title="Horas presenciales por semana"
-                subtitle={`Línea de alerta en ${RULES_CONSTANTS.MIN_HOURS_PRESENCIALES} h. Barras tenues = semanas inválidas.`}
+                title="% Horas con rendimiento por semana"
+                subtitle={`Línea de referencia en ${(RULES_CONSTANTS.MIN_H_REND_RATIO * 100).toFixed(0)} % (umbral de validez). Barra tenue = semana no válida.`}
               >
                 <div className="h-[260px]">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={chartData} margin={{ top: 8, right: 16, left: 0, bottom: 8 }}>
                       <CartesianGrid {...gridConfig} />
                       <XAxis dataKey="weekLabel" {...axisConfig} tick={axisTickStyleCompact} interval="preserveStartEnd" />
-                      <YAxis {...axisConfig} tick={axisTickStyleCompact} />
+                      <YAxis tickFormatter={pctTickFormatter} {...axisConfig} tick={axisTickStyleCompact} domain={[0, 1]} />
                       <ReferenceLine
-                        y={RULES_CONSTANTS.MIN_HOURS_PRESENCIALES}
+                        y={RULES_CONSTANTS.MIN_H_REND_RATIO}
                         stroke="var(--color-chart-warning)"
                         strokeDasharray="4 4"
-                        label={{ value: `${RULES_CONSTANTS.MIN_HOURS_PRESENCIALES} h`, position: "insideTopRight", fill: "var(--color-chart-warning)", fontSize: 10 }}
+                        label={{ value: `${(RULES_CONSTANTS.MIN_H_REND_RATIO * 100).toFixed(0)}%`, position: "insideTopRight", fill: "var(--color-chart-warning)", fontSize: 10 }}
                       />
                       <Tooltip
                         cursor={tooltipCursorStyle}
@@ -259,17 +248,18 @@ export function PersonEvolutionChart({
                               const source = first?.payload as ChartDatum | undefined;
                               return [
                                 { label: "Semana válida", value: source?.isValid ? "Sí" : "No" },
+                                { label: "H rend %", value: formatRatio(source?.pctHoursRend) },
                                 { label: "Horas presenciales", value: formatDecimal(source?.totalActualHours ?? 0, 1) },
                               ];
                             }}
                           />
                         )}
                       />
-                      <Bar dataKey="totalActualHours" name="Horas presenciales" radius={[4, 4, 0, 0]}>
+                      <Bar dataKey="pctHoursRend" name="H rend %" radius={[4, 4, 0, 0]}>
                         {chartData.map((entry) => (
                           <Cell
                             key={entry.isoWeekId}
-                            fill={entry.isValid ? COLOR_HORAS_VALID : COLOR_HORAS_INVALID}
+                            fill={entry.isValid ? COLOR_HREND_VALID : COLOR_HREND_INVALID}
                           />
                         ))}
                       </Bar>
@@ -278,12 +268,12 @@ export function PersonEvolutionChart({
                 </div>
                 <div className="mt-3 flex flex-wrap gap-3 text-xs text-muted-foreground">
                   <span className="inline-flex items-center gap-1.5">
-                    <span className="size-2 rounded-full" style={{ backgroundColor: COLOR_HORAS_VALID }} aria-hidden="true" />
-                    Semana válida
+                    <span className="size-2 rounded-full" style={{ backgroundColor: COLOR_HREND_VALID }} aria-hidden="true" />
+                    Semana válida (≥ 40 h y H rend &gt; 70 %)
                   </span>
                   <span className="inline-flex items-center gap-1.5">
-                    <span className="size-2 rounded-full" style={{ backgroundColor: COLOR_HORAS_INVALID }} aria-hidden="true" />
-                    Semana inválida (poca presencia o baja H rend %)
+                    <span className="size-2 rounded-full" style={{ backgroundColor: COLOR_HREND_INVALID }} aria-hidden="true" />
+                    Semana inválida
                   </span>
                 </div>
               </ChartSurface>
