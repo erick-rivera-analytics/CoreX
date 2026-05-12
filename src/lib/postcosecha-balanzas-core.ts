@@ -6,6 +6,7 @@ import {
   computeHydrationKpi,
   computeWasteKpi,
   loadAdjustmentParams,
+  loadAdjustmentSourceRows,
   loadHydrationFactorIndex,
   loadHydrationTargets,
   loadWasteTargets,
@@ -14,6 +15,8 @@ import {
   resolveMetaOrigin,
   resolveVarietyFromFarm,
   type AdjustmentColumnConfig,
+  type BalanzasBranch,
+  type BalanzasFarm,
   type BalanzasNodeKpi,
   type HydrationColumnConfig,
   type WasteColumnConfig,
@@ -59,7 +62,25 @@ export type BalanzasSummaryMetric = {
 };
 
 export type BalanzasDetailColumnFormat = "kg" | "g" | "pct" | "count" | "ratio";
-export type BalanzasDetailAggregateMode = "sum" | "derived-ratio" | "derived-quotient";
+
+/**
+ * Modos de agregación para columnas numéricas de tabla / métricas de summary.
+ *
+ *   "sum"                  → SUM(col)
+ *   "derived-ratio"        → (SUM(num)/SUM(den)) − 1   (ratio de crecimiento, ej Hidratación)
+ *   "derived-quotient"     → SUM(num)/SUM(den)         (cociente puro)
+ *   "derived-loss-ratio"   → 1 − SUM(num)/SUM(den)     (fracción de pérdida POSITIVA, ej Desperdicio)
+ *
+ * Cuando se usa `derived-loss-ratio`, además, el row-by-row de la columna
+ * se NIEGA en `loadNodeDetail` para mantener consistencia visual
+ * (la MV trae el valor como `(num/den) − 1` negativo; tras negar queda
+ * `1 − num/den` positivo, equivalente a la fórmula del agregado).
+ */
+export type BalanzasDetailAggregateMode =
+  | "sum"
+  | "derived-ratio"
+  | "derived-quotient"
+  | "derived-loss-ratio";
 
 export type BalanzasDetailAggregateSources = {
   numeratorKey: string;
@@ -237,7 +258,7 @@ const B2_B2A_WEIGHT_SUMMARY_METRICS: SummaryMetricDef[] = [
     col: "dispatch_pct",
     label: "Desperdicio %",
     format: "pct",
-    aggregateMode: "derived-ratio",
+    aggregateMode: "derived-loss-ratio",
     aggregateSources: {
       numeratorKey: "weight_b2a_kg",
       denominatorKey: "weight_b2_kg",
@@ -256,7 +277,7 @@ const B2_B2A_WEIGHT_DETAIL_COLUMN_CONFIG: Record<string, BalanzasDetailColumnCon
   },
   dispatch_pct: {
     format: "pct",
-    aggregateMode: "derived-ratio",
+    aggregateMode: "derived-loss-ratio",
     aggregateSources: {
       numeratorKey: "weight_b2a_kg",
       denominatorKey: "weight_b2_kg",
@@ -300,7 +321,7 @@ const B1C_B2A_IDEAL_SUMMARY_METRICS: SummaryMetricDef[] = [
     col: "dispatch_pct",
     label: "Desp%",
     format: "pct",
-    aggregateMode: "derived-ratio",
+    aggregateMode: "derived-loss-ratio",
     aggregateSources: {
       numeratorKey: "weight_b2a_kg",
       denominatorKey: "weight_b2_kg",
@@ -362,7 +383,7 @@ const B1C_B2A_IDEAL_DETAIL_COLUMN_CONFIG: Record<string, BalanzasDetailColumnCon
   },
   dispatch_pct: {
     format: "pct",
-    aggregateMode: "derived-ratio",
+    aggregateMode: "derived-loss-ratio",
     aggregateSources: {
       numeratorKey: "weight_b2a_kg",
       denominatorKey: "weight_b2_kg",
@@ -435,7 +456,7 @@ const PRECLASIF_B1_B1A_WEIGHT_SUMMARY_METRICS: SummaryMetricDef[] = [
     col: "dispatch_pct_weight",
     label: "Desp%",
     format: "pct",
-    aggregateMode: "derived-ratio",
+    aggregateMode: "derived-loss-ratio",
     aggregateSources: {
       numeratorKey: "weight_b1ab_kg",
       denominatorKey: "weight_b1_kg",
@@ -454,7 +475,7 @@ const PRECLASIF_B1_B1A_WEIGHT_DETAIL_COLUMN_CONFIG: Record<string, BalanzasDetai
   },
   dispatch_pct_weight: {
     format: "pct",
-    aggregateMode: "derived-ratio",
+    aggregateMode: "derived-loss-ratio",
     aggregateSources: {
       numeratorKey: "weight_b1ab_kg",
       denominatorKey: "weight_b1_kg",
@@ -606,7 +627,7 @@ const PRECLASIF_B1_B3_IDEAL_SUMMARY_METRICS: SummaryMetricDef[] = [
     col: "dispatch_1_pct",
     label: "Desp%",
     format: "pct",
-    aggregateMode: "derived-ratio",
+    aggregateMode: "derived-loss-ratio",
     aggregateSources: {
       numeratorKey: "weight_b1ab_kg",
       denominatorKey: "weight_b1_kg",
@@ -628,7 +649,7 @@ const PRECLASIF_B1_B3_IDEAL_SUMMARY_METRICS: SummaryMetricDef[] = [
     col: "dispatch_2_pct",
     label: "Desp2%",
     format: "pct",
-    aggregateMode: "derived-ratio",
+    aggregateMode: "derived-loss-ratio",
     aggregateSources: {
       numeratorKey: "weight_b3_kg",
       denominatorKey: "weight_b2_kg",
@@ -668,7 +689,7 @@ const PRECLASIF_B1_B3_IDEAL_DETAIL_COLUMN_CONFIG: Record<string, BalanzasDetailC
   },
   dispatch_1_pct: {
     format: "pct",
-    aggregateMode: "derived-ratio",
+    aggregateMode: "derived-loss-ratio",
     aggregateSources: {
       numeratorKey: "weight_b1ab_kg",
       denominatorKey: "weight_b1_kg",
@@ -692,7 +713,7 @@ const PRECLASIF_B1_B3_IDEAL_DETAIL_COLUMN_CONFIG: Record<string, BalanzasDetailC
   },
   dispatch_2_pct: {
     format: "pct",
-    aggregateMode: "derived-ratio",
+    aggregateMode: "derived-loss-ratio",
     aggregateSources: {
       numeratorKey: "weight_b3_kg",
       denominatorKey: "weight_b2_kg",
@@ -821,7 +842,9 @@ function buildSummaryMetricSelects(summaryMetrics: SummaryMetricDef[]) {
 
 function resolveSummaryMetricValue(row: Record<string, unknown>, metric: SummaryMetricDef) {
   if (
-    (metric.aggregateMode === "derived-ratio" || metric.aggregateMode === "derived-quotient")
+    (metric.aggregateMode === "derived-ratio"
+      || metric.aggregateMode === "derived-quotient"
+      || metric.aggregateMode === "derived-loss-ratio")
     && metric.aggregateSources
   ) {
     const numerator = toNumber(row[`__sum_${metric.aggregateSources.numeratorKey}`]);
@@ -831,9 +854,11 @@ function resolveSummaryMetricValue(row: Record<string, unknown>, metric: Summary
       return null;
     }
 
-    return metric.aggregateMode === "derived-ratio"
-      ? (numerator / denominator) - 1
-      : numerator / denominator;
+    switch (metric.aggregateMode) {
+      case "derived-ratio":      return (numerator / denominator) - 1;
+      case "derived-quotient":   return numerator / denominator;
+      case "derived-loss-ratio": return 1 - (numerator / denominator);
+    }
   }
 
   return toNumber(row[metric.col]);
@@ -1381,19 +1406,19 @@ const BALANZAS_NODES: BalanzasNodeDef[] = [
     hasGradeGroup: false,
     bpmnBinding: { elementId: "Task_B2_Apertura_Directo", overlayOffsetLeft: 172 },
     kpiSupport: {
+      // Hidratación KPI (nuevo): real = SUM(b2)/SUM(b1c) − 1, meta ponderada
+      // por peso_b1c, cumplimiento real/meta. Mismo número que el header
+      // `hydration_pct` ya existente.
       hydration: {
         b1cKey: "weight_b1c_estimated_kg",
         b2Key: "weight_b2_kg",
         gradeKey: "grade",
       },
-      adjustment: {
-        weightPerStemKey: "weight_per_stem_kg",
-        b1cKey: "weight_b1c_estimated_kg",
-        lotDateKey: "lot_date",
-        workDateKey: "work_date",
-        gradeKey: "grade",
-        destinationKey: "destination",
-      },
+      // Ajuste NO va aquí — el usuario lo solicitó solo en nodos de cierre
+      // (b2-vs-b2a y b1c-vs-b2a-vs-ideal). Los datos crudos para calcularlo
+      // (weight_per_stem_kg, weight_b1c_estimated_kg, lot_date, grade) viven
+      // en esta MV; el loader cross-MV los lee desde aquí cuando se computa
+      // el Ajuste para los nodos de cierre.
     },
   },
   {
@@ -1420,9 +1445,23 @@ const BALANZAS_NODES: BalanzasNodeDef[] = [
       tinturado: "Task_B2A_Apertura_Directo_Tinturado",
     },
     kpiSupport: {
+      // Desperdicio: 1 − SUM(b2a)/SUM(b2), positivo, ponderado por b2.
       waste: {
         b2Key: "weight_b2_kg",
         b2aKey: "weight_b2a_kg",
+        destinationKey: "destination",
+      },
+      // Ajuste: este nodo NO tiene weight_per_stem_kg ni grade/lot_date,
+      // pero el usuario pidió mostrar el KPI aquí. Los datos crudos se
+      // leen desde `apertura_b1c_vs_b2_weight_<farm>_np_cur` vía
+      // `loadAdjustmentSourceRows`. El cómputo aplica los mismos filtros
+      // temporales del nodo actual.
+      adjustment: {
+        weightPerStemKey: "weight_per_stem_kg",
+        b1cKey: "weight_b1c_estimated_kg",
+        lotDateKey: "lot_date",
+        workDateKey: "work_date",
+        gradeKey: "grade",
         destinationKey: "destination",
       },
     },
@@ -1446,12 +1485,21 @@ const BALANZAS_NODES: BalanzasNodeDef[] = [
     hasGradeGroup: false,
     bpmnBinding: { elementId: "Task_General_Apertura_Directo", overlayOffsetLeft: 0 },
     kpiSupport: {
-      // Esta MV tiene destination + weight_b2a/weight_b2 → soporta Desperdicio.
-      // No tiene `grade` ni `lot_date`, así que Hidratación KPI y Ajuste se omiten
-      // (Hidratación KPI necesita `grade` para ponderar la meta).
+      // Desperdicio: 1 − SUM(b2a)/SUM(b2), positivo, ponderado por b2.
       waste: {
         b2Key: "weight_b2_kg",
         b2aKey: "weight_b2a_kg",
+        destinationKey: "destination",
+      },
+      // Ajuste (cross-MV): mismos datos crudos que el caso b2-vs-b2a.
+      // Hidratación KPI NO va aquí porque la MV no tiene `grade` row-by-row
+      // y la meta de hidratación se pondera por grado.
+      adjustment: {
+        weightPerStemKey: "weight_per_stem_kg",
+        b1cKey: "weight_b1c_estimated_kg",
+        lotDateKey: "lot_date",
+        workDateKey: "work_date",
+        gradeKey: "grade",
         destinationKey: "destination",
       },
     },
@@ -1788,6 +1836,33 @@ export async function loadNodeDetail(
   ]);
 
   const rows = dataRes.rows;
+
+  // Convención `derived-loss-ratio` (Desperdicio): la MV trae el valor
+  // row-by-row de columnas como `dispatch_pct` con signo negativo
+  // (`(num/den) − 1` = −0.30). Para que la tabla muestre el valor positivo
+  // `1 − num/den` (alineado con la fórmula del agregado y del header),
+  // negamos los valores crudos de esas columnas. No afecta el agregado:
+  // `aggregateBalanzasMetrics` usa SUM(aggregateSources) directos, no el
+  // campo `dispatch_pct`.
+  const lossRatioColumns = nodeDef.detailColumnConfig
+    ? Object.entries(nodeDef.detailColumnConfig)
+        .filter(([, cfg]) => cfg.aggregateMode === "derived-loss-ratio")
+        .map(([key]) => key)
+    : [];
+  if (lossRatioColumns.length > 0) {
+    for (const r of rows) {
+      for (const k of lossRatioColumns) {
+        const v = r[k];
+        if (typeof v === "number" && Number.isFinite(v)) {
+          (r as Record<string, unknown>)[k] = -v;
+        } else if (typeof v === "string") {
+          const n = Number(v);
+          if (Number.isFinite(n)) (r as Record<string, unknown>)[k] = -n;
+        }
+      }
+    }
+  }
+
   const sampleRow = rows[0] ?? {};
   const detailColumnConfig = nodeDef.detailColumnConfig ?? {};
   const visibleColumnKeys = nodeDef.detailVisibleColumns ?? Object.keys(sampleRow);
@@ -1813,7 +1888,7 @@ export async function loadNodeDetail(
     return { col: m.col, label: m.label, value: raw, formatted: formatMetricValue(raw, m.format) };
   });
 
-  const kpi = await computeNodeKpi(nodeDef, rows, filters);
+  const kpi = await computeNodeKpi(nodeDef, rows, filters, where, values);
 
   return {
     nodeKey: nodeDef.key,
@@ -1851,6 +1926,8 @@ async function computeNodeKpi(
   nodeDef: BalanzasNodeDef,
   rows: BalanzasDetailRow[],
   filters: BalanzasFilters,
+  whereSql: string,
+  whereParams: unknown[],
 ): Promise<BalanzasNodeKpi | undefined> {
   const support = nodeDef.kpiSupport;
   if (!support) return undefined;
@@ -1885,19 +1962,26 @@ async function computeNodeKpi(
     const dwOrigin = resolveDwOrigin(nodeDef.branch);
     const variety = resolveVarietyFromFarm(filters.farm);
     if (dwOrigin && variety) {
-      // Derivar ventana de fechas para los loaders externos.
-      // Si el usuario no eligió rango explícito, dejamos null y los loaders
-      // toman todo el universo (cacheado).
       const dateFrom = filters.dateFrom || null;
       const dateTo = filters.dateTo || null;
 
+      // Cross-MV: las MVs de cierre (b2-vs-b2a y b1c-vs-b2a-vs-ideal)
+      // no tienen weight_per_stem_kg/lot_date/grade row-by-row. Leemos
+      // los datos crudos desde `apertura_b1c_vs_b2_weight_<farm>_np_cur`
+      // aplicando los mismos filtros temporales del nodo actual.
       tasks.push(
         Promise.all([
           loadAdjustmentParams(),
           loadHydrationFactorIndex({ dwOrigin, variety, dateFrom, dateTo }),
           loadWeeklySalesIndex(),
-        ]).then(([params, factorIndex, salesIndex]) => {
-          kpi.adjustment = computeAdjustmentKpi(rows, cfg, factorIndex, salesIndex, params);
+          loadAdjustmentSourceRows({
+            branch: nodeDef.branch as BalanzasBranch,
+            farm: filters.farm as BalanzasFarm,
+            whereSql,
+            whereParams,
+          }),
+        ]).then(([params, factorIndex, salesIndex, sourceRows]) => {
+          kpi.adjustment = computeAdjustmentKpi(sourceRows, cfg, factorIndex, salesIndex, params);
         }),
       );
     }

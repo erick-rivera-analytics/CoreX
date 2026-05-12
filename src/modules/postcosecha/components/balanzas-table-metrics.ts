@@ -56,17 +56,24 @@ export function aggregateBalanzasMetrics(
 
   for (const column of numericColumns) {
     if (
-      (column.aggregateMode === "derived-ratio" || column.aggregateMode === "derived-quotient")
+      (column.aggregateMode === "derived-ratio"
+        || column.aggregateMode === "derived-quotient"
+        || column.aggregateMode === "derived-loss-ratio")
       && column.aggregateSources
     ) {
       const numerator = summedMetrics[column.aggregateSources.numeratorKey];
       const denominator = summedMetrics[column.aggregateSources.denominatorKey];
 
-      aggregated[column.key] = numerator === null || denominator === null || denominator === 0
-        ? null
-        : column.aggregateMode === "derived-ratio"
-          ? (numerator / denominator) - 1
-          : numerator / denominator;
+      if (numerator === null || denominator === null || denominator === 0) {
+        aggregated[column.key] = null;
+      } else if (column.aggregateMode === "derived-ratio") {
+        aggregated[column.key] = (numerator / denominator) - 1;
+      } else if (column.aggregateMode === "derived-loss-ratio") {
+        aggregated[column.key] = 1 - (numerator / denominator);
+      } else {
+        // derived-quotient
+        aggregated[column.key] = numerator / denominator;
+      }
       continue;
     }
 
@@ -84,6 +91,12 @@ export function formatBalanzasTableMetric(
   if (!column.numeric || numericValue === null) {
     return TABLE_EMPTY;
   }
+
+  // Nota: para columnas `derived-loss-ratio` (Desperdicio), el loader
+  // ya entregó los valores row-by-row negados (convertidos a positivo),
+  // y `aggregateBalanzasMetrics` produce el agregado con la fórmula
+  // canon `1 − num/den` también positivo. Ambos contextos llegan acá
+  // con la misma escala, no se requiere transformación adicional.
 
   switch (column.format) {
     case "pct":

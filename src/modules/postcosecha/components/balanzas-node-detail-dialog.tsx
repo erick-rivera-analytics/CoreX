@@ -1,22 +1,17 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useState } from "react";
 import { Download, LoaderCircle } from "lucide-react";
 import useSWR from "swr";
 
-import type { BalanzasFilters, BalanzasNodeDetail, BalanzasNodeKpi, BalanzasNodeSummary } from "@/lib/postcosecha-balanzas";
+import type { BalanzasFilters, BalanzasNodeDetail, BalanzasNodeSummary } from "@/lib/postcosecha-balanzas";
 import { fetchJson } from "@/lib/fetch-json";
 import { BalanzasExpandableTable, type BalanzasGroupBy } from "@/modules/postcosecha/components/balanzas-expandable-table";
 import { BalanzasFlatTable } from "@/modules/postcosecha/components/balanzas-flat-table";
+import { BalanzasKpiMetaSection } from "@/modules/postcosecha/components/balanzas-kpi-meta-section";
 import { MetricTile } from "@/shared/data-display/metric-tile";
 import { MultiSelectField } from "@/shared/filters/multi-select-field";
 import { FilterPanel, KpiGrid } from "@/shared/layout/filter-panel";
-import {
-  ajusteAccent,
-  cumplimientoAccent,
-  cumplimientoAccentInverso,
-} from "@/shared/lib/cumplimiento";
-import { formatDecimal, formatPercent } from "@/shared/lib/format";
 import { DialogShell } from "@/shared/overlays/dialog-shell";
 import { Button } from "@/shared/ui/button";
 
@@ -168,7 +163,7 @@ export function BalanzasNodeDetailDialog({ node, filters, open, presetDestinatio
           : (node.dialogTitle ?? node.label)
       }
       description={`${detail ? detail.rowCount.toLocaleString("es-EC") : "..."} registros`}
-      maxWidth="max-w-7xl"
+      maxWidth="max-w-[min(1600px,95vw)]"
       onClose={onClose}
       headerActions={
         detail ? (
@@ -191,7 +186,7 @@ export function BalanzasNodeDetailDialog({ node, filters, open, presetDestinatio
           ))}
         </KpiGrid>
 
-        {detail?.kpi ? <KpiMetaSection kpi={detail.kpi} /> : null}
+        {detail?.kpi ? <BalanzasKpiMetaSection kpi={detail.kpi} /> : null}
 
         <FilterPanel>
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
@@ -285,118 +280,5 @@ export function BalanzasNodeDetailDialog({ node, filters, open, presetDestinatio
         ) : null}
       </div>
     </DialogShell>
-  );
-}
-
-/**
- * Sección "Indicadores con meta" del modal de nodo Balanzas.
- *
- * Renderiza 3 sub-bloques opcionales (Hidratación / Desperdicio / Ajuste)
- * según qué KPIs vinieron en `detail.kpi`. Cada KPI muestra 3 tiles:
- * Real / Meta / Cumplimiento, con accent semáforo de `@/shared/lib/cumplimiento`.
- *
- * Convenciones:
- * - Hidratación: razón B1C/B2 (mayor es mejor) ≠ columna legacy `hydration_pct`
- *   (que es B2/B1C); por eso el KPI es paralelo a la columna legacy de la tabla.
- * - Desperdicio: real y meta en negativo (convención "menos es mejor");
- *   el cumplimiento = |meta| / |real|, así que >1 sigue significando "sobre meta".
- * - Ajuste: razón / α + β·razón / final censurado [0.98 – 1.02];
- *   accent warning cuando el final toca el borde.
- */
-function KpiMetaSection({ kpi }: { kpi: BalanzasNodeKpi }) {
-  const { hydration, waste, adjustment } = kpi;
-  if (!hydration && !waste && !adjustment) return null;
-
-  return (
-    <section className="space-y-3 rounded-2xl border border-border/60 bg-card/60 p-4">
-      <header className="flex items-center justify-between gap-3">
-        <h3 className="text-sm font-semibold text-foreground">Indicadores con meta</h3>
-        <span className="text-xs text-muted-foreground">Meta canon SCD2 · `db_admin`</span>
-      </header>
-
-      {hydration ? (
-        <KpiBlock title="Hidratación">
-          <MetricTile
-            label="Hidratación real"
-            value={formatDecimal(hydration.real, 3)}
-            hint="Razón SUM(B1C) / SUM(B2). KPI propio (≠ columna legacy HIDR%)."
-          />
-          <MetricTile
-            label="Meta hidratación"
-            value={formatDecimal(hydration.meta, 3)}
-            hint={
-              hydration.rowsMissingMeta > 0
-                ? `Ponderada por peso B2. ${hydration.rowsMissingMeta} fila(s) sin meta de grado.`
-                : "Ponderada por peso B2."
-            }
-          />
-          <MetricTile
-            label="Cumplimiento"
-            value={formatPercent(hydration.cumplimiento, { input: "ratio" })}
-            hint="real / meta — mayor es mejor"
-            accent={cumplimientoAccent(hydration.cumplimiento)}
-          />
-        </KpiBlock>
-      ) : null}
-
-      {waste ? (
-        <KpiBlock title="Desperdicio">
-          <MetricTile
-            label="Desperdicio real"
-            value={formatDecimal(waste.real, 3)}
-            hint="Razón −SUM(B2A) / SUM(B2). Menor (más negativo) es peor."
-          />
-          <MetricTile
-            label="Meta desperdicio"
-            value={formatDecimal(waste.meta, 3)}
-            hint={
-              waste.rowsMissingMeta > 0
-                ? `Ponderada por peso B2. ${waste.rowsMissingMeta} fila(s) sin meta de destino.`
-                : "Ponderada por peso B2."
-            }
-          />
-          <MetricTile
-            label="Cumplimiento"
-            value={formatPercent(waste.cumplimiento, { input: "ratio" })}
-            hint="|meta| / |real| — >1 mejor que la meta"
-            accent={cumplimientoAccentInverso(waste.cumplimiento)}
-          />
-        </KpiBlock>
-      ) : null}
-
-      {adjustment ? (
-        <KpiBlock title="Ajuste">
-          <MetricTile
-            label="Razón ajuste"
-            value={formatDecimal(adjustment.razonAjuste, 4)}
-            hint={`α = ${formatDecimal(adjustment.alpha, 2)} · β = ${formatDecimal(adjustment.beta, 2)}`}
-          />
-          <MetricTile
-            label="Ajuste bruto"
-            value={formatDecimal(adjustment.ajusteBruto, 4)}
-            hint="α + β · razón"
-          />
-          <MetricTile
-            label="Ajuste final"
-            value={formatDecimal(adjustment.ajusteFinal, 4)}
-            hint={
-              adjustment.weeksCovered.length > 0
-                ? `Censurado [0.98 – 1.02]. Semanas: ${adjustment.weeksCovered.join(", ")}.`
-                : "Censurado [0.98 – 1.02]."
-            }
-            accent={ajusteAccent(adjustment.ajusteFinal)}
-          />
-        </KpiBlock>
-      ) : null}
-    </section>
-  );
-}
-
-function KpiBlock({ title, children }: { title: string; children: ReactNode }) {
-  return (
-    <div className="space-y-2">
-      <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{title}</p>
-      <KpiGrid columns={3}>{children}</KpiGrid>
-    </div>
   );
 }

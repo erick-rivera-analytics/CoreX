@@ -8,8 +8,12 @@ import { cachedAsync } from "@/lib/server-cache";
  * KPIs de Balanzas con meta y cumplimiento.
  *
  * Tres indicadores convertidos a KPI:
- *   - Hidratación: `SUM(peso_b1c) / SUM(peso_b2)`, meta por grado.
- *   - Desperdicio: `-SUM(peso_b2a) / SUM(peso_b2)`, meta por destino.
+ *   - Hidratación: `(SUM(peso_b2) / SUM(peso_b1c)) - 1`, meta por grado.
+ *                  Equivalente al `hydration_pct` legacy del header
+ *                  (mismo número, en escala ratio 0..1).
+ *   - Desperdicio: `1 - (SUM(peso_b2a) / SUM(peso_b2))`, meta por destino.
+ *                  Convención POSITIVA: real > 0 = pérdida, meta > 0 = máximo
+ *                  aceptable, cumplimiento = meta/real (menor pérdida → mejor).
  *   - Ajuste:      `LEAST(GREATEST(α + β·razón, 0.98), 1.02)`, donde
  *                  `razón = peso_tallo_venta_semanal / peso_tallo_estimado_ponderado`.
  *
@@ -339,6 +343,50 @@ export async function loadWeeklySalesIndex(weeks?: ReadonlyArray<string>): Promi
   });
 }
 
+/**
+ * Carga las filas necesarias para calcular el KPI Ajuste desde la MV
+ * `b1c_vs_b2_weight` de la finca correspondiente.
+ *
+ * El Ajuste se MUESTRA en los modales de `b2_vs_b2a` y `b1c_vs_b2a_vs_ideal`,
+ * pero esas MVs no tienen `weight_per_stem_kg`, `weight_b1c_estimated_kg`,
+ * ni `lot_date`/`grade` row-by-row. Por eso el cálculo lee de la MV
+ * estructuralmente equivalente (`b1c_vs_b2_weight_${farm}_np_cur` para
+ * APERTURA) que sí tiene todas las columnas necesarias.
+ *
+ * Filtros temporales se respetan exactamente como en el nodo actual.
+ */
+export async function loadAdjustmentSourceRows(args: {
+  branch: BalanzasBranch;
+  farm: BalanzasFarm;
+  whereSql: string;
+  whereParams: unknown[];
+}): Promise<BalanzasComputeRow[]> {
+  const { branch, farm } = args;
+  // Solo soportamos APERTURA por ahora — GV/PRECLASIF se habilitan al
+  // confirmar metas.
+  if (branch !== "apertura") return [];
+
+  // MV con weight_per_stem_kg + weight_b1c_estimated_kg + lot_date + grade
+  // + destination + work_date.
+  const viewName = `gld.mv_camp_ind_bal_apertura_b1c_vs_b2_weight_${farm}_np_cur`;
+  const cacheKey = `balances:adj_source:${branch}:${farm}:${args.whereSql}:${JSON.stringify(args.whereParams)}`;
+
+  return cachedAsync(cacheKey, FACTOR_INDEX_TTL_MS, async () => {
+    try {
+      const { rows } = await query<BalanzasComputeRow>(
+        `SELECT work_date, lot_date, grade, destination,
+                weight_per_stem_kg, weight_b1c_estimated_kg, weight_b2_kg
+         FROM ${viewName} ${args.whereSql}
+         LIMIT 100000`,
+        args.whereParams,
+      );
+      return rows;
+    } catch {
+      return [];
+    }
+  });
+}
+
 type HydrationFactorIndex = {
   /** Match más fino disponible: `lot_date|work_date|grade|destination`. */
   byFull: Map<string, number>;
@@ -514,11 +562,19 @@ export type AdjustmentColumnConfig = {
 /**
  * Calcula el KPI de Hidratación a partir de filas de balanza + metas.
  *
- * Hidratación real = `SUM(b1c) / SUM(b2)`.
- * Meta ponderada   = `SUM(meta_grade × b2) / SUM(b2)` (solo filas con meta definida).
- * Cumplimiento     = `real / meta` (>1 = sobre meta, mayor es mejor).
+ * Fórmula canon (alineada con `hydration_pct` legacy del header):
  *
- * Filas con `b2 ≤ 0` se ignoran (no aportan al num ni al den).
+ *   real        = (SUM(b2) / SUM(b1c)) − 1
+ *   meta        = (SUM(meta_grade × b1c) / SUM(b1c)) − 1
+ *                 ↑ ponderación por peso_b1c (el denominador del ratio).
+ *   cumplimiento = real / meta            (mayor es mejor)
+ *
+ * IMPORTANTE: las metas en SCD2 están guardadas en escala "ratio de
+ * crecimiento", o sea: meta_BQT = 1.68 significa que B2 = 2.68 × B1C
+ * (el peso aumenta 168% al hidratar). Es la misma escala que `real`,
+ * por eso el cumplimiento es razón directa.
+ *
+ * Filas con `b1c ≤ 0` se ignoran.
  */
 export function computeHydrationKpi(
   rows: ReadonlyArray<BalanzasComputeRow>,
@@ -526,27 +582,27 @@ export function computeHydrationKpi(
   targets: HydrationTargetIndex,
   metaOrigin: string,
 ): BalanzasKpiResult {
-  let num = 0;
-  let den = 0;
-  let metaNum = 0;
-  let metaDen = 0;
+  let numB2 = 0;       // SUM(b2)
+  let denB1c = 0;      // SUM(b1c)
+  let metaTimesB1c = 0; // SUM(meta_grade * b1c)
+  let metaDenB1c = 0;   // SUM(b1c) solo donde había meta
   let rowsCount = 0;
   let rowsMissingMeta = 0;
 
   for (const r of rows) {
     const b1c = toNum(r[config.b1cKey]) ?? 0;
     const b2 = toNum(r[config.b2Key]) ?? 0;
-    if (b2 <= 0) continue;
-    num += b1c;
-    den += b2;
+    if (b1c <= 0) continue;
+    numB2 += b2;
+    denB1c += b1c;
     rowsCount += 1;
 
     const grade = r[config.gradeKey];
     if (typeof grade === "string" && grade) {
       const m = targets.get(`${metaOrigin}|${grade}`);
       if (m !== undefined) {
-        metaNum += m * b2;
-        metaDen += b2;
+        metaTimesB1c += m * b1c;
+        metaDenB1c += b1c;
       } else {
         rowsMissingMeta += 1;
       }
@@ -555,21 +611,27 @@ export function computeHydrationKpi(
     }
   }
 
-  const real = den > 0 ? num / den : null;
-  const meta = metaDen > 0 ? metaNum / metaDen : null;
+  const real = denB1c > 0 ? numB2 / denB1c - 1 : null;
+  const meta = metaDenB1c > 0 ? metaTimesB1c / metaDenB1c : null;
   const cumplimiento =
     real !== null && meta !== null && meta !== 0 ? real / meta : null;
 
-  return { real, meta, cumplimiento, num, den, rowsCount, rowsMissingMeta };
+  return { real, meta, cumplimiento, num: numB2, den: denB1c, rowsCount, rowsMissingMeta };
 }
 
 /**
  * Calcula el KPI de Desperdicio.
  *
- * Convención de signo (consigna del usuario):
- *   - real interno = `−SUM(b2a) / SUM(b2)` (NEGATIVO).
- *   - meta interna = `−|meta_destino|` (la DB guarda positivo; aquí flippeamos).
- *   - cumplimiento = `|meta| / |real|` (>1 = mejor que meta, menor es mejor).
+ * Fórmula canon (POSITIVO — alineado con la convención del header
+ * `dispatch_pct` después del fix a `derived-loss-ratio` en el core):
+ *
+ *   real         = 1 − (SUM(b2a) / SUM(b2))
+ *   meta         = SUM(meta_destino × b2) / SUM(b2)   (positiva)
+ *   cumplimiento = meta / real                        (menor real → mejor)
+ *
+ * Semántica: `real` es la fracción de peso perdido entre B2 y B2A
+ * (0..1). Valores típicos 0.20..0.40. Cumplimiento >1 = mejor que meta
+ * (menos pérdida), <1 = peor que meta.
  *
  * Filas con `b2 ≤ 0` se ignoran.
  */
@@ -579,10 +641,10 @@ export function computeWasteKpi(
   targets: WasteTargetIndex,
   metaOrigin: string,
 ): BalanzasKpiResult {
-  let numAbs = 0; // SUM(b2a)
-  let den = 0;    // SUM(b2)
-  let metaNumAbs = 0;
-  let metaDen = 0;
+  let sumB2a = 0;
+  let sumB2 = 0;
+  let metaTimesB2 = 0;
+  let metaDenB2 = 0;
   let rowsCount = 0;
   let rowsMissingMeta = 0;
 
@@ -590,16 +652,16 @@ export function computeWasteKpi(
     const b2 = toNum(r[config.b2Key]) ?? 0;
     const b2a = toNum(r[config.b2aKey]) ?? 0;
     if (b2 <= 0) continue;
-    numAbs += b2a;
-    den += b2;
+    sumB2a += b2a;
+    sumB2 += b2;
     rowsCount += 1;
 
     const dest = r[config.destinationKey];
     if (typeof dest === "string" && dest) {
       const m = targets.get(`${metaOrigin}|${dest}`);
       if (m !== undefined) {
-        metaNumAbs += m * b2; // m almacenada positiva
-        metaDen += b2;
+        metaTimesB2 += m * b2; // m ya está positivo en SCD2
+        metaDenB2 += b2;
       } else {
         rowsMissingMeta += 1;
       }
@@ -608,21 +670,18 @@ export function computeWasteKpi(
     }
   }
 
-  // Salida con convención negativa
-  const realNeg = den > 0 ? -(numAbs / den) : null;
-  const metaNeg = metaDen > 0 ? -(metaNumAbs / metaDen) : null;
-  // cumplimiento: |meta| / |real|, robusto al signo
+  const real = sumB2 > 0 ? 1 - sumB2a / sumB2 : null;
+  const meta = metaDenB2 > 0 ? metaTimesB2 / metaDenB2 : null;
+  // menor real → mejor; cumplimiento = meta / real
   const cumplimiento =
-    realNeg !== null && metaNeg !== null && realNeg !== 0
-      ? Math.abs(metaNeg) / Math.abs(realNeg)
-      : null;
+    real !== null && meta !== null && real > 0 ? meta / real : null;
 
   return {
-    real: realNeg,
-    meta: metaNeg,
+    real,
+    meta,
     cumplimiento,
-    num: -numAbs,
-    den,
+    num: sumB2a,
+    den: sumB2,
     rowsCount,
     rowsMissingMeta,
   };

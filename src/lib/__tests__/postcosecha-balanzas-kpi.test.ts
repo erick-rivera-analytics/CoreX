@@ -87,120 +87,131 @@ describe("dateToYyww (YYWW de 4 dígitos, mismo formato que iso_week_id)", () =>
 
 // ─── Hidratación ──────────────────────────────────────────────────────────────
 
-describe("computeHydrationKpi", () => {
+describe("computeHydrationKpi (fórmula b2/b1c − 1, alineada con header legacy)", () => {
   const targets = new Map<string, number>([
     ["opening|BQT", 1.68],
     ["opening|15", 1.37],
     ["opening|75", 0.41],
   ]);
 
-  it("un solo grado: cumplimiento = real / meta directa", () => {
-    const rows = [{ grade: "BQT", weight_b1c_estimated_kg: 168, weight_b2_kg: 100 }];
+  it("un solo grado: real = b2/b1c − 1, cumplimiento = real / meta", () => {
+    // b1c=100, b2=268 → real = 268/100 − 1 = 1.68. Meta BQT = 1.68 → cumple.
+    const rows = [{ grade: "BQT", weight_b1c_estimated_kg: 100, weight_b2_kg: 268 }];
     const k = computeHydrationKpi(rows, HYD_COL, targets, "opening");
     expect(k.real).toBeCloseTo(1.68, 5);
     expect(k.meta).toBeCloseTo(1.68, 5);
     expect(k.cumplimiento).toBeCloseTo(1.0, 5);
-    expect(k.rowsCount).toBe(1);
-    expect(k.rowsMissingMeta).toBe(0);
   });
 
-  it("multi-grado: meta ponderada por peso_b2", () => {
-    // BQT (meta=1.68) y 15 (meta=1.37). Peso B2 = 100 y 100.
-    // Hidratación real = SUM(b1c)/SUM(b2). Meta ponderada = (1.68*100 + 1.37*100)/200 = 1.525.
+  it("alineado exactamente con el header del summary (b2/b1c − 1)", () => {
+    // Reproduce los valores reales de la foto del usuario:
+    // B2=435898.07, B1C est.=285413.33 → hydration_pct header = 52.73%
+    const rows = [{ grade: "BQT", weight_b1c_estimated_kg: 285413.33, weight_b2_kg: 435898.07 }];
+    const k = computeHydrationKpi(rows, HYD_COL, targets, "opening");
+    expect(k.real).toBeCloseTo(0.5273, 3); // 52.73%
+  });
+
+  it("multi-grado: meta ponderada por peso_b1c (denominador del ratio)", () => {
+    // BQT (b1c=100, b2=268) y 15 (b1c=100, b2=237). Metas 1.68 y 1.37.
+    // real = (268+237)/(100+100) − 1 = 505/200 − 1 = 1.525
+    // meta ponderada por b1c = (1.68*100 + 1.37*100)/200 = 1.525
     const rows = [
-      { grade: "BQT", weight_b1c_estimated_kg: 150, weight_b2_kg: 100 },
-      { grade: "15",  weight_b1c_estimated_kg: 130, weight_b2_kg: 100 },
+      { grade: "BQT", weight_b1c_estimated_kg: 100, weight_b2_kg: 268 },
+      { grade: "15",  weight_b1c_estimated_kg: 100, weight_b2_kg: 237 },
     ];
     const k = computeHydrationKpi(rows, HYD_COL, targets, "opening");
-    expect(k.real).toBeCloseTo(280 / 200, 5);   // 1.40
+    expect(k.real).toBeCloseTo(1.525, 5);
     expect(k.meta).toBeCloseTo(1.525, 5);
-    expect(k.cumplimiento).toBeCloseTo(1.40 / 1.525, 5);
+    expect(k.cumplimiento).toBeCloseTo(1.0, 5);
   });
 
-  it("ponderación NO es promedio simple cuando pesos difieren", () => {
-    // BQT con b2=900, 15 con b2=100 → meta ponderada ≈ 1.649
-    // promedio simple sería 1.525
+  it("ponderación NO es promedio simple cuando b1c difiere", () => {
+    // BQT con b1c=900, 15 con b1c=100 → meta ponderada por b1c
     const rows = [
-      { grade: "BQT", weight_b1c_estimated_kg: 1000, weight_b2_kg: 900 },
-      { grade: "15",  weight_b1c_estimated_kg: 130,  weight_b2_kg: 100 },
+      { grade: "BQT", weight_b1c_estimated_kg: 900, weight_b2_kg: 1500 },
+      { grade: "15",  weight_b1c_estimated_kg: 100, weight_b2_kg: 200 },
     ];
     const k = computeHydrationKpi(rows, HYD_COL, targets, "opening");
     const expectedMeta = (1.68 * 900 + 1.37 * 100) / 1000;
     expect(k.meta).toBeCloseTo(expectedMeta, 5);
-    expect(k.meta).not.toBeCloseTo(1.525, 2); // ≠ promedio simple
   });
 
-  it("filas sin meta se cuentan en real, pero NO en denominador de meta ponderada", () => {
+  it("filas sin meta se cuentan en real pero NO en denominador de meta", () => {
     const rows = [
-      { grade: "BQT",  weight_b1c_estimated_kg: 100, weight_b2_kg: 100 }, // meta=1.68
-      { grade: "OTRO", weight_b1c_estimated_kg: 100, weight_b2_kg: 100 }, // sin meta
+      { grade: "BQT",  weight_b1c_estimated_kg: 100, weight_b2_kg: 268 }, // meta=1.68
+      { grade: "OTRO", weight_b1c_estimated_kg: 100, weight_b2_kg: 200 }, // sin meta
     ];
     const k = computeHydrationKpi(rows, HYD_COL, targets, "opening");
-    expect(k.real).toBeCloseTo(1.0, 5);
-    expect(k.meta).toBeCloseTo(1.68, 5); // solo BQT cuenta
+    expect(k.real).toBeCloseTo((268 + 200) / 200 - 1, 5); // 1.34
+    expect(k.meta).toBeCloseTo(1.68, 5);
     expect(k.rowsMissingMeta).toBe(1);
   });
 
-  it("rows vacío → real, meta y cumplimiento null", () => {
-    const k = computeHydrationKpi([], HYD_COL, targets, "opening");
-    expect(k.real).toBeNull();
-    expect(k.meta).toBeNull();
-    expect(k.cumplimiento).toBeNull();
-    expect(k.rowsCount).toBe(0);
-  });
+  it("rows vacío o b1c ≤ 0 → real, meta y cumplimiento null", () => {
+    const empty = computeHydrationKpi([], HYD_COL, targets, "opening");
+    expect(empty.real).toBeNull();
+    expect(empty.meta).toBeNull();
+    expect(empty.cumplimiento).toBeNull();
 
-  it("rows con b2 ≤ 0 se ignoran (no contaminan num/den)", () => {
-    const rows = [
-      { grade: "BQT", weight_b1c_estimated_kg: 1000, weight_b2_kg: 0 },
-      { grade: "BQT", weight_b1c_estimated_kg: 168,  weight_b2_kg: 100 },
-    ];
-    const k = computeHydrationKpi(rows, HYD_COL, targets, "opening");
-    expect(k.rowsCount).toBe(1);
-    expect(k.real).toBeCloseTo(1.68, 5);
+    const onlyZero = computeHydrationKpi(
+      [{ grade: "BQT", weight_b1c_estimated_kg: 0, weight_b2_kg: 100 }],
+      HYD_COL,
+      targets,
+      "opening",
+    );
+    expect(onlyZero.real).toBeNull();
+    expect(onlyZero.rowsCount).toBe(0);
   });
 });
 
 // ─── Desperdicio ──────────────────────────────────────────────────────────────
 
-describe("computeWasteKpi (convención negativa, menor es mejor)", () => {
+describe("computeWasteKpi (fórmula 1 − b2a/b2 POSITIVA, menor es mejor)", () => {
   const targets = new Map<string, number>([
     ["opening|BLANCO", 0.27],
     ["opening|TINTURADO", 0.25],
     ["opening|ARCOIRIS", 0.29],
   ]);
 
-  it("real y meta se devuelven en negativo", () => {
-    const rows = [{ destination: "BLANCO", weight_b2_kg: 1000, weight_b2a_kg: 200 }];
+  it("real y meta se devuelven en positivo (fracción de pérdida)", () => {
+    // b2=1000, b2a=800 → real = 1 − 800/1000 = 0.20 (20% pérdida)
+    const rows = [{ destination: "BLANCO", weight_b2_kg: 1000, weight_b2a_kg: 800 }];
     const k = computeWasteKpi(rows, WASTE_COL, targets, "opening");
-    expect(k.real).toBeCloseTo(-0.20, 5);
-    expect(k.meta).toBeCloseTo(-0.27, 5);
+    expect(k.real).toBeCloseTo(0.20, 5);
+    expect(k.meta).toBeCloseTo(0.27, 5);
   });
 
-  it("cumplimiento = |meta|/|real|, >1 cuando real < meta en magnitud", () => {
-    // real = -0.20 (mejor que meta -0.27) → |0.27|/|0.20| = 1.35 → sobre meta.
-    const rows = [{ destination: "BLANCO", weight_b2_kg: 1000, weight_b2a_kg: 200 }];
+  it("alineado con foto del usuario (1 − 29807/42594 ≈ 0.300)", () => {
+    const rows = [{ destination: "ARCOIRIS", weight_b2_kg: 42594.71, weight_b2a_kg: 29807.34 }];
+    const k = computeWasteKpi(rows, WASTE_COL, targets, "opening");
+    expect(k.real).toBeCloseTo(0.3002, 3);
+  });
+
+  it("cumplimiento = meta / real, >1 cuando real < meta (mejor que meta)", () => {
+    // real = 0.20 (mejor que meta 0.27) → 0.27/0.20 = 1.35 → sobre meta.
+    const rows = [{ destination: "BLANCO", weight_b2_kg: 1000, weight_b2a_kg: 800 }];
     const k = computeWasteKpi(rows, WASTE_COL, targets, "opening");
     expect(k.cumplimiento).toBeCloseTo(1.35, 5);
   });
 
   it("cumplimiento < 1 cuando real excede la meta", () => {
-    // real = -0.40 (peor que -0.27) → 0.27/0.40 = 0.675 → bajo meta.
-    const rows = [{ destination: "BLANCO", weight_b2_kg: 1000, weight_b2a_kg: 400 }];
+    // real = 0.40 (peor que 0.27) → 0.27/0.40 = 0.675 → bajo meta.
+    const rows = [{ destination: "BLANCO", weight_b2_kg: 1000, weight_b2a_kg: 600 }];
     const k = computeWasteKpi(rows, WASTE_COL, targets, "opening");
-    expect(k.real).toBeCloseTo(-0.40, 5);
+    expect(k.real).toBeCloseTo(0.40, 5);
     expect(k.cumplimiento).toBeCloseTo(0.675, 5);
   });
 
   it("multi-destino: meta ponderada por peso_b2", () => {
     // BLANCO (meta 0.27, b2=600) + ARCOIRIS (meta 0.29, b2=400)
-    // → meta ponderada = -(0.27*600 + 0.29*400)/1000 = -0.278
+    // → meta ponderada = (0.27*600 + 0.29*400)/1000 = 0.278
     const rows = [
-      { destination: "BLANCO",   weight_b2_kg: 600, weight_b2a_kg: 150 },
-      { destination: "ARCOIRIS", weight_b2_kg: 400, weight_b2a_kg: 100 },
+      { destination: "BLANCO",   weight_b2_kg: 600, weight_b2a_kg: 450 }, // 25% pérdida
+      { destination: "ARCOIRIS", weight_b2_kg: 400, weight_b2a_kg: 300 }, // 25% pérdida
     ];
     const k = computeWasteKpi(rows, WASTE_COL, targets, "opening");
-    expect(k.meta).toBeCloseTo(-0.278, 5);
-    expect(k.real).toBeCloseTo(-(250 / 1000), 5); // -0.25
+    expect(k.meta).toBeCloseTo(0.278, 5);
+    expect(k.real).toBeCloseTo(0.25, 5);
   });
 
   it("rows vacío → null", () => {
