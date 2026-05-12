@@ -39,6 +39,7 @@ export type DesvinculacionToolRow = {
   validWeeks: number;
   totalWeeksInWindow: number;
   lastIsValid: boolean;
+  isDeclining: boolean;
   mkTau: number | null;
   mkZ: number | null;
   slopePerWeek: number | null;
@@ -49,11 +50,27 @@ export type DesvinculacionToolRow = {
 
 export type DesvinculacionToolEstadoCounts = Record<DesvinculacionEstado, number>;
 
+export type DesvinculacionAudit = {
+  /** Total de colaboradores activos con al menos algún dato en la ventana. */
+  totalActive: number;
+  /** Filtran por insuficiencia de semanas válidas (<6). */
+  withInsufficientValid: number;
+  /** Con suficientes válidas (≥6) pero la semana actual no es válida. */
+  withLastWeekInvalid: number;
+  /** Con cumplimiento en última semana < 90 %. */
+  withLowCumplimiento: number;
+  /** Con tendencia decreciente (MK Z < −0.5 o slope < −0.005). */
+  withDecliningTrend: number;
+  /** Pasan los tres filtros simultáneos (= candidatos a SALIDA). */
+  salidaCandidates: number;
+};
+
 export type DesvinculacionToolSummary = {
   weekId: string;
   weekIdFrom: string;
   totalCollaborators: number;
   estadoCounts: DesvinculacionToolEstadoCounts;
+  audit: DesvinculacionAudit;
 };
 
 export type DesvinculacionToolOptions = {
@@ -338,10 +355,39 @@ const EMPTY_ESTADO_COUNTS: DesvinculacionToolEstadoCounts = {
   sin_datos: 0,
 };
 
+function buildAudit(rows: DesvinculacionToolRow[]): DesvinculacionAudit {
+  const minEstablished = RULES_CONSTANTS.MIN_VALID_FOR_ESTABLISHED;
+  const lowCumplimiento = RULES_CONSTANTS.CUMPLIMIENTO_LOW;
+
+  let withInsufficientValid = 0;
+  let withLastWeekInvalid = 0;
+  let withLowCumplimiento = 0;
+  let withDecliningTrend = 0;
+  let salidaCandidates = 0;
+
+  for (const row of rows) {
+    if (row.validWeeks < minEstablished) withInsufficientValid += 1;
+    if (row.validWeeks >= minEstablished && !row.lastIsValid) withLastWeekInvalid += 1;
+    if (row.cumplimiento !== null && row.cumplimiento < lowCumplimiento) withLowCumplimiento += 1;
+    if (row.isDeclining) withDecliningTrend += 1;
+    if (row.estado === "salida") salidaCandidates += 1;
+  }
+
+  return {
+    totalActive: rows.length,
+    withInsufficientValid,
+    withLastWeekInvalid,
+    withLowCumplimiento,
+    withDecliningTrend,
+    salidaCandidates,
+  };
+}
+
 function buildSummary(
   rows: DesvinculacionToolRow[],
   weekId: string,
   weekIdFrom: string,
+  audit: DesvinculacionAudit,
 ): DesvinculacionToolSummary {
   const estadoCounts: DesvinculacionToolEstadoCounts = { ...EMPTY_ESTADO_COUNTS };
   for (const row of rows) {
@@ -352,6 +398,7 @@ function buildSummary(
     weekIdFrom,
     totalCollaborators: rows.length,
     estadoCounts,
+    audit,
   };
 }
 
@@ -411,6 +458,7 @@ export async function getDesvinculacionToolData(
       validWeeks: classification.validWeeks,
       totalWeeksInWindow: classification.totalWeeks,
       lastIsValid: classification.lastIsValid,
+      isDeclining: classification.isDeclining,
       mkTau: classification.mannKendall?.tau ?? null,
       mkZ: classification.mannKendall?.z ?? null,
       slopePerWeek: classification.theilSenSlope,
@@ -424,18 +472,23 @@ export async function getDesvinculacionToolData(
   const options = buildOptions(visibleRows, weeks);
   const tokens = searchTokens(normalized.q);
 
-  const filteredRows = visibleRows.filter((row) =>
+  // Pre-estado filter: rows que pasan area/clasif/q. Sobre estos se construye
+  // la auditoría — es la mejor diagnóstico del slice que el usuario está viendo.
+  const preEstadoRows = visibleRows.filter((row) =>
     rowMatchesArea(row, normalized.area)
       && matchesMultiSelectValue(normalized.jobClassification, row.jobClassificationCode)
-      && rowMatchesEstado(row, normalized.estado)
       && rowMatchesSearch(row, tokens),
   );
+  const audit = buildAudit(preEstadoRows);
+
+  // Filtro estado se aplica al final para no contaminar la auditoría.
+  const filteredRows = preEstadoRows.filter((row) => rowMatchesEstado(row, normalized.estado));
 
   return {
     generatedAt: new Date().toISOString(),
     filters: normalized,
     options,
-    summary: buildSummary(filteredRows, weekId, weekIdFrom),
+    summary: buildSummary(filteredRows, weekId, weekIdFrom, audit),
     rows: filteredRows,
   };
 }

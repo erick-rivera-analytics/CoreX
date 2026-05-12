@@ -72,10 +72,10 @@ const KPI_BUCKETS: Array<{
   },
   {
     key: "ok",
-    label: "OK / en observación",
+    label: "Sin alerta",
     emoji: "🟢",
     accent: "success",
-    states: ["ok", "en_observacion_nuevo"],
+    states: ["ok", "en_observacion_nuevo", "sin_senal_actual"],
   },
 ];
 
@@ -277,9 +277,22 @@ export function HerramientaDesvinculacionPage({ initialData }: { initialData: De
 
       <details className="rounded-[20px] border border-border/60 bg-card/70 px-5 py-4 text-sm text-muted-foreground">
         <summary className="cursor-pointer font-medium text-foreground">
-          ¿Cómo se calcula el estado?
+          ¿Cómo se calcula el estado? · Auditoría del cohorte filtrado
         </summary>
-        <div className="mt-3 space-y-2 leading-relaxed">
+        <div className="mt-3 space-y-3 leading-relaxed">
+          <div className="rounded-[14px] border border-border/50 bg-background/60 p-3">
+            <p className="mb-2 text-xs font-semibold uppercase tracking-[0.08em] text-foreground">
+              Auditoría del embudo
+            </p>
+            <ul className="grid gap-1 text-xs sm:grid-cols-2">
+              <li><strong>{formatInteger(summary.audit.totalActive)}</strong> colaboradores activos en el filtro actual.</li>
+              <li><strong>{formatInteger(summary.audit.withInsufficientValid)}</strong> con menos de {RULES_CONSTANTS.MIN_VALID_FOR_ESTABLISHED} semanas válidas (no establecidos).</li>
+              <li><strong>{formatInteger(summary.audit.withLastWeekInvalid)}</strong> establecidos pero con la semana actual no-válida.</li>
+              <li><strong>{formatInteger(summary.audit.withLowCumplimiento)}</strong> con cumplimiento &lt; {(RULES_CONSTANTS.CUMPLIMIENTO_LOW * 100).toFixed(0)}% en la semana actual.</li>
+              <li><strong>{formatInteger(summary.audit.withDecliningTrend)}</strong> con tendencia decreciente (MK Z &lt; {RULES_CONSTANTS.MK_Z_DECLINE_THRESHOLD} o slope &lt; {RULES_CONSTANTS.SLOPE_DECLINE_THRESHOLD}).</li>
+              <li><strong>{formatInteger(summary.audit.salidaCandidates)}</strong> candidatos finales a 🔴 Salida (intersección de filtros).</li>
+            </ul>
+          </div>
           <p>
             <strong>Semana válida</strong>: aquella en la que el colaborador trabajó al menos
             {" "}{RULES_CONSTANTS.MIN_HOURS_PRESENCIALES} horas presenciales y dedicó más del
@@ -295,16 +308,20 @@ export function HerramientaDesvinculacionPage({ initialData }: { initialData: De
             {" "}se trata al colaborador como &laquo;nuevo&raquo;.
           </p>
           <p>
-            <strong>Tendencia decreciente</strong>: se valida con el test no-paramétrico de
-            Mann-Kendall sobre los cumplimientos de las semanas válidas. Se considera
-            significativamente decreciente cuando <code>Z &lt; {RULES_CONSTANTS.MK_Z_DECLINE_THRESHOLD}</code>
-            (≈ 84 % de confianza one-sided). La pendiente Theil-Sen acompaña como medida de magnitud
-            (pp/sem).
+            <strong>Tendencia decreciente</strong>: doble señal (OR) sobre los cumplimientos de las
+            semanas válidas: <code>Mann-Kendall Z &lt; {RULES_CONSTANTS.MK_Z_DECLINE_THRESHOLD}</code>
+            {" "}(~ 70 % de confianza one-sided, captura consistencia direccional) o pendiente
+            {" "}<code>Theil-Sen &lt; {RULES_CONSTANTS.SLOPE_DECLINE_THRESHOLD}</code> (≥ 0.5 pp/sem,
+            captura magnitud aún con ruido).
           </p>
           <p>
-            <strong>🔴 Salida</strong> requiere las TRES condiciones simultáneas: ≥ 6 semanas válidas,
-            la semana actual válida con cumplimiento &lt; 90 %, y la serie significativamente decreciente.
-            Es exigente a propósito.
+            <strong>🔴 Salida</strong> requiere las TRES condiciones simultáneas: ≥ {RULES_CONSTANTS.MIN_VALID_FOR_ESTABLISHED} semanas válidas,
+            la semana actual válida con cumplimiento &lt; {(RULES_CONSTANTS.CUMPLIMIENTO_LOW * 100).toFixed(0)}%, y tendencia decreciente.
+            El doble filtro mantiene la rigurosidad incluso con MK relajado.
+          </p>
+          <p>
+            <strong>🟢 Sin alerta</strong> agrupa OK, en observación nuevo y sin señal actual —
+            todos los casos que no levantan ninguna bandera roja, naranja o azul.
           </p>
           <p className="rounded-[12px] border border-amber-300/60 bg-amber-500/10 px-3 py-2 text-amber-900 dark:text-amber-200">
             <strong>Esta es una herramienta de apoyo a la decisión.</strong> El veredicto final lo toma

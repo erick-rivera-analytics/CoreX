@@ -91,6 +91,12 @@ describe("mannKendall", () => {
     const result = mannKendall([1.10, 1.05, 1.02, 0.98, 0.96, 0.92, 0.88, 0.85]);
     expect(result.z).toBeLessThan(RULES_CONSTANTS.MK_Z_DECLINE_THRESHOLD);
   });
+  it("Z relajado captura decline noisy moderado (no caía con −1.0)", () => {
+    // Serie con dirección decreciente pero noisy — pensada para caer
+    // alrededor del umbral viejo. Con −0.5 debe disparar.
+    const result = mannKendall([0.98, 1.0, 0.95, 0.97, 0.92, 0.94, 0.88]);
+    expect(result.z).toBeLessThan(RULES_CONSTANTS.MK_Z_DECLINE_THRESHOLD);
+  });
 });
 
 describe("theilSenSlope", () => {
@@ -144,6 +150,19 @@ describe("classifyEstado", () => {
     expect(result.isDeclining).toBe(true);
     expect(result.estado).toBe("salida");
     expect(estadoSeverityRank(result.estado)).toBe(1);
+  });
+
+  it("SALIDA: decline noisy moderado (umbral relajado lo captura)", () => {
+    // Cumplimientos con declive moderado pero noisy: serie no monotónica.
+    // Antes del relax (Z<−1.0) algunos quedaban fuera; ahora con MK<−0.5 OR
+    // slope<−0.005 sí caen. Last < 90 %, ≥ 6 válidas.
+    const window = buildWindow(10, 8, [1.02, 0.98, 1.00, 0.94, 0.96, 0.90, 0.92, 0.85]);
+    const result = classifyEstado(window, "202617");
+    expect(result.validWeeks).toBe(8);
+    expect(result.lastIsValid).toBe(true);
+    expect(result.lastCumplimiento).toBeCloseTo(0.85, 6);
+    expect(result.isDeclining).toBe(true);
+    expect(result.estado).toBe("salida");
   });
 
   it("ADVERTENCIA: 90–100 % + decreciente", () => {

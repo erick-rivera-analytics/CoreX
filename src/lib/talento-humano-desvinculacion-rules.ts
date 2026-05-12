@@ -32,8 +32,22 @@ export const RULES_CONSTANTS = {
   MIN_VALID_FOR_ANY_TREND: 4,
   /** Semanas válidas mínimas para emitir veredicto "nuevo" en lugar de "sin datos". */
   MIN_VALID_FOR_NEWBIE: 2,
-  /** Z de Mann-Kendall por debajo del cual decimos "tendencia decreciente". */
-  MK_Z_DECLINE_THRESHOLD: -1.0,
+  /**
+   * Z de Mann-Kendall por debajo del cual decimos "tendencia decreciente".
+   * Se relajó de −1.0 (~84 %) a −0.5 (~69 % one-sided) tras detectar que
+   * casi nadie caía en SALIDA con el umbral estricto — la decisión final
+   * sigue requiriendo cumplimiento < 90 % en la semana actual válida, así
+   * que el doble filtro mantiene la rigurosidad.
+   */
+  MK_Z_DECLINE_THRESHOLD: -0.5,
+  /**
+   * Pendiente Theil-Sen (en unidades de cumplimiento por semana) por debajo
+   * de la cual la magnitud de la caída se considera relevante por sí sola.
+   * −0.005 ≡ caída de 0.5 pp/sem ≡ 6 pp en 12 semanas. Combinada con MK vía
+   * `OR`, captura tanto declines consistentes-pero-noisy como declines
+   * suaves-pero-de-magnitud-clara.
+   */
+  SLOPE_DECLINE_THRESHOLD: -0.005,
   /** Umbral de cumplimiento bajo (escala 0..1+). */
   CUMPLIMIENTO_LOW: 0.90,
   /** Umbral de cumplimiento objetivo (escala 0..1+). */
@@ -222,7 +236,15 @@ export function classifyEstado(
     ? mannKendall(validCumplimientos)
     : null;
   const slope = validCumplimientos.length >= 2 ? theilSenSlope(validCumplimientos) : null;
-  const isDeclining = mk !== null && mk.z < RULES_CONSTANTS.MK_Z_DECLINE_THRESHOLD;
+  // `isDeclining` se dispara con dos señales (OR):
+  //  - MK Z < −0.5 (consistencia direccional aunque la magnitud sea baja), o
+  //  - Theil-Sen slope < −0.005 (magnitud relevante aunque la serie sea noisy).
+  // Solo se evalúa con ≥ 4 semanas válidas para mantener potencia razonable.
+  const mkDeclines = mk !== null && mk.z < RULES_CONSTANTS.MK_Z_DECLINE_THRESHOLD;
+  const slopeDeclines = slope !== null
+    && slope < RULES_CONSTANTS.SLOPE_DECLINE_THRESHOLD
+    && validCumplimientos.length >= RULES_CONSTANTS.MIN_VALID_FOR_ANY_TREND;
+  const isDeclining = mkDeclines || slopeDeclines;
 
   const estado = decideEstado({
     validWeeks,
