@@ -1,6 +1,34 @@
 const DEFAULT_LOCALE = "es-EC";
 const DATE_ONLY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
+// Cache de Intl.NumberFormat / Intl.DateTimeFormat por clave: construir un
+// Intl formatter cuesta varios objetos por allocate; con tablas grandes
+// (productividad, fenograma) llamamos a estas funciones miles de veces por
+// render. El cache de instancias por (locale + options) reduce el overhead
+// significativamente sin cambiar la semántica.
+const NUMBER_FORMAT_CACHE = new Map<string, Intl.NumberFormat>();
+const DATE_TIME_FORMAT_CACHE = new Map<string, Intl.DateTimeFormat>();
+
+function getNumberFormat(locale: string, options: Intl.NumberFormatOptions): Intl.NumberFormat {
+  const key = `${locale}|${JSON.stringify(options)}`;
+  let formatter = NUMBER_FORMAT_CACHE.get(key);
+  if (!formatter) {
+    formatter = new Intl.NumberFormat(locale, options);
+    NUMBER_FORMAT_CACHE.set(key, formatter);
+  }
+  return formatter;
+}
+
+function getDateTimeFormat(locale: string, options: Intl.DateTimeFormatOptions): Intl.DateTimeFormat {
+  const key = `${locale}|${JSON.stringify(options)}`;
+  let formatter = DATE_TIME_FORMAT_CACHE.get(key);
+  if (!formatter) {
+    formatter = new Intl.DateTimeFormat(locale, options);
+    DATE_TIME_FORMAT_CACHE.set(key, formatter);
+  }
+  return formatter;
+}
+
 type NumericInput = number | string | null | undefined;
 
 type BaseFormatOptions = {
@@ -44,7 +72,7 @@ function formatNumericValue(value: NumericInput, options: BaseFormatOptions = {}
   const numericValue = normalizeNumber(value);
   if (numericValue === null) return options.empty ?? "-";
 
-  return new Intl.NumberFormat(options.locale ?? DEFAULT_LOCALE, {
+  return getNumberFormat(options.locale ?? DEFAULT_LOCALE, {
     minimumFractionDigits: options.minimumFractionDigits,
     maximumFractionDigits: options.maximumFractionDigits,
   }).format(numericValue);
@@ -185,7 +213,7 @@ export function formatPercent(value: NumericInput, options: PercentFormatOptions
 
   const normalized = options.input === "ratio" ? numericValue : numericValue / 100;
 
-  return new Intl.NumberFormat(options.locale ?? DEFAULT_LOCALE, {
+  return getNumberFormat(options.locale ?? DEFAULT_LOCALE, {
     style: "percent",
     minimumFractionDigits: options.minimumFractionDigits ?? 2,
     maximumFractionDigits: options.maximumFractionDigits ?? 2,
@@ -232,7 +260,7 @@ export function formatDate(value: string | Date | null | undefined, locale = DEF
   if (!value) return "-";
   const date = parseDateOnly(value);
   if (!date || Number.isNaN(date.getTime())) return String(value);
-  return new Intl.DateTimeFormat(locale, {
+  return getDateTimeFormat(locale, {
     day: "2-digit",
     month: "short",
     year: "numeric",
@@ -268,7 +296,7 @@ export function formatDateTime(
   const date = parseDateOnly(value);
   if (!date || Number.isNaN(date.getTime())) return String(value);
 
-  const formatter = new Intl.DateTimeFormat(locale, {
+  const formatter = getDateTimeFormat(locale, {
     day: "numeric",
     month: "short",
     year: "numeric",

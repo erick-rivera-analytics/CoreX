@@ -319,7 +319,7 @@ export function HerramientaDesvinculacionPage({ initialData }: { initialData: De
             semanas válidas: <code>Mann-Kendall Z &lt; {RULES_CONSTANTS.MK_Z_DECLINE_THRESHOLD}</code>
             {" "}(≈ 78 % de confianza one-sided, captura consistencia direccional) o pendiente
             {" "}<code>Theil-Sen &lt; {RULES_CONSTANTS.SLOPE_DECLINE_THRESHOLD}</code> (≥ 0.7 pp/sem,
-            captura magnitud aún con ruido). Calibrado para dejar solo declives sólidos — combinado
+            captura magnitud aún con ruido). Calibrado para dejar solo declives sólidos; combinado
             con el filtro absoluto de cumplimiento, los falsos positivos quedan al mínimo.
           </p>
           <p>
@@ -328,7 +328,7 @@ export function HerramientaDesvinculacionPage({ initialData }: { initialData: De
             cumplimiento &lt; {(RULES_CONSTANTS.CUMPLIMIENTO_LOW * 100).toFixed(0)}%, y tendencia decreciente.
           </p>
           <p>
-            <strong>🟢 Sin alerta</strong> agrupa OK, en observación nuevo y sin señal actual —
+            <strong>🟢 Sin alerta</strong> agrupa OK, en observación nuevo y sin señal actual:
             todos los casos que no levantan ninguna bandera roja, naranja o azul.
           </p>
           <p className="rounded-[12px] border border-amber-300/60 bg-amber-500/10 px-3 py-2 text-amber-900 dark:text-amber-200">

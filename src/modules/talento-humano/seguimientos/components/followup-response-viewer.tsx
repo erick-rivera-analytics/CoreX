@@ -113,7 +113,7 @@ export function FollowupResponseViewer({ followup, catalogs, onClose }: Props) {
         <div className="max-h-[calc(100dvh-14rem)] space-y-6 overflow-y-auto pr-1">
           {isLoading ? (
             <div className="rounded-[20px] border border-border/70 bg-background/70 px-4 py-8 text-center text-sm text-muted-foreground">
-              Cargando respuestas...
+              Cargando respuestas…
             </div>
           ) : null}
 
