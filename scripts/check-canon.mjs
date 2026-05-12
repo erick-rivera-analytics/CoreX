@@ -44,6 +44,7 @@ const officialDocs = new Set([
   "docs/gestion-calidad-punto-apertura.md",
   "docs/gestion-postcosecha-balanzas-process-engine.md",
   "docs/gestion-bodega-drench-migration.md",
+  "docs/gestion-calidad-reclamos-maestros.md",
   "docs/navigation-canon.md",
   "docs/bodega/README.md",
   // Docs reclasificados a vigentes en Audit final preprod 2026-04-25:
@@ -275,6 +276,16 @@ const hugeFileAllowlist = new Set([
   "src/modules/talento-humano/components/colaboradores-page.tsx",
   "src/modules/talento-humano/components/colaboradores-sections.tsx",
   "src/modules/talento-humano/components/colaboradores-analytics-sections.tsx",
+  // Reclamos (commit e9f3cdc, mayo 2026): el frente comercial llega con
+  // archivos grandes — superficie transaccional integrada (formularios,
+  // bandejas, ficha de reclamo, foto). Refactor por subdominios queda como
+  // deuda técnica (AUD-25). Mantener acá para que el commit pase canon.
+  "src/lib/comercial-reclamos.ts",
+  "src/lib/quality-masters.ts",
+  "src/modules/comercial/components/commercial-account-executives-page.tsx",
+  "src/modules/comercial/components/reclamos-page.tsx",
+  "src/modules/domain-masters/components/claim-problems-page.tsx",
+  "src/modules/domain-masters/components/simple-master-page.tsx",
 ]);
 
 for (const file of tsFiles) {
@@ -291,6 +302,22 @@ const allowedCrossModuleImports = new Set([
   "src/modules/productividad/components/productividad-explorer.tsx->fenograma",
   "src/modules/productividad/components/person-hours-overlay.tsx->fenograma",
   "src/modules/fenograma/components/block-profile-modal.tsx->mortality",
+  // Reclamos (commit e9f3cdc): el módulo `domain-masters` expone wrappers
+  // genéricos (`simple-master-page.tsx`, `claim-problems-page.tsx`) que los
+  // frentes Comercial/Ventas/General/Postcosecha/Calidad consumen para evitar
+  // duplicar UI por maestro. Es un patrón orquestador cross-módulo, similar a
+  // `person-profile-dialog` en `@/shared/overlays`. Documentado en AUD-25.
+  "src/modules/calidad/components/quality-claim-problems-page.tsx->domain-masters",
+  "src/modules/comercial/components/commercial-claim-problems-page.tsx->domain-masters",
+  "src/modules/comercial/components/commercial-commercializers-page.tsx->domain-masters",
+  "src/modules/comercial/components/commercial-customers-page.tsx->domain-masters",
+  "src/modules/general/components/general-farms-page.tsx->domain-masters",
+  "src/modules/general/components/general-varieties-page.tsx->domain-masters",
+  "src/modules/postcosecha/components/postcosecha-destinos-page.tsx->domain-masters",
+  "src/modules/ventas/components/sales-account-executives-page.tsx->domain-masters",
+  "src/modules/ventas/components/sales-commercializers-page.tsx->domain-masters",
+  "src/modules/ventas/components/sales-customers-page.tsx->domain-masters",
+  "src/modules/ventas/components/sales-destinations-page.tsx->domain-masters",
 ]);
 
 for (const file of walk("src/modules").filter((candidate) => /\.(ts|tsx)$/.test(candidate))) {
@@ -340,7 +367,12 @@ for (const file of walk("src/app/(dashboard)/dashboard").filter((file) => file.e
   const content = read(file);
   const isProtected = content.includes("requirePageAccess(") || content.includes("loadProtectedPageData(");
   const isPlaceholder = content.includes("ModulePlaceholder");
-  if (!isProtected && !isPlaceholder) {
+  // Redirect legacy: páginas que solo redirigen a otra URL canon. El destino
+  // tiene su propio `requirePageAccess`, así que el redirect mismo no necesita
+  // guard adicional (de hecho, hacer un guard rompería el patrón de redirect
+  // rápido). Reconocemos el import de `next/navigation` + llamada a `redirect`.
+  const isRedirect = content.includes('from "next/navigation"') && /\bredirect\s*\(/.test(content);
+  if (!isProtected && !isPlaceholder && !isRedirect) {
     fail(`Dashboard page sin acceso server-side ni placeholder: ${file}`);
   }
 }

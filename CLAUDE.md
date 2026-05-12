@@ -405,6 +405,50 @@ El editor de Metas (`/dashboard/admin/administracion-maestros/metas-objetivos`) 
 - El canon UX/UI de explorers principales queda cerrado; nuevas divergencias deben documentarse como excepción antes de crecer.
 - El build puede emitir warning de Turbopack/NFT por rutas dinámicas del solver de postcosecha; mantenerlo vigilado.
 
+### Reclamos / Frente Comercial (integrado vía commit `e9f3cdc` — mayo 2026)
+
+Deuda pendiente registrada al integrar el frente comercial; el módulo
+queda en `status: "hidden"` para `calidad-reclamos` y `comercial-reclamos`
+hasta que el usuario decida activarlo y asignar permisos.
+
+1. **Fotos de reclamos: pasar de NAS directo a disco local + sync**.
+   Hoy `src/lib/comercial-reclamos.ts` escribe directo al NAS bajo
+   `COMMERCIAL_CLAIMS_NAS_ROOT` y exige que la cuenta que corre Node tenga
+   permisos `Modify` sobre la ruta. Patrón mejor:
+   - `POST /photo` → escribe a `./var/uploads/comercial-reclamos/` (local
+     al server, owned por la cuenta que corre Node — sin permisos NAS).
+   - Job/sidecar sincroniza esa carpeta al NAS bajo cuenta de servicio.
+   - `GET /attachments/[id]` lee local si existe, fallback NAS.
+2. **Refactor de archivos grandes** (en `hugeFileAllowlist`):
+   - `src/lib/comercial-reclamos.ts` (~1020 líneas) → split en
+     loaders / mappers / attachments / workflow.
+   - `src/lib/quality-masters.ts` (~972 líneas) → split por entidad.
+   - `src/modules/comercial/components/reclamos-page.tsx` (~1181 líneas) →
+     split por bandeja (Registro / Aprobaciones / Aplicaciones).
+   - `src/modules/comercial/components/commercial-account-executives-page.tsx`,
+     `src/modules/domain-masters/components/claim-problems-page.tsx`,
+     `src/modules/domain-masters/components/simple-master-page.tsx`.
+3. **Tests de integración** del módulo Reclamos:
+   - Zod schemas en `comercial-reclamos-schemas.ts` y
+     `quality-schemas.ts`.
+   - Happy path crear → aprobar → aplicar con DB mock.
+4. **Lint warning** `reclamos-page.tsx:350` — variable
+   `selectedProblemFamily` asignada pero no usada. Limpiar al refactorizar.
+5. **Migración manual** (no parte del merge):
+   ```bash
+   node scripts/apply-commercial-sql.mjs
+   node scripts/apply-general-sql.mjs
+   node scripts/apply-postharvest-sql.mjs
+   node scripts/apply-quality-sql.mjs
+   node scripts/apply-quality-reclamos-seed-sql.mjs
+   node scripts/migrate-commercial-data-to-commercial-db.mjs
+   ```
+6. **Configurar NAS share + cuenta de servicio** (`GRUPO-MALIMA\svc_corex`
+   según README) en el server de producción.
+7. **Activar módulos**: cuando estén listos, cambiar `calidad-reclamos` y
+   `comercial-reclamos` de `status: "hidden"` a `status: "active"` y
+   asignar permisos vía Admin · Seguridad · Usuarios.
+
 ## Variables de entorno
 
 DB principal:

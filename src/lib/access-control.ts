@@ -1,4 +1,4 @@
-﻿import {
+import {
   ACTIVE_MODULES,
   ALL_MANAGED_MODULES,
   type ModuleAccessSection,
@@ -44,20 +44,20 @@ function buildAccessLabel(eyebrow: string, title: string) {
  * Convencion: `panel:<dominio>.<subseccion>`.
  */
 export const PANEL_ACCESS_RESOURCES: AccessResource[] = [
-  { resourceKey: "panel:person-sheet.info",        label: "Ficha del personal / InformaciÃ³n",  section: "Paneles" },
+  { resourceKey: "panel:person-sheet.info",        label: "Ficha del personal / Información",  section: "Paneles" },
   { resourceKey: "panel:person-sheet.performance", label: "Ficha del personal / Rendimiento",  section: "Paneles" },
-  { resourceKey: "panel:person-sheet.medical",     label: "Ficha del personal / Ficha mÃ©dica", section: "Paneles" },
+  { resourceKey: "panel:person-sheet.medical",     label: "Ficha del personal / Ficha médica", section: "Paneles" },
   { resourceKey: "panel:tthh.followups.view",      label: "Seguimientos / Ver",                section: "Paneles" },
   { resourceKey: "panel:tthh.followups.write",     label: "Seguimientos / Registrar",          section: "Paneles" },
   { resourceKey: "panel:tthh.followups.sensitive", label: "Seguimientos / Ver datos sensibles", section: "Paneles" },
   { resourceKey: "panel:tthh.followups.admin",     label: "Seguimientos / Corregir",            section: "Paneles" },
-  { resourceKey: "panel:tthh.collaborators.basic",       label: "Colaboradores / InformaciÃ³n bÃ¡sica", section: "Paneles" },
+  { resourceKey: "panel:tthh.collaborators.basic",       label: "Colaboradores / Información básica", section: "Paneles" },
   { resourceKey: "panel:tthh.collaborators.performance", label: "Colaboradores / Rendimiento",        section: "Paneles" },
-  { resourceKey: "panel:tthh.collaborators.medical",     label: "Colaboradores / Ficha mÃ©dica",       section: "Paneles" },
+  { resourceKey: "panel:tthh.collaborators.medical",     label: "Colaboradores / Ficha médica",       section: "Paneles" },
   { resourceKey: "panel:tthh.collaborators.absenteeism", label: "Colaboradores / Ausentismo",         section: "Paneles" },
   { resourceKey: "panel:tthh.collaborators.exits",       label: "Colaboradores / Salidas",            section: "Paneles" },
   { resourceKey: "panel:tthh.collaborators.followups",   label: "Colaboradores / Seguimientos",       section: "Paneles" },
-  { resourceKey: "panel:tthh.collaborators.filter-area", label: "Colaboradores / Filtrar Ã¡rea",       section: "Paneles" },
+  { resourceKey: "panel:tthh.collaborators.filter-area", label: "Colaboradores / Filtrar área",       section: "Paneles" },
   { resourceKey: "panel:tthh.collaborators.filter-state", label: "Colaboradores / Filtrar estado",    section: "Paneles" },
 ];
 

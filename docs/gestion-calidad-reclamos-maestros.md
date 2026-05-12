@@ -1,4 +1,4 @@
-﻿# Gestion - Comercial/Calidad/General - Estructura para Reclamos
+# Gestion - Comercial/Calidad/General - Estructura para Reclamos
 
 ## Objetivo
 
@@ -60,7 +60,7 @@ Semilla inicial del maestro:
 
 - `Destinos`
 - este maestro alimenta el campo visual `Proceso` dentro de `Comercial > Reclamos`
-- debe incluir la opciÃ³n `NA / No aplica`
+- debe incluir la opción `NA / No aplica`
 
 ### Gestion / Comercial
 
