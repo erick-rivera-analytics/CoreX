@@ -224,7 +224,9 @@ describe("computeWasteKpi (fórmula 1 − b2a/b2 POSITIVA, menor es mejor)", () 
 
 // ─── Ajuste ───────────────────────────────────────────────────────────────────
 
-describe("computeAdjustmentKpi", () => {
+describe("computeAdjustmentKpi (fórmula R3: ×1000 + razón estimado/venta + censura solo abajo 0.96)", () => {
+  // wps en kg/tallo (cómo viene en la MV), hf desde el ML.
+  // Para que estimado_gr = 45: wps=0.03, hf=1.5 → 0.03 × 1.5 × 1000 = 45.
   const factorIndex = {
     byFull: new Map<string, number>(),
     byWorkDate: new Map<string, number>(),
@@ -235,127 +237,129 @@ describe("computeAdjustmentKpi", () => {
   };
   const params = { alpha: 0.8, beta: 0.19 };
 
-  it("razon = 1.0 → bruto = 0.99 → final = 0.99 (dentro del rango)", () => {
-    // peso_tallo_estimado_ponderado = 1*1.5 = 1.5 (1 row, wps=1, hf=1.5)
-    // venta semana = 1.5 (manual) → razón = 1.0 → bruto = 0.99
+  it("razón = estimado/venta (NO venta/estimado): estimado=45 g, venta=45 g → razón=1.0", () => {
     const rows = [{
       work_date: "2026-01-05",
       grade: "BQT",
       destination: "BLANCO",
-      weight_per_stem_kg: 1,
-      weight_b1c_estimated_kg: 100,
+      weight_per_stem_kg: 0.03,
+      weight_b1c_estimated_kg: 1000,
     }];
-    const sales = new Map<string, number>([["2602", 1.5]]);
+    const sales = new Map<string, number>([["2602", 45]]);
     const k = computeAdjustmentKpi(rows, ADJ_COL, factorIndex, sales, params);
+    expect(k.pesoTalloEstimadoPonderado).toBeCloseTo(45, 3);
+    expect(k.pesoTalloVenta).toBeCloseTo(45, 3);
     expect(k.razonAjuste).toBeCloseTo(1.0, 5);
     expect(k.ajusteBruto).toBeCloseTo(0.99, 5);
     expect(k.ajusteFinal).toBeCloseTo(0.99, 5);
   });
 
-  it("razon muy alta (2.0) → bruto > 1.02 → final censurado a 1.02", () => {
+  it("escalado × 1000: confirma que weight_per_stem_kg se convierte a gramos", () => {
+    // wps=0.04 kg, hf=1.0, b1c=1000 → estimado_gr = 0.04 × 1.0 × 1000 = 40 g.
     const rows = [{
-      work_date: "2026-01-05",
-      grade: "BQT",
-      destination: "BLANCO",
-      weight_per_stem_kg: 1,
-      weight_b1c_estimated_kg: 100,
+      work_date: "2026-01-05", grade: "20", destination: "TINTURADO",
+      weight_per_stem_kg: 0.04, weight_b1c_estimated_kg: 1000,
     }];
-    const sales = new Map<string, number>([["2602", 3.0]]); // razon=3/1.5=2
-    const k = computeAdjustmentKpi(rows, ADJ_COL, factorIndex, sales, params);
-    expect(k.razonAjuste).toBeCloseTo(2.0, 5);
-    expect(k.ajusteBruto).toBeCloseTo(0.8 + 0.19 * 2.0, 5); // 1.18
-    expect(k.ajusteFinal).toBeCloseTo(1.02, 5); // censurado
+    const localIndex = {
+      byFull: new Map<string, number>(),
+      byWorkDate: new Map<string, number>(),
+      byGradeDest: new Map<string, number>([["20|TINTURADO", 1.0]]),
+    };
+    const sales = new Map<string, number>([["2602", 40]]);
+    const k = computeAdjustmentKpi(rows, ADJ_COL, localIndex, sales, params);
+    expect(k.pesoTalloEstimadoPonderado).toBeCloseTo(40, 3);
+    expect(k.razonAjuste).toBeCloseTo(1.0, 5);
   });
 
-  it("razon muy baja (0.5) → bruto < 0.98 → final censurado a 0.98", () => {
+  it("razón muy alta (3.0): NO se censura arriba, bruto pasa tal cual", () => {
+    // estimado=45, venta=15 → razón=3 → bruto = 0.8 + 0.19*3 = 1.37
     const rows = [{
-      work_date: "2026-01-05",
-      grade: "BQT",
-      destination: "BLANCO",
-      weight_per_stem_kg: 1,
-      weight_b1c_estimated_kg: 100,
+      work_date: "2026-01-05", grade: "BQT", destination: "BLANCO",
+      weight_per_stem_kg: 0.03, weight_b1c_estimated_kg: 1000,
     }];
-    const sales = new Map<string, number>([["2602", 0.75]]); // razon=0.75/1.5=0.5
+    const sales = new Map<string, number>([["2602", 15]]);
     const k = computeAdjustmentKpi(rows, ADJ_COL, factorIndex, sales, params);
-    expect(k.ajusteBruto).toBeCloseTo(0.895, 5);
-    expect(k.ajusteFinal).toBeCloseTo(0.98, 5); // censurado
+    expect(k.razonAjuste).toBeCloseTo(3.0, 5);
+    expect(k.ajusteBruto).toBeCloseTo(1.37, 5);
+    expect(k.ajusteFinal).toBeCloseTo(1.37, 5); // sin techo
+  });
+
+  it("razón baja se censura SOLO a 0.96 (no más a 0.98)", () => {
+    // estimado=15, venta=45 → razón=0.333 → bruto = 0.8 + 0.19*0.333 = 0.8633
+    const rows = [{
+      work_date: "2026-01-05", grade: "BQT", destination: "BLANCO",
+      weight_per_stem_kg: 0.01, weight_b1c_estimated_kg: 1000,
+    }];
+    const sales = new Map<string, number>([["2602", 45]]);
+    const k = computeAdjustmentKpi(rows, ADJ_COL, factorIndex, sales, params);
+    expect(k.ajusteBruto).toBeCloseTo(0.8633, 3);
+    expect(k.ajusteFinal).toBeCloseTo(0.96, 5); // censurado a 0.96
+  });
+
+  it("regla BLANCO: salta byFull y usa byWorkDate aunque lot_date esté presente", () => {
+    // Si BLANCO usa byFull, daría hf=99 (mal). Debe usar byWorkDate hf=1.5.
+    const factorIdx = {
+      byFull: new Map<string, number>([
+        ["2025-12-30|2026-01-05|BQT|BLANCO", 99],  // valor "trampa"
+      ]),
+      byWorkDate: new Map<string, number>([
+        ["2026-01-05|BQT|BLANCO", 1.5],
+      ]),
+      byGradeDest: new Map<string, number>(),
+    };
+    const rows = [{
+      lot_date: "2025-12-30", work_date: "2026-01-05",
+      grade: "BQT", destination: "BLANCO",
+      weight_per_stem_kg: 0.03, weight_b1c_estimated_kg: 1000,
+    }];
+    const sales = new Map<string, number>([["2602", 45]]);
+    const k = computeAdjustmentKpi(rows, ADJ_COL, factorIdx, sales, params);
+    // Si tomó byWorkDate (1.5), estimado_gr = 0.03 × 1.5 × 1000 = 45.
+    expect(k.pesoTalloEstimadoPonderado).toBeCloseTo(45, 3);
+  });
+
+  it("usa byFull para destinos NO BLANCO (ARCOIRIS / TINTURADO)", () => {
+    const factorIdx = {
+      byFull: new Map<string, number>([
+        ["2025-12-30|2026-01-05|20|TINTURADO", 1.8],
+      ]),
+      byWorkDate: new Map<string, number>(),
+      byGradeDest: new Map<string, number>([
+        ["20|TINTURADO", 0.5], // fallback que NO debería usarse
+      ]),
+    };
+    const rows = [{
+      lot_date: "2025-12-30", work_date: "2026-01-05",
+      grade: "20", destination: "TINTURADO",
+      weight_per_stem_kg: 0.025, weight_b1c_estimated_kg: 1000,
+    }];
+    // estimado_gr = 0.025 × 1.8 × 1000 = 45
+    const sales = new Map<string, number>([["2602", 45]]);
+    const k = computeAdjustmentKpi(rows, ADJ_COL, factorIdx, sales, params);
+    expect(k.pesoTalloEstimadoPonderado).toBeCloseTo(45, 3);
   });
 
   it("rows sin factor ML disponible se ignoran (no rompen)", () => {
     const rows = [{
-      work_date: "2026-01-05",
-      grade: "SIN_FACTOR",
-      destination: "BLANCO",
-      weight_per_stem_kg: 1,
-      weight_b1c_estimated_kg: 100,
+      work_date: "2026-01-05", grade: "SIN_FACTOR", destination: "BLANCO",
+      weight_per_stem_kg: 0.03, weight_b1c_estimated_kg: 1000,
     }];
-    const sales = new Map<string, number>([["2602", 1.5]]);
+    const sales = new Map<string, number>([["2602", 45]]);
     const k = computeAdjustmentKpi(rows, ADJ_COL, factorIndex, sales, params);
     expect(k.pesoTalloEstimadoPonderado).toBeNull();
     expect(k.razonAjuste).toBeNull();
     expect(k.ajusteFinal).toBeNull();
   });
 
-  it("rows sin venta semanal se ignoran (skip esa semana)", () => {
+  it("rows sin venta semanal: weeksCovered queda vacío", () => {
     const rows = [{
-      work_date: "2026-01-05",
-      grade: "BQT",
-      destination: "BLANCO",
-      weight_per_stem_kg: 1,
-      weight_b1c_estimated_kg: 100,
+      work_date: "2026-01-05", grade: "BQT", destination: "BLANCO",
+      weight_per_stem_kg: 0.03, weight_b1c_estimated_kg: 1000,
     }];
-    const sales = new Map<string, number>(); // sin "2602"
+    const sales = new Map<string, number>();
     const k = computeAdjustmentKpi(rows, ADJ_COL, factorIndex, sales, params);
     expect(k.ajusteFinal).toBeNull();
-    expect(k.weeksCovered).toEqual(["2602"]);
-  });
-
-  it("multi-semana: peso_tallo_estimado_ponderado y peso_tallo_venta promediados por peso_b1c", () => {
-    // semana 2602: wps=1, hf=1.5, b1c=100 → estimado=1.5; venta=1.5
-    // semana 2603: wps=1, hf=1.5, b1c=200 → estimado=1.5; venta=1.65
-    // total b1c = 300
-    // estimado global = (1.5*100 + 1.5*200)/300 = 1.5
-    // venta global = (1.5*100 + 1.65*200)/300 = 1.60
-    // razón = 1.60/1.5 ≈ 1.0667 → bruto = 0.8 + 0.19*1.0667 = 1.0027 (dentro)
-    const rows = [
-      { work_date: "2026-01-05", grade: "BQT", destination: "BLANCO", weight_per_stem_kg: 1, weight_b1c_estimated_kg: 100 },
-      { work_date: "2026-01-12", grade: "BQT", destination: "BLANCO", weight_per_stem_kg: 1, weight_b1c_estimated_kg: 200 },
-    ];
-    const sales = new Map<string, number>([
-      ["2602", 1.5],
-      ["2603", 1.65],
-    ]);
-    const k = computeAdjustmentKpi(rows, ADJ_COL, factorIndex, sales, params);
-    expect(k.pesoTalloEstimadoPonderado).toBeCloseTo(1.5, 5);
-    expect(k.pesoTalloVenta).toBeCloseTo(1.6, 5);
-    expect(k.razonAjuste).toBeCloseTo(1.0667, 3);
-    expect(k.ajusteFinal).toBeCloseTo(1.0027, 3);
-    expect(k.weeksCovered.sort()).toEqual(["2602", "2603"]);
-  });
-
-  it("usa byFull cuando lot_date está disponible y matchea", () => {
-    const factorIdxFull = {
-      byFull: new Map<string, number>([
-        ["2025-12-30|2026-01-05|BQT|BLANCO", 2.0],
-      ]),
-      byWorkDate: new Map<string, number>(),
-      byGradeDest: new Map<string, number>([
-        ["BQT|BLANCO", 1.5], // fallback que NO debería usarse
-      ]),
-    };
-    const rows = [{
-      lot_date: "2025-12-30",
-      work_date: "2026-01-05",
-      grade: "BQT",
-      destination: "BLANCO",
-      weight_per_stem_kg: 1,
-      weight_b1c_estimated_kg: 100,
-    }];
-    const sales = new Map<string, number>([["2602", 2.0]]); // razon=2.0/2.0=1.0
-    const k = computeAdjustmentKpi(rows, ADJ_COL, factorIdxFull, sales, params);
-    // Si tomó byFull (2.0), estimado=2.0, razón=1.0, bruto=0.99
-    expect(k.pesoTalloEstimadoPonderado).toBeCloseTo(2.0, 5);
-    expect(k.ajusteFinal).toBeCloseTo(0.99, 5);
+    expect(k.weeksCovered).toEqual(["2602"]); // semana presente pero sin ventas
   });
 });
 

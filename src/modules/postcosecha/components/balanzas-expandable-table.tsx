@@ -112,7 +112,14 @@ export function BalanzasExpandableTable({
     () => (groupBy ? findGroupByColumn(detail.columns, groupBy) : null),
     [detail.columns, groupBy],
   );
+  // `numericColumns` incluye helpers `isHidden` para que el agregado
+  // (`aggregateBalanzasMetrics`) los sume y alimente derived-quotient.
   const numericColumns = useMemo(() => detail.columns.filter((c) => c.numeric), [detail.columns]);
+  // `visibleColumns` se usa para construir las cols de la tabla — excluye helpers.
+  const visibleColumns = useMemo(
+    () => detail.columns.filter((c) => !c.isHidden),
+    [detail.columns],
+  );
 
   const tree = useMemo<TreeNode<BalanzasNodeData>[]>(() => {
     if (!detail.rows.length) return [];
@@ -198,8 +205,9 @@ export function BalanzasExpandableTable({
   }, [detail.rows, dateColumn, groupByColumn, numericColumns]);
 
   const columns = useMemo<ExpandableTreeTableColumn<BalanzasNodeData>[]>(() => {
-    const numericCols = detail.columns.filter((c) => c.numeric);
-    const textCols = detail.columns.filter((c) => !c.numeric && c.key !== dateColumn);
+    // Solo columnas visibles para la tabla — helpers `isHidden` quedan fuera.
+    const numericCols = visibleColumns.filter((c) => c.numeric);
+    const textCols = visibleColumns.filter((c) => !c.numeric && c.key !== dateColumn);
     return [
       {
         key: "label",
@@ -237,7 +245,7 @@ export function BalanzasExpandableTable({
         },
       })),
     ];
-  }, [dateColumn, detail.columns]);
+  }, [dateColumn, visibleColumns]);
 
   return (
     <ScrollFadeTable className={className ?? "rounded-[16px] border border-border/70 bg-card"} innerClassName="tabular-nums" topScrollbar>

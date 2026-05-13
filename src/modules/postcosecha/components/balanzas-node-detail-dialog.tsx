@@ -95,9 +95,11 @@ function buildDetailUrl(nodeKey: string, filters: BalanzasFilters, local: LocalF
 }
 
 function downloadCsv(detail: BalanzasNodeDetail) {
-  const header = detail.columns.map((column) => column.label).join(",");
+  // Excluir columnas helper (isHidden) del export — son campos internos.
+  const exportColumns = detail.columns.filter((c) => !c.isHidden);
+  const header = exportColumns.map((column) => column.label).join(",");
   const rows = detail.rows.map((row) =>
-    detail.columns
+    exportColumns
       .map((column) => {
         const value = row[column.key];
         if (value === null || value === undefined) return "";
@@ -189,42 +191,48 @@ export function BalanzasNodeDetailDialog({ node, filters, open, presetDestinatio
         {detail?.kpi ? <BalanzasKpiMetaSection kpi={detail.kpi} /> : null}
 
         <FilterPanel>
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-            {hasDestination ? (
-              <MultiSelectField
-                id="detail-destinations"
-                label="Destino"
-                value={local.destinations}
-                options={destinationOptions}
-                displayValue={formatDestinationLabel}
-                onChange={(value) => setLocal((prev) => ({ ...prev, destinations: value }))}
-                emptyLabel="Todos los destinos"
-              />
-            ) : null}
-            {hasGrades ? (
-              <MultiSelectField
-                id="detail-grades"
-                label="Grado"
-                value={local.grades}
-                options={gradeOptions}
-                onChange={(value) => setLocal((prev) => ({ ...prev, grades: value }))}
-                emptyLabel="Todos los grados"
-              />
-            ) : null}
-            {hasGradeGroups ? (
-              <MultiSelectField
-                id="detail-grade-groups"
-                label="Grupo de grado"
-                value={local.gradeGroups}
-                options={gradeGroupOptions}
-                onChange={(value) => setLocal((prev) => ({ ...prev, gradeGroups: value }))}
-                emptyLabel="Todos los grupos"
-              />
-            ) : null}
-          </div>
+          {/* Categóricos arriba (Destino · Grado · Grupo), responsivos 1 → 2 → 3 cols.
+              Solo se muestran cuando la MV los soporta; si solo hay 1, ocupa todo
+              el ancho disponible para que el dropdown no quede angosto. */}
+          {(hasDestination || hasGrades || hasGradeGroups) ? (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {hasDestination ? (
+                <MultiSelectField
+                  id="detail-destinations"
+                  label="Destino"
+                  value={local.destinations}
+                  options={destinationOptions}
+                  displayValue={formatDestinationLabel}
+                  onChange={(value) => setLocal((prev) => ({ ...prev, destinations: value }))}
+                  emptyLabel="Todos los destinos"
+                />
+              ) : null}
+              {hasGrades ? (
+                <MultiSelectField
+                  id="detail-grades"
+                  label="Grado"
+                  value={local.grades}
+                  options={gradeOptions}
+                  onChange={(value) => setLocal((prev) => ({ ...prev, grades: value }))}
+                  emptyLabel="Todos los grados"
+                />
+              ) : null}
+              {hasGradeGroups ? (
+                <MultiSelectField
+                  id="detail-grade-groups"
+                  label="Grupo de grado"
+                  value={local.gradeGroups}
+                  options={gradeGroupOptions}
+                  onChange={(value) => setLocal((prev) => ({ ...prev, gradeGroups: value }))}
+                  emptyLabel="Todos los grupos"
+                />
+              ) : null}
+            </div>
+          ) : null}
 
+          {/* Temporales abajo (4 fijos) — responsivos 1 → 2 → 4 cols. */}
           {temporalOptions ? (
-            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <MultiSelectField
                 id="detail-years"
                 label="Año"

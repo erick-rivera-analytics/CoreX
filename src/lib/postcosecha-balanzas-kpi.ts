@@ -344,6 +344,44 @@ export async function loadWeeklySalesIndex(weeks?: ReadonlyArray<string>): Promi
 }
 
 /**
+ * Carga las filas necesarias para calcular el KPI Hidratación cuando
+ * la MV del nodo NO tiene `grade` row-by-row (caso: apertura-b1c-b2a-vs-ideal).
+ *
+ * Reusa la MV cross `b1c_vs_b2_weight_<farm>_np_cur` que sí tiene grade.
+ * El `whereSql`/`whereParams` del nodo original aplican íntegros porque
+ * ambas MVs comparten `work_date`, `destination` y otros filtros temporales.
+ *
+ * Devuelve rows con columnas: grade, destination, weight_b1c_estimated_kg,
+ * weight_b2_kg. Cacheado vía cachedAsync.
+ */
+export async function loadHydrationKpiSourceRows(args: {
+  branch: BalanzasBranch;
+  farm: BalanzasFarm;
+  whereSql: string;
+  whereParams: unknown[];
+}): Promise<BalanzasComputeRow[]> {
+  const { branch, farm } = args;
+  if (branch !== "apertura") return [];
+
+  const viewName = `gld.mv_camp_ind_bal_apertura_b1c_vs_b2_weight_${farm}_np_cur`;
+  const cacheKey = `balances:hyd_src:${branch}:${farm}:${args.whereSql}:${JSON.stringify(args.whereParams)}`;
+
+  return cachedAsync(cacheKey, FACTOR_INDEX_TTL_MS, async () => {
+    try {
+      const { rows } = await query<BalanzasComputeRow>(
+        `SELECT grade, destination, weight_b1c_estimated_kg, weight_b2_kg
+         FROM ${viewName} ${args.whereSql}
+         LIMIT 100000`,
+        args.whereParams,
+      );
+      return rows;
+    } catch {
+      return [];
+    }
+  });
+}
+
+/**
  * Carga las filas necesarias para calcular el KPI Ajuste desde la MV
  * `b1c_vs_b2_weight` de la finca correspondiente.
  *
@@ -690,19 +728,31 @@ export function computeWasteKpi(
 /**
  * Calcula el KPI de Ajuste.
  *
- * Pipeline:
- *   1. Por cada row, calcula `hydration_factor` con match flexible:
- *        full (lot+work+grade+dest) → work (work+grade+dest) → coarse (grade+dest).
- *   2. `peso_tallo_estimado = weight_per_stem_kg × hydration_factor`.
+ * Pipeline (versión corregida R3 — validada contra Excel canon del usuario):
+ *
+ *   1. Por cada row, resolver `hydration_factor` desde el modelo ML con
+ *      fallback cascada. **Regla especial para destino BLANCO**: la MV
+ *      no trae `lot_date` válido para BLANCO, así que se salta `byFull`
+ *      y va directo a `byWorkDate` → `byGradeDest`.
+ *
+ *   2. `peso_tallo_estimado_gr = weight_per_stem_kg × hydration_factor × 1000`.
+ *      El `× 1000` escala kg/tallo → gramos/tallo, alineado con la
+ *      unidad de `weight_stem_sales` de `mv_prod_weight_stem_week_sales_cur`.
+ *
  *   3. Ponderado por `peso_b1c`:
- *        `SUM(peso_tallo_estimado × peso_b1c) / SUM(peso_b1c)`.
- *   4. Match contra ventas semanales (`mv_prod_weight_stem_week_sales_cur`)
- *      por iso_week_id derivado de `work_date`. Si las rows cubren varias
- *      semanas, se toma el promedio de `peso_tallo_venta` ponderado por
- *      `peso_b1c` de cada semana.
- *   5. `razón = peso_tallo_venta / peso_tallo_estimado_ponderado`.
+ *        `SUM(peso_tallo_estimado_gr × peso_b1c) / SUM(peso_b1c)`.
+ *
+ *   4. Match contra ventas semanales por `iso_week_id` derivado de
+ *      `work_date`. Si las rows cubren varias semanas, se hace un
+ *      ponderado por `peso_b1c` de cada semana (estimado y venta).
+ *
+ *   5. `razón = peso_tallo_estimado_ponderado / peso_tallo_venta`
+ *      (estimado / venta — NO al revés).
+ *
  *   6. `ajuste_bruto = alpha + beta × razón`.
- *   7. `ajuste_final = LEAST(GREATEST(bruto, 0.98), 1.02)`.
+ *
+ *   7. `ajuste_final = MAX(bruto, 0.96)`  — **solo censura inferior**.
+ *      No hay techo (el ratio puede subir si el estimado excede ventas).
  */
 export function computeAdjustmentKpi(
   rows: ReadonlyArray<BalanzasComputeRow>,
@@ -713,9 +763,8 @@ export function computeAdjustmentKpi(
 ): BalanzasAdjustmentKpiResult {
   const { alpha, beta } = params;
 
-  // Por semana: acumulamos num/den del ponderado por peso_b1c.
   type WeekAccum = {
-    estimatedNum: number; // Σ(peso_tallo_estimado × peso_b1c)
+    estimatedNum: number; // Σ(peso_tallo_estimado_gr × peso_b1c)
     estimatedDen: number; // Σ(peso_b1c)
   };
   const byWeek = new Map<string, WeekAccum>();
@@ -723,14 +772,13 @@ export function computeAdjustmentKpi(
   for (const r of rows) {
     const peso_b1c = toNum(r[config.b1cKey]) ?? 0;
     if (peso_b1c <= 0) continue;
-    const wps = toNum(r[config.weightPerStemKey]);
-    if (wps === null) continue;
+    const wps_kg = toNum(r[config.weightPerStemKey]); // kg/tallo en la MV
+    if (wps_kg === null) continue;
 
     const workDateRaw = r[config.workDateKey];
     const yyww = dateToYyww(workDateRaw as Date | string | null);
     if (!yyww) continue;
 
-    // Resolver hydration_factor con fallback cascada
     const grade = typeof r[config.gradeKey] === "string" ? (r[config.gradeKey] as string) : "";
     const dest = typeof r[config.destinationKey] === "string" ? (r[config.destinationKey] as string) : "";
     const workDateStr =
@@ -740,8 +788,13 @@ export function computeAdjustmentKpi(
         ? workDateRaw.slice(0, 10)
         : "";
 
+    // Resolver hydration_factor con cascada.
+    // Regla especial BLANCO: la MV no tiene lot_date válido, se salta
+    // byFull y se va directo a byWorkDate.
+    const isBlanco = dest.toUpperCase() === "BLANCO";
+
     let hf: number | undefined;
-    if (config.lotDateKey) {
+    if (!isBlanco && config.lotDateKey) {
       const lotRaw = r[config.lotDateKey];
       const lotStr =
         lotRaw instanceof Date
@@ -761,9 +814,10 @@ export function computeAdjustmentKpi(
     }
     if (hf === undefined) continue; // skip row sin factor disponible
 
-    const pesoTalloEstimado = wps * hf;
+    // Escalar a gramos: kg/tallo × factor × 1000 = gr/tallo (alineado con venta)
+    const pesoTalloEstimadoGr = wps_kg * hf * 1000;
     const acc = byWeek.get(yyww) ?? { estimatedNum: 0, estimatedDen: 0 };
-    acc.estimatedNum += pesoTalloEstimado * peso_b1c;
+    acc.estimatedNum += pesoTalloEstimadoGr * peso_b1c;
     acc.estimatedDen += peso_b1c;
     byWeek.set(yyww, acc);
   }
@@ -781,9 +835,7 @@ export function computeAdjustmentKpi(
     };
   }
 
-  // Por semana: peso_tallo_estimado_ponderado de esa semana × peso_b1c de la semana,
-  // y peso_tallo_venta de esa semana × peso_b1c de la semana.
-  // Luego razón global = SUM(venta × b1c) / SUM(estimado × b1c).
+  // Ponderado global por peso_b1c entre semanas.
   let venta_weighted_num = 0;
   let estimado_weighted_num = 0;
   let total_b1c = 0;
@@ -815,11 +867,12 @@ export function computeAdjustmentKpi(
 
   const pesoTalloEstimadoPonderado = estimado_weighted_num / total_b1c;
   const pesoTalloVenta = venta_weighted_num / total_b1c;
+  // razón = estimado / venta (NO venta / estimado)
   const razonAjuste =
-    pesoTalloEstimadoPonderado > 0 ? pesoTalloVenta / pesoTalloEstimadoPonderado : null;
+    pesoTalloVenta > 0 ? pesoTalloEstimadoPonderado / pesoTalloVenta : null;
   const ajusteBruto = razonAjuste !== null ? alpha + beta * razonAjuste : null;
-  const ajusteFinal =
-    ajusteBruto !== null ? Math.min(Math.max(ajusteBruto, 0.98), 1.02) : null;
+  // Censura SOLO inferior a 0.96 (sin techo)
+  const ajusteFinal = ajusteBruto !== null ? Math.max(ajusteBruto, 0.96) : null;
 
   return {
     pesoTalloEstimadoPonderado,

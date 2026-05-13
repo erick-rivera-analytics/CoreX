@@ -8,6 +8,7 @@ import {
   loadAdjustmentParams,
   loadAdjustmentSourceRows,
   loadHydrationFactorIndex,
+  loadHydrationKpiSourceRows,
   loadHydrationTargets,
   loadWasteTargets,
   loadWeeklySalesIndex,
@@ -121,6 +122,14 @@ export type BalanzasDetailColumn = {
    * Las tablas en el cliente lo mapean a un className condicional.
    */
   accentRule?: BalanzasColumnAccentRule;
+  /**
+   * Si true: la columna se incluye en el cómputo de agregados
+   * (`aggregateBalanzasMetrics` la suma como `_xxx_meta_x_yyy`) pero
+   * NO se renderiza en las tablas. Útil para campos helpers que
+   * alimentan ratios `derived-quotient` ponderados (caso Meta+Cumplim
+   * en agrupado por semana — R3).
+   */
+  isHidden?: boolean;
 };
 
 export type BalanzasDetailTableMode = "tree" | "flat";
@@ -1533,15 +1542,22 @@ const BALANZAS_NODES: BalanzasNodeDef[] = [
     hasGradeGroup: false,
     bpmnBinding: { elementId: "Task_General_Apertura_Directo", overlayOffsetLeft: 0 },
     kpiSupport: {
+      // Hidratación KPI (R3): vía cross-MV porque esta MV no tiene `grade`
+      // row-by-row. computeNodeKpi detecta `hasGrade=false` + kpiSupport.hydration
+      // y llama a loadHydrationKpiSourceRows para leer desde b1c_vs_b2_weight.
+      hydration: {
+        b1cKey: "weight_b1c_estimated_kg",
+        b2Key: "weight_b2_kg",
+        gradeKey: "grade",
+      },
       // Desperdicio: 1 − SUM(b2a)/SUM(b2), positivo, ponderado por b2.
+      // Sí tiene destination row-by-row → local.
       waste: {
         b2Key: "weight_b2_kg",
         b2aKey: "weight_b2a_kg",
         destinationKey: "destination",
       },
-      // Ajuste (cross-MV): mismos datos crudos que el caso b2-vs-b2a.
-      // Hidratación KPI NO va aquí porque la MV no tiene `grade` row-by-row
-      // y la meta de hidratación se pondera por grado.
+      // Ajuste (cross-MV): mismos datos crudos.
       adjustment: {
         weightPerStemKey: "weight_per_stem_kg",
         b1cKey: "weight_b1c_estimated_kg",
@@ -1987,7 +2003,10 @@ async function injectKpiTableColumns(
   const entries: DynamicColumnEntry[] = [];
 
   // ── Hidratación ────────────────────────────────────────────────────────────
-  if (support.hydration) {
+  // Solo si el nodo tiene `grade` row-by-row. Si es cross-MV (caso
+  // apertura-b1c-b2a-vs-ideal), las metas se muestran solo en el KPI tile,
+  // no en la tabla detalle (las rows de este nodo no tienen grade).
+  if (support.hydration && nodeDef.hasGrade) {
     const { gradeKey, b1cKey } = support.hydration;
     const targets = await loadHydrationTargets();
 
@@ -2207,6 +2226,27 @@ export async function loadNodeDetail(
     };
     });
 
+  // Inyectar helpers ocultos (sum por row) para que el agrupado por
+  // semana pueda calcular meta ponderada (`Σ(meta_grade × b1c) / Σ(b1c)`).
+  // Sin estos helpers en `columns[]`, `buildSummedMetrics` no suma el
+  // numerador del derived-quotient → meta_agg sale null en headers.
+  const hiddenHelperKeys: Array<{ key: string; rowKey: string }> = [
+    { key: "_hyd_meta_x_b1c",      rowKey: "_hyd_meta_x_b1c" },
+    { key: "_dispatch_meta_x_b2",  rowKey: "_dispatch_meta_x_b2" },
+  ];
+  for (const helper of hiddenHelperKeys) {
+    if (helper.rowKey in sampleRow) {
+      columns.push({
+        key: helper.key,
+        label: helper.key,
+        numeric: true,
+        format: "ratio",
+        aggregateMode: "sum",
+        isHidden: true,
+      });
+    }
+  }
+
   const sRow = summaryRes.rows[0] ?? {};
   const metrics: BalanzasSummaryMetric[] = nodeDef.summaryMetrics.map((m) => {
     const raw = resolveSummaryMetricValue(sRow, m);
@@ -2266,11 +2306,29 @@ async function computeNodeKpi(
 
   if (support.hydration) {
     const cfg = support.hydration;
-    tasks.push(
-      loadHydrationTargets().then((targets) => {
-        kpi.hydration = computeHydrationKpi(rows, cfg, targets, metaOrigin);
-      }),
-    );
+    if (nodeDef.hasGrade) {
+      // MV del nodo tiene grade row-by-row → cómputo local.
+      tasks.push(
+        loadHydrationTargets().then((targets) => {
+          kpi.hydration = computeHydrationKpi(rows, cfg, targets, metaOrigin);
+        }),
+      );
+    } else {
+      // MV no tiene grade (caso apertura-b1c-b2a-vs-ideal) → cross-MV.
+      tasks.push(
+        Promise.all([
+          loadHydrationTargets(),
+          loadHydrationKpiSourceRows({
+            branch: nodeDef.branch as BalanzasBranch,
+            farm: filters.farm as BalanzasFarm,
+            whereSql,
+            whereParams,
+          }),
+        ]).then(([targets, sourceRows]) => {
+          kpi.hydration = computeHydrationKpi(sourceRows, cfg, targets, metaOrigin);
+        }),
+      );
+    }
   }
 
   if (support.waste) {
