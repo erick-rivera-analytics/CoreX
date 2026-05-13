@@ -2174,6 +2174,7 @@ async function injectKpiTableColumns(
   filters: BalanzasFilters,
   whereSql: string,
   whereParams: unknown[],
+  kpi: BalanzasNodeKpi | undefined,
 ): Promise<DynamicColumnEntry[]> {
   const support = nodeDef.kpiSupport;
   if (!support) return [];
@@ -2349,33 +2350,41 @@ async function injectKpiTableColumns(
     );
   }
 
-  // ── Aprovechamiento vs Peso Ideal (solo nodos con b2a_to_ideal_ratio) ─────
-  // Real:        b2a_to_ideal_ratio (ya viene en la MV, = b2a/peso_ideal).
-  // Meta:        1.0 fija (100% = lograr exactamente el peso ideal).
-  // Cumplim.:    real / 1.0 = real.
+  // ── Aprovechamiento vs Peso Ideal ─────────────────────────────────────────
+  // Real:        ideal_to_b1c_ratio (col existente = SUM(peso_ideal)/SUM(b1c))
+  //              alias del header "Aprovechamiento %_1cvsPesoIdeal".
+  // Meta_row:    (1 + hydration_target_row) × (1 − dispatch_target_row) × ajuste_final
+  // Cumplim_row: real_row / meta_row
   //
-  // Para el agregado por semana, el meta agregado también queda en 1.0
-  // (SUM(1×b2a)/SUM(b2a) = 1.0). El cumplim agregado = derived-from-aggregates
-  // sobre (b2a_to_ideal_ratio_agg / utilization_meta_agg) = b2a_to_ideal_ratio_agg / 1.0.
-  const utilizationApplies = rows.some((r) => "b2a_to_ideal_ratio" in r);
+  // El ajuste_final es un valor GLOBAL del período (computado por
+  // computeAdjustmentKpi). Multiplica la meta canónica de (1+h)(1-d).
+  // Para el agregado: meta_agg ponderado por b1c via helper `_aprov_meta_x_b1c`.
+  const utilizationApplies = rows.some((r) => "ideal_to_b1c_ratio" in r);
+  const adjFinal = kpi?.adjustment?.ajusteFinal ?? null;
   if (utilizationApplies) {
     for (const r of rows) {
-      const real = toNumber(r.b2a_to_ideal_ratio);
-      const b2a = toNumber(r.weight_b2a_kg) ?? 0;
-      (r as Record<string, unknown>).utilization_meta = 1.0;
-      (r as Record<string, unknown>).utilization_cumplimiento = real;
-      // Helper para que el agregado meta sea constante 1.0 (ponderado por b2a).
-      (r as Record<string, unknown>)._aprov_meta_x_b2a = b2a;
+      const hr = toNumber(r.hydration_target);
+      const wr = toNumber(r.dispatch_target);
+      const real = toNumber(r.ideal_to_b1c_ratio);
+      const b1c = toNumber(r.weight_b1c_kg) ?? 0;
+      const baseMeta = hr !== null && wr !== null ? (1 + hr) * (1 - wr) : null;
+      const meta =
+        baseMeta !== null && adjFinal !== null ? baseMeta * adjFinal : null;
+      (r as Record<string, unknown>).utilization_meta = meta;
+      (r as Record<string, unknown>).utilization_cumplimiento =
+        real !== null && meta !== null && meta !== 0 ? real / meta : null;
+      (r as Record<string, unknown>)._aprov_meta_x_b1c =
+        meta !== null ? meta * b1c : null;
     }
 
     entries.push(
       {
         key: "utilization_meta",
-        insertAfterKey: "b2a_to_ideal_ratio",
+        insertAfterKey: "ideal_to_b1c_ratio",
         config: {
           format: "pct",
           aggregateMode: "derived-quotient",
-          aggregateSources: { numeratorKey: "_aprov_meta_x_b2a", denominatorKey: "weight_b2a_kg" },
+          aggregateSources: { numeratorKey: "_aprov_meta_x_b1c", denominatorKey: "weight_b1c_kg" },
         },
         accentRule: null,
       },
@@ -2385,7 +2394,7 @@ async function injectKpiTableColumns(
         config: {
           format: "pct",
           aggregateMode: "derived-from-aggregates",
-          aggregateSources: { numeratorKey: "b2a_to_ideal_ratio", denominatorKey: "utilization_meta" },
+          aggregateSources: { numeratorKey: "ideal_to_b1c_ratio", denominatorKey: "utilization_meta" },
         },
         accentRule: "cumplimiento",
       },
@@ -2481,10 +2490,18 @@ export async function loadNodeDetail(
     }
   }
 
+  // ── Compute KPI tiles ANTES de inyectar columnas de tabla ────────────────
+  // El KPI Aprovechamiento depende del Ajuste (meta = (1+h)(1-d)×ajuste).
+  // Inyectar `utilization_meta` row-by-row necesita conocer adjustment.ajusteFinal,
+  // por eso computamos el KPI primero y se lo pasamos a injectKpiTableColumns.
+  const sRow = summaryRes.rows[0] ?? {};
+  const kpi = await computeNodeKpi(nodeDef, rows, filters, where, values, sRow);
+
   // Inyectar campos virtuales Meta + Cumplimiento por row (para que se vean
   // en la tabla detalle y se agreguen correctamente al expandir por semana).
-  // Lookup de metas en paralelo; si no hay kpiSupport, no se cargan.
-  const dynamicConfigEntries = await injectKpiTableColumns(nodeDef, rows, filters, where, values);
+  const dynamicConfigEntries = await injectKpiTableColumns(
+    nodeDef, rows, filters, where, values, kpi,
+  );
 
   const sampleRow = rows[0] ?? {};
   // Merge config base del nodo + entries dinámicas (Meta/Cumplimiento) inyectadas
@@ -2524,7 +2541,7 @@ export async function loadNodeDetail(
     { key: "_hyd_meta_x_b1c",      rowKey: "_hyd_meta_x_b1c" },
     { key: "_hyd_meta_x_b2",       rowKey: "_hyd_meta_x_b2" },
     { key: "_dispatch_meta_x_b2",  rowKey: "_dispatch_meta_x_b2" },
-    { key: "_aprov_meta_x_b2a",    rowKey: "_aprov_meta_x_b2a" },
+    { key: "_aprov_meta_x_b1c",    rowKey: "_aprov_meta_x_b1c" },
   ];
   for (const helper of hiddenHelperKeys) {
     if (helper.rowKey in sampleRow) {
@@ -2539,13 +2556,10 @@ export async function loadNodeDetail(
     }
   }
 
-  const sRow = summaryRes.rows[0] ?? {};
   const metrics: BalanzasSummaryMetric[] = nodeDef.summaryMetrics.map((m) => {
     const raw = resolveSummaryMetricValue(sRow, m);
     return { col: m.col, label: m.label, value: raw, formatted: formatMetricValue(raw, m.format) };
   });
-
-  const kpi = await computeNodeKpi(nodeDef, rows, filters, where, values, sRow);
 
   return {
     nodeKey: nodeDef.key,
@@ -2755,22 +2769,29 @@ async function computeNodeKpi(
   await Promise.all(tasks);
 
   // ── Aprovechamiento vs Peso Ideal ──
-  // Real         = SUM(b2a) / SUM(peso_ideal)  (matchea Dif_Peso% del header)
-  // Meta         = 1.0   (100% es lograr exactamente el peso ideal)
-  // Cumplimiento = real / 1.0 = real
+  // Real = `ideal_to_b1c_ratio` = SUM(peso_ideal) / SUM(b1c)
+  //         (= columna "Aprovechamiento %_1cvsPesoIdeal" del header)
+  // Meta = (1 + meta_hidr) × (1 − meta_desp) × ajuste_final
+  //         (multiplicado por el ajuste, que es el factor del modelo).
+  // Cumplim = real / meta
   //
   // Aplica solo a nodos con la columna `ideal_weight_kg` en summaryMetrics
-  // (es decir, los nodos *_vs_ideal). El cómputo lee desde summary row
-  // para garantizar coincidencia con el header.
-  const sumB2aForAprov = toNumber(summaryRow.__sum_weight_b2a_kg);
+  // (los nodos *_vs_ideal). Real desde summary row → matchea header.
   const sumIdealForAprov = toNumber(summaryRow.__sum_ideal_weight_kg);
-  if (sumB2aForAprov !== null && sumIdealForAprov !== null && sumIdealForAprov > 0) {
-    const real = sumB2aForAprov / sumIdealForAprov;
-    kpi.utilization = {
-      real,
-      meta: 1.0,
-      cumplimiento: real, // real / 1.0
-    };
+  const sumB1cForAprov = toNumber(summaryRow.__sum_weight_b1c_kg);
+  const hasIdealColumn = sumIdealForAprov !== null && sumIdealForAprov > 0;
+  if (hasIdealColumn && sumB1cForAprov !== null && sumB1cForAprov > 0) {
+    const real = sumIdealForAprov / sumB1cForAprov;
+    const hm = kpi.hydration?.meta ?? null;
+    const wm = kpi.waste?.meta ?? null;
+    const adj = kpi.adjustment?.ajusteFinal ?? null;
+    const meta =
+      hm !== null && wm !== null && adj !== null
+        ? (1 + hm) * (1 - wm) * adj
+        : null;
+    const cumplimiento =
+      meta !== null && meta !== 0 ? real / meta : null;
+    kpi.utilization = { real, meta, cumplimiento };
   }
 
   return Object.keys(kpi).length > 0 ? kpi : undefined;

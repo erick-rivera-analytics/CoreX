@@ -100,27 +100,6 @@ export function BalanzasKpiMetaSection({ kpi }: { kpi: BalanzasNodeKpi }) {
         </KpiBlock>
       ) : null}
 
-      {utilization ? (
-        <KpiBlock title="Aprovechamiento vs Peso ideal">
-          <MetricTile
-            label="Valor real"
-            value={formatPercent(utilization.real, { input: "ratio" })}
-            hint="Cuánto del peso ideal estimado se logró vendible (B2A)."
-          />
-          <MetricTile
-            label="Meta"
-            value={formatPercent(utilization.meta, { input: "ratio" })}
-            hint="100% es alcanzar exactamente el peso ideal."
-          />
-          <MetricTile
-            label="Cumplimiento"
-            value={formatPercent(utilization.cumplimiento, { input: "ratio" })}
-            hint="Más alto = más cerca del peso ideal."
-            accent={cumplimientoAccent(utilization.cumplimiento)}
-          />
-        </KpiBlock>
-      ) : null}
-
       {adjustment ? (
         <KpiBlock title="Ajuste">
           <MetricTile
@@ -142,6 +121,27 @@ export function BalanzasKpiMetaSection({ kpi }: { kpi: BalanzasNodeKpi }) {
                 : "Limitado al rango operativo."
             }
             accent={ajusteAccent(adjustment.ajusteFinal)}
+          />
+        </KpiBlock>
+      ) : null}
+
+      {utilization ? (
+        <KpiBlock title="Aprovechamiento vs Peso ideal">
+          <MetricTile
+            label="Valor real"
+            value={formatPercent(utilization.real, { input: "ratio" })}
+            hint="Razón peso ideal / peso B1C — capacidad máxima estimada del lote."
+          />
+          <MetricTile
+            label="Meta"
+            value={formatPercent(utilization.meta, { input: "ratio" })}
+            hint="(1 + meta hidr.) × (1 − meta desp.) × ajuste final."
+          />
+          <MetricTile
+            label="Cumplimiento"
+            value={formatPercent(utilization.cumplimiento, { input: "ratio" })}
+            hint="Más alto = mejor desempeño."
+            accent={cumplimientoAccent(utilization.cumplimiento)}
           />
         </KpiBlock>
       ) : null}
