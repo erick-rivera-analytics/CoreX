@@ -373,7 +373,14 @@ Columnas esperadas:
 
 Estado:
 
-- pendiente de implementacion
+- ya implementada en SQL blueprint
+
+Semantica importante de esta capa:
+
+- `SPECIFIC` ya aterriza a `post_date` real del lote
+- `SPECIFIC_PERIOD` y `FALLBACK_MACRO` se conservan compactadas con `post_date = work_date` como placeholder
+- esa decision replica el motor Python para evitar explosion de filas en detalle
+- la redistribucion de esas filas placeholder a `post_date` real queda para la capa agregada `mv_prod_postharvest_hours_box_cur`
 
 Motivo de la separacion:
 
@@ -411,13 +418,12 @@ Si conviene materializar ambas capas principales:
    - helper para reparto proporcional del periodo
 5. `gld.mv_prod_postharvest_rule_side_hours_cur`
    - helper para separar horas upstream/downstream por regla
-6. `gld.mv_prod_postharvest_hours_box_cur`
+6. `gld.mv_prod_postharvest_hours_box_detail_cur`
+   - detalle granular con `SPECIFIC`, `SPECIFIC_PERIOD`, `FALLBACK_MACRO` y `FALLBACK_DAY`
+7. `gld.mv_prod_postharvest_hours_box_cur`
    - capa final de consumo para CoreX
 
-Y adicionalmente:
-
-- `gld.mv_prod_postharvest_hours_box_detail_cur`
-  - si queremos drill-down por `activity_id` sin recalcular logica pesada
+Con esto el drill-down por `activity_id` ya queda en la capa materializada, sin recalcular la logica pesada.
 
 ## Orden de refresh recomendado
 

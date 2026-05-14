@@ -105,6 +105,7 @@ Materializadas nuevas de esta fase:
 - `gld.mv_prod_postharvest_period_universe_cur`
 - `gld.mv_prod_postharvest_rule_hours_cur`
 - `gld.mv_prod_postharvest_rule_side_hours_cur`
+- `gld.mv_prod_postharvest_hours_box_detail_cur`
 
 Archivo fuente:
 
@@ -148,10 +149,16 @@ Cobertura actual de esta etapa:
 - espejo analitico de reglas en `datalakehouse.gld.prod_dim_postharvest_productivity_rule_cur`
 - horas agregadas por `dia + actividad + regla` listas para el reparto final
 - reparto preliminar de horas `upstream/downstream` por regla antes del `hours_box_detail`
+- detalle granular `hours_box_detail` con `SPECIFIC`, `SPECIFIC_PERIOD`, `FALLBACK_MACRO` y `FALLBACK_DAY`
+
+Nota operativa de esta capa:
+
+- `SPECIFIC` ya aterriza a `fecha_post` real por lote
+- `SPECIFIC_PERIOD` y `FALLBACK_MACRO` quedan compactadas con `post_date = work_date` como placeholder, igual que en el motor Python
+- la redistribucion de esas filas a `fecha_post` real queda reservada para `gld.mv_prod_postharvest_hours_box_cur`
 
 Pendiente antes del visualizador CoreX:
 
-- construir `gld.mv_prod_postharvest_hours_box_detail_cur`
 - construir `gld.mv_prod_postharvest_hours_box_cur`
 - cerrar la metodologia de reparto numerico de `hours_per_box`
 - definir en UI si `fecha_post`, `path_post`, `final_destination` y `variety_canon` viven primero como filtros, columnas base o ambas
