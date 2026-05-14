@@ -763,6 +763,7 @@ join gld.prod_dim_postharvest_productivity_rule_cur r
  and r.activity_id = h.activity_id
 where r.is_active = true
   and r.is_inactive = false
+  and coalesce(r.path_rule, '') <> 'PENDING'
 group by
   h.work_date,
   r.rule_scope_area,
@@ -812,6 +813,7 @@ with activity_rule_counts as (
   from gld.prod_dim_postharvest_productivity_rule_cur
   where is_active = true
     and is_inactive = false
+    and coalesce(path_rule, '') <> 'PENDING'
   group by rule_scope_area, activity_id
 ),
 cls_support_activity_set as (
@@ -821,6 +823,7 @@ cls_support_activity_set as (
     and methodology_code = 'KG_CAPACIDAD'
     and is_active = true
     and is_inactive = false
+    and coalesce(path_rule, '') <> 'PENDING'
 ),
 cls_productive_activity_set as (
   select distinct activity_id
@@ -830,6 +833,7 @@ cls_productive_activity_set as (
     and is_inactive = false
     and is_misassigned = false
     and methodology_code <> 'KG_CAPACIDAD'
+    and coalesce(path_rule, '') <> 'PENDING'
 ),
 cls_support_empirical_m as (
   with day_hours as (
@@ -878,6 +882,7 @@ cls_segment_people as (
       and r.is_inactive = false
       and r.is_misassigned = false
       and r.methodology_code <> 'KG_CAPACIDAD'
+      and coalesce(r.path_rule, '') <> 'PENDING'
       and h.person_id is not null
   )
   select
@@ -944,6 +949,7 @@ cls_m_tallos_productivity as (
       and stage_side = 'UPSTREAM_ONLY'
       and is_active = true
       and is_inactive = false
+      and coalesce(path_rule, '') <> 'PENDING'
   ),
   down_acts as (
     select distinct activity_id
@@ -952,6 +958,7 @@ cls_m_tallos_productivity as (
       and stage_side = 'DOWNSTREAM_ONLY'
       and is_active = true
       and is_inactive = false
+      and coalesce(path_rule, '') <> 'PENDING'
   ),
   hours_totals as (
     select
@@ -1074,8 +1081,6 @@ base_rule_side as (
 select
   b.*,
   case
-    when b.applies_to = 'UPSTREAM' then 1::double precision
-    when b.applies_to = 'DOWNSTREAM' then 0::double precision
     when coalesce(b.upstream_share_raw, 0) + coalesce(b.downstream_share_raw, 0) > 0
       then coalesce(b.upstream_share_raw, 0)
         / (coalesce(b.upstream_share_raw, 0) + coalesce(b.downstream_share_raw, 0))
@@ -1083,10 +1088,10 @@ select
     when b.stage_side = 'UPSTREAM_ONLY' then 1::double precision
     when b.stage_side = 'DOWNSTREAM_ONLY' then 0::double precision
     else 0.5::double precision
-  end as upstream_share,
+  end
+  * case when b.applies_to in ('UPSTREAM', 'BOTH') then 1::double precision else 0::double precision end
+    as upstream_share,
   case
-    when b.applies_to = 'UPSTREAM' then 0::double precision
-    when b.applies_to = 'DOWNSTREAM' then 1::double precision
     when coalesce(b.upstream_share_raw, 0) + coalesce(b.downstream_share_raw, 0) > 0
       then coalesce(b.downstream_share_raw, 0)
         / (coalesce(b.upstream_share_raw, 0) + coalesce(b.downstream_share_raw, 0))
@@ -1094,33 +1099,37 @@ select
     when b.stage_side = 'UPSTREAM_ONLY' then 0::double precision
     when b.stage_side = 'DOWNSTREAM_ONLY' then 1::double precision
     else 0.5::double precision
-  end as downstream_share,
-  b.effective_hours * (
-    case
-      when b.applies_to = 'UPSTREAM' then 1::double precision
-      when b.applies_to = 'DOWNSTREAM' then 0::double precision
-      when coalesce(b.upstream_share_raw, 0) + coalesce(b.downstream_share_raw, 0) > 0
-        then coalesce(b.upstream_share_raw, 0)
-          / (coalesce(b.upstream_share_raw, 0) + coalesce(b.downstream_share_raw, 0))
-      when b.rule_scope_area = 'EMP' then 0::double precision
-      when b.stage_side = 'UPSTREAM_ONLY' then 1::double precision
-      when b.stage_side = 'DOWNSTREAM_ONLY' then 0::double precision
-      else 0.5::double precision
-    end
-  ) as hours_upstream,
-  b.effective_hours * (
-    case
-      when b.applies_to = 'UPSTREAM' then 0::double precision
-      when b.applies_to = 'DOWNSTREAM' then 1::double precision
-      when coalesce(b.upstream_share_raw, 0) + coalesce(b.downstream_share_raw, 0) > 0
-        then coalesce(b.downstream_share_raw, 0)
-          / (coalesce(b.upstream_share_raw, 0) + coalesce(b.downstream_share_raw, 0))
-      when b.rule_scope_area = 'EMP' then 1::double precision
-      when b.stage_side = 'UPSTREAM_ONLY' then 0::double precision
-      when b.stage_side = 'DOWNSTREAM_ONLY' then 1::double precision
-      else 0.5::double precision
-    end
-  ) as hours_downstream
+  end
+  * case when b.applies_to in ('DOWNSTREAM', 'BOTH') then 1::double precision else 0::double precision end
+    as downstream_share,
+  b.effective_hours
+  * (
+      case
+        when coalesce(b.upstream_share_raw, 0) + coalesce(b.downstream_share_raw, 0) > 0
+          then coalesce(b.upstream_share_raw, 0)
+            / (coalesce(b.upstream_share_raw, 0) + coalesce(b.downstream_share_raw, 0))
+        when b.rule_scope_area = 'EMP' then 0::double precision
+        when b.stage_side = 'UPSTREAM_ONLY' then 1::double precision
+        when b.stage_side = 'DOWNSTREAM_ONLY' then 0::double precision
+        else 0.5::double precision
+      end
+    )
+  * case when b.applies_to in ('UPSTREAM', 'BOTH') then 1::double precision else 0::double precision end
+    as hours_upstream,
+  b.effective_hours
+  * (
+      case
+        when coalesce(b.upstream_share_raw, 0) + coalesce(b.downstream_share_raw, 0) > 0
+          then coalesce(b.downstream_share_raw, 0)
+            / (coalesce(b.upstream_share_raw, 0) + coalesce(b.downstream_share_raw, 0))
+        when b.rule_scope_area = 'EMP' then 1::double precision
+        when b.stage_side = 'UPSTREAM_ONLY' then 0::double precision
+        when b.stage_side = 'DOWNSTREAM_ONLY' then 1::double precision
+        else 0.5::double precision
+      end
+    )
+  * case when b.applies_to in ('DOWNSTREAM', 'BOTH') then 1::double precision else 0::double precision end
+    as hours_downstream
 from base_rule_side b;
 
 create index if not exists idx_mv_prod_postharvest_rule_side_hours_cur_work_date

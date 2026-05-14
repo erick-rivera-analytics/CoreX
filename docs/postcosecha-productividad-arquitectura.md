@@ -381,6 +381,10 @@ Semantica importante de esta capa:
 - `SPECIFIC_PERIOD` y `FALLBACK_MACRO` se conservan compactadas con `post_date = work_date` como placeholder
 - esa decision replica el motor Python para evitar explosion de filas en detalle
 - la redistribucion de esas filas placeholder a `post_date` real queda para la capa agregada `mv_prod_postharvest_hours_box_cur`
+- para rules `MIXED`, el split de horas se calcula primero y el `applies_to` solo enmascara el lado permitido
+- no se debe renormalizar una fila `UPSTREAM` o `DOWNSTREAM` a `100%` de horas
+- esa renormalizacion fue la causa del sobreconteo de `CLS` en `SFM`, `RVM` y `PAM`
+- `path_rule = 'PENDING'` debe quedar fuera de la capa analitica porque contamina `SB` y altera `rule_count`
 
 Motivo de la separacion:
 
@@ -459,3 +463,10 @@ Para `gld.mv_prod_postharvest_hours_box_detail_cur`:
 - definir la metodologia exacta de reparto de horas para `CLS`, `SB`, `EMP`
 - decidir si `fecha_post`, `path_post`, `final_destination`, `variety_canon` se priorizan como filtros, columnas base o ambas
 - migrar las reglas hoy mantenidas en CSV/XLSX a una fuente formal en PostgreSQL si van a seguir siendo parte del modelo operativo
+
+## Baseline de validacion
+
+- el KPI historico `4.0852 h/caja` de `2025-04-29` a `2026-05-02` no representa la fuente viva actual de PostgreSQL
+- ese numero salio de una corrida Python con cajas hasta `2026-05-02`, pero con snapshot de horas que llegaba solo hasta `2026-04-15`
+- contra la fuente viva actual, el baseline operativo correcto del mismo rango es `4.3716 h/caja`
+- la paridad de la migracion SQL debe medirse contra ese baseline vivo mientras no exista otra foto oficial congelada

@@ -163,6 +163,21 @@ Pendiente antes del visualizador CoreX:
 - cerrar la metodologia de reparto numerico de `hours_per_box`
 - definir en UI si `fecha_post`, `path_post`, `final_destination` y `variety_canon` viven primero como filtros, columnas base o ambas
 
+Validacion operativa de paridad:
+
+- el KPI historico `4.0852 h/caja` de `2025-04-29` a `2026-05-02` vino de un snapshot viejo del motor Python con cajas hasta `2026-05-02`, pero horas base solo hasta `2026-04-15`
+- con la fuente viva actual de PostgreSQL, el baseline correcto del mismo rango sube a `4.3716 h/caja`
+- la migracion SQL habia inflado ese valor por un bug de duplicacion multi-regla en `CLS`
+- el fix correcto fue:
+  - calcular primero el split real `upstream/downstream`
+  - y recien despues enmascarar por `applies_to`
+  - nunca renormalizar `applies_to` a `100%` por fila
+- tambien se excluyo `path_rule = 'PENDING'` de la capa analitica
+- despues del fix, la validacion macro del rango queda:
+  - horas asignadas: `552,029.62`
+  - cajas10: `126,276.28`
+  - KPI total: `4.3716 h/caja`
+
 ## Comercial - Fotos de reclamos
 
 El modulo `Gestion / Comercial / Reclamos` guarda fotos por API y este flujo debe quedar desacoplado del usuario final.
