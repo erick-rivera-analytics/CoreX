@@ -128,6 +128,8 @@ Seed actual desde los maestros `CLS/SB/EMP`:
 ```bash
 node scripts/apply-postharvest-sql.mjs
 node scripts/seed-postharvest-productivity-rules.mjs
+node scripts/apply-postharvest-productivity-sql.mjs
+node scripts/sync-postharvest-productivity-rules-to-datalakehouse.mjs
 ```
 
 Cobertura actual de esta etapa:
@@ -141,6 +143,7 @@ Cobertura actual de esta etapa:
 - salida final del lote a `fecha_post` para `B2A` y `B3`
 - universo consolidado del periodo por `path_post` y `final_destination`
 - maestro formal de reglas de productividad en `db_postharvest`
+- espejo analitico de reglas en `datalakehouse.gld.prod_dim_postharvest_productivity_rule_cur`
 
 Pendiente antes del visualizador CoreX:
 

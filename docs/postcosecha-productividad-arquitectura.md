@@ -115,6 +115,14 @@ Seed actual:
 
 - [seed-postharvest-productivity-rules.mjs](C:/Users/paul.loja/AppData/Local/Temp/CoreX_bodega_validate/scripts/seed-postharvest-productivity-rules.mjs)
 
+Para que las materializadas del DW puedan usar esas reglas sin depender de joins entre bases, tambien se deja un espejo analitico en:
+
+- `datalakehouse.gld.prod_dim_postharvest_productivity_rule_cur`
+
+Sync actual:
+
+- [sync-postharvest-productivity-rules-to-datalakehouse.mjs](C:/Users/paul.loja/AppData/Local/Temp/CoreX_bodega_validate/scripts/sync-postharvest-productivity-rules-to-datalakehouse.mjs)
+
 ## Arquitectura SQL propuesta
 
 Regla del proyecto validada:

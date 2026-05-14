@@ -17,12 +17,57 @@
 -- Notes:
 --   - KPI grain is driven by post_date, not cycle_key
 --   - B2 must be corrected by peel_type, not only by origin
+--   - productivity rules are mirrored from db_postharvest into datalakehouse
 --   - this file implements:
 --       1. gld.mv_prod_postharvest_capacity_hours_cur
 --       2. gld.mv_prod_postharvest_step_flow_cur
+--       helper table gld.prod_dim_postharvest_productivity_rule_cur
 --   - allocation-heavy layers remain intentionally pending:
 --       3. gld.mv_prod_postharvest_hours_box_detail_cur
 --       4. gld.mv_prod_postharvest_hours_box_cur
+
+create table if not exists gld.prod_dim_postharvest_productivity_rule_cur (
+  rule_id text primary key,
+  rule_scope_area text not null,
+  rule_code text not null,
+  activity_id text not null,
+  activity_name text not null,
+  baseline_actual_hours_q1 double precision null,
+  path_rule text not null,
+  variety_filter text not null,
+  destination_filter text not null,
+  methodology_code text not null,
+  applies_to text not null,
+  stage_side text not null,
+  anchor_final text not null,
+  allowed_steps text null,
+  path_split_basis text null,
+  step_split_basis text null,
+  is_misassigned boolean not null,
+  is_inactive boolean not null,
+  is_active boolean not null,
+  confidence_level text null,
+  source_kind text null,
+  notes text null,
+  group_name text null,
+  natural_key text not null,
+  source_valid_from timestamp without time zone null,
+  source_valid_to timestamp without time zone null,
+  source_loaded_at timestamp without time zone null,
+  source_run_id text null,
+  source_actor_id text null,
+  source_change_reason text null,
+  synced_at timestamp without time zone not null default now()
+);
+
+create unique index if not exists prod_dim_postharvest_productivity_rule_cur_natural_key_idx
+  on gld.prod_dim_postharvest_productivity_rule_cur (lower(regexp_replace(trim(natural_key), '\s+', ' ', 'g')));
+
+create index if not exists prod_dim_postharvest_productivity_rule_cur_scope_idx
+  on gld.prod_dim_postharvest_productivity_rule_cur (rule_scope_area, activity_id);
+
+create index if not exists prod_dim_postharvest_productivity_rule_cur_method_idx
+  on gld.prod_dim_postharvest_productivity_rule_cur (methodology_code, path_rule, anchor_final);
 
 drop materialized view if exists gld.mv_prod_postharvest_capacity_hours_cur;
 
