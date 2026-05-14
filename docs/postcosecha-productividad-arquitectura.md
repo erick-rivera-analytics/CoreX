@@ -106,6 +106,15 @@ Ese reemplazo ya quedo planteado en SQL dentro de:
 
 - [datalakehouse_postharvest_productivity.sql](C:/Users/paul.loja/AppData/Local/Temp/CoreX_bodega_validate/sql/datalakehouse_postharvest_productivity.sql)
 
+Adicionalmente, la metodologia operativa `CLS/SB/EMP` ya debe dejar de depender solo de CSV externo y queda formalizada en:
+
+- `db_postharvest.public.postharvest_ref_productivity_rule_id_core_scd2`
+- `db_postharvest.public.postharvest_dim_productivity_rule_profile_scd2`
+
+Seed actual:
+
+- [seed-postharvest-productivity-rules.mjs](C:/Users/paul.loja/AppData/Local/Temp/CoreX_bodega_validate/scripts/seed-postharvest-productivity-rules.mjs)
+
 ## Arquitectura SQL propuesta
 
 Regla del proyecto validada:

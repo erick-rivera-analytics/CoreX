@@ -118,6 +118,18 @@ Aplicacion contra `datalakehouse`:
 node scripts/apply-postharvest-productivity-sql.mjs
 ```
 
+Fuente formal de reglas operativas:
+
+- `db_postharvest.public.postharvest_ref_productivity_rule_id_core_scd2`
+- `db_postharvest.public.postharvest_dim_productivity_rule_profile_scd2`
+
+Seed actual desde los maestros `CLS/SB/EMP`:
+
+```bash
+node scripts/apply-postharvest-sql.mjs
+node scripts/seed-postharvest-productivity-rules.mjs
+```
+
 Cobertura actual de esta etapa:
 
 - horas base de `CLS`, `SB`, `EMP` desde `slv.prod_fact_hours_cur`
@@ -128,6 +140,7 @@ Cobertura actual de esta etapa:
 - universos diarios por paso para `CLS`, `SB`, `EMP`
 - salida final del lote a `fecha_post` para `B2A` y `B3`
 - universo consolidado del periodo por `path_post` y `final_destination`
+- maestro formal de reglas de productividad en `db_postharvest`
 
 Pendiente antes del visualizador CoreX:
 
