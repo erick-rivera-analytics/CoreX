@@ -92,6 +92,44 @@ Variables importantes adicionales:
 - `COMMERCIAL_DATABASE_NAME=db_commercial`
 - `COMMERCIAL_CLAIMS_NAS_ROOT` para fotos de `Comercial / Reclamos`
 
+## Postcosecha - KPI Productividad
+
+Esta etapa ya tiene base SQL preparada para construir `Analitica / Postcosecha / Indicadores & KPI / Productividad` con grano por `fecha_post`.
+
+Materializadas nuevas de esta fase:
+
+- `gld.mv_prod_postharvest_capacity_hours_cur`
+- `gld.mv_prod_postharvest_step_flow_cur`
+
+Archivo fuente:
+
+- [sql/datalakehouse_postharvest_productivity.sql](C:/Users/paul.loja/AppData/Local/Temp/CoreX_bodega_validate/sql/datalakehouse_postharvest_productivity.sql)
+
+Documentacion tecnica:
+
+- [docs/postcosecha-productividad-arquitectura.md](C:/Users/paul.loja/AppData/Local/Temp/CoreX_bodega_validate/docs/postcosecha-productividad-arquitectura.md)
+
+Aplicacion contra `datalakehouse`:
+
+```bash
+node scripts/apply-postharvest-productivity-sql.mjs
+```
+
+Cobertura actual de esta etapa:
+
+- horas base de `CLS`, `SB`, `EMP` desde `slv.prod_fact_hours_cur`
+- enriquecimiento de actividad desde `slv.prod_dim_activity_profile_scd2`
+- flujo canonico de balanzas `B1`, `B1A`, `B1C`, `B2`, `B2A`, `B3`
+- correccion de `B2` por `peel_type`
+- inferencia de `variety_canon` y `final_destination` para `B3` desde `sku`
+
+Pendiente antes del visualizador CoreX:
+
+- construir `gld.mv_prod_postharvest_hours_box_detail_cur`
+- construir `gld.mv_prod_postharvest_hours_box_cur`
+- cerrar la metodologia de reparto numerico de `hours_per_box`
+- definir en UI si `fecha_post`, `path_post`, `final_destination` y `variety_canon` viven primero como filtros, columnas base o ambas
+
 ## Comercial - Fotos de reclamos
 
 El modulo `Gestion / Comercial / Reclamos` guarda fotos por API y este flujo debe quedar desacoplado del usuario final.
