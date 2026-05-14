@@ -103,6 +103,7 @@ Materializadas nuevas de esta fase:
 - `gld.mv_prod_postharvest_day_universe_cur`
 - `gld.mv_prod_postharvest_lot_final_output_cur`
 - `gld.mv_prod_postharvest_period_universe_cur`
+- `gld.mv_prod_postharvest_rule_hours_cur`
 
 Archivo fuente:
 
@@ -144,6 +145,7 @@ Cobertura actual de esta etapa:
 - universo consolidado del periodo por `path_post` y `final_destination`
 - maestro formal de reglas de productividad en `db_postharvest`
 - espejo analitico de reglas en `datalakehouse.gld.prod_dim_postharvest_productivity_rule_cur`
+- horas agregadas por `dia + actividad + regla` listas para el reparto final
 
 Pendiente antes del visualizador CoreX:
 

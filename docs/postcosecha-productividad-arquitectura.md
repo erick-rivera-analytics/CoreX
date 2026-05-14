@@ -275,6 +275,37 @@ Estado:
 
 - ya implementada en SQL blueprint
 
+### Vista helper - horas por regla
+
+Nombre:
+
+- `gld.mv_prod_postharvest_rule_hours_cur`
+
+Rol:
+
+- cruzar la capa de horas base con las reglas vigentes ya espejadas en `datalakehouse`
+- dejar una fila por `work_date + rule_id + activity_id`
+- servir como base inmediata para el reparto fino de `hours_box_detail`
+
+Columnas clave:
+
+- `work_date`
+- `rule_scope_area`
+- `rule_id`
+- `activity_id`
+- `path_rule`
+- `methodology_code`
+- `stage_side`
+- `anchor_final`
+- `effective_hours`
+- `actual_hours`
+- `units_produced`
+- `distinct_people`
+
+Estado:
+
+- ya implementada en SQL blueprint
+
 ### Vista 3 - detalle horas/caja
 
 Nombre propuesto:

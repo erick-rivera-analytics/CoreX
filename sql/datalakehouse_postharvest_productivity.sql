@@ -145,6 +145,7 @@ create index if not exists idx_mv_prod_postharvest_capacity_hours_cur_cycle
 drop materialized view if exists gld.mv_prod_postharvest_period_universe_cur;
 drop materialized view if exists gld.mv_prod_postharvest_lot_final_output_cur;
 drop materialized view if exists gld.mv_prod_postharvest_day_universe_cur;
+drop materialized view if exists gld.mv_prod_postharvest_rule_hours_cur;
 drop materialized view if exists gld.mv_prod_postharvest_step_flow_cur;
 
 create materialized view gld.mv_prod_postharvest_step_flow_cur as
@@ -717,6 +718,86 @@ cross join totals t;
 
 create index if not exists idx_mv_prod_postharvest_period_universe_cur_path_destination
   on gld.mv_prod_postharvest_period_universe_cur (path_post, final_destination);
+
+drop materialized view if exists gld.mv_prod_postharvest_rule_hours_cur;
+
+create materialized view gld.mv_prod_postharvest_rule_hours_cur as
+select
+  h.work_date,
+  r.rule_scope_area,
+  r.rule_id,
+  r.rule_code,
+  r.activity_id,
+  r.activity_name,
+  r.baseline_actual_hours_q1,
+  r.path_rule,
+  r.variety_filter,
+  r.destination_filter,
+  r.methodology_code,
+  r.applies_to,
+  r.stage_side,
+  r.anchor_final,
+  r.allowed_steps,
+  r.path_split_basis,
+  r.step_split_basis,
+  r.is_misassigned,
+  r.is_inactive,
+  r.is_active,
+  r.confidence_level,
+  r.source_kind,
+  r.notes,
+  r.group_name,
+  h.cost_area,
+  h.sub_cost_center,
+  h.activity_type,
+  sum(h.actual_hours)::double precision as actual_hours,
+  sum(h.effective_hours)::double precision as effective_hours,
+  sum(h.units_produced)::double precision as units_produced,
+  count(*)::int as hours_event_count,
+  count(distinct h.person_id)::int as distinct_people
+from gld.mv_prod_postharvest_capacity_hours_cur h
+join gld.prod_dim_postharvest_productivity_rule_cur r
+  on r.rule_scope_area = h.area_id
+ and r.activity_id = h.activity_id
+where r.is_active = true
+  and r.is_inactive = false
+group by
+  h.work_date,
+  r.rule_scope_area,
+  r.rule_id,
+  r.rule_code,
+  r.activity_id,
+  r.activity_name,
+  r.baseline_actual_hours_q1,
+  r.path_rule,
+  r.variety_filter,
+  r.destination_filter,
+  r.methodology_code,
+  r.applies_to,
+  r.stage_side,
+  r.anchor_final,
+  r.allowed_steps,
+  r.path_split_basis,
+  r.step_split_basis,
+  r.is_misassigned,
+  r.is_inactive,
+  r.is_active,
+  r.confidence_level,
+  r.source_kind,
+  r.notes,
+  r.group_name,
+  h.cost_area,
+  h.sub_cost_center,
+  h.activity_type;
+
+create index if not exists idx_mv_prod_postharvest_rule_hours_cur_work_date
+  on gld.mv_prod_postharvest_rule_hours_cur (work_date);
+
+create index if not exists idx_mv_prod_postharvest_rule_hours_cur_scope_activity
+  on gld.mv_prod_postharvest_rule_hours_cur (rule_scope_area, activity_id);
+
+create index if not exists idx_mv_prod_postharvest_rule_hours_cur_rule
+  on gld.mv_prod_postharvest_rule_hours_cur (rule_id);
 
 -- Pending materialized layer 3:
 -- gld.mv_prod_postharvest_hours_box_detail_cur
