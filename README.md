@@ -100,6 +100,9 @@ Materializadas nuevas de esta fase:
 
 - `gld.mv_prod_postharvest_capacity_hours_cur`
 - `gld.mv_prod_postharvest_step_flow_cur`
+- `gld.mv_prod_postharvest_day_universe_cur`
+- `gld.mv_prod_postharvest_lot_final_output_cur`
+- `gld.mv_prod_postharvest_period_universe_cur`
 
 Archivo fuente:
 
@@ -122,6 +125,9 @@ Cobertura actual de esta etapa:
 - flujo canonico de balanzas `B1`, `B1A`, `B1C`, `B2`, `B2A`, `B3`
 - correccion de `B2` por `peel_type`
 - inferencia de `variety_canon` y `final_destination` para `B3` desde `sku`
+- universos diarios por paso para `CLS`, `SB`, `EMP`
+- salida final del lote a `fecha_post` para `B2A` y `B3`
+- universo consolidado del periodo por `path_post` y `final_destination`
 
 Pendiente antes del visualizador CoreX:
 

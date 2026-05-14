@@ -97,6 +97,9 @@ create index if not exists idx_mv_prod_postharvest_capacity_hours_cur_area_activ
 create index if not exists idx_mv_prod_postharvest_capacity_hours_cur_cycle
   on gld.mv_prod_postharvest_capacity_hours_cur (cycle_key);
 
+drop materialized view if exists gld.mv_prod_postharvest_period_universe_cur;
+drop materialized view if exists gld.mv_prod_postharvest_lot_final_output_cur;
+drop materialized view if exists gld.mv_prod_postharvest_day_universe_cur;
 drop materialized view if exists gld.mv_prod_postharvest_step_flow_cur;
 
 create materialized view gld.mv_prod_postharvest_step_flow_cur as
@@ -514,6 +517,161 @@ create index if not exists idx_mv_prod_postharvest_step_flow_cur_variety
 
 create index if not exists idx_mv_prod_postharvest_step_flow_cur_step
   on gld.mv_prod_postharvest_step_flow_cur (step_code);
+
+drop materialized view if exists gld.mv_prod_postharvest_day_universe_cur;
+
+create materialized view gld.mv_prod_postharvest_day_universe_cur as
+with base as (
+  select
+    post_date as work_date,
+    sum(case when step_code = 'B1' then stems_count else 0 end)::double precision as b1_stems,
+    sum(case when step_code = 'B1A' then stems_count else 0 end)::double precision as b1a_stems,
+    sum(case when step_code = 'B1C' then stems_count else 0 end)::double precision as b1c_stems,
+    sum(case when step_code = 'B2' then stems_count else 0 end)::double precision as b2_stems,
+    sum(case when step_code = 'B2A' then weight_kg else 0 end)::double precision as b2a_weight_kg,
+    sum(case when step_code = 'B3' then weight_kg else 0 end)::double precision as b3_weight_kg,
+    sum(case when step_code = 'B2A' then coalesce(bunches_count, 0) else 0 end)::double precision as b2a_bunches,
+    sum(case when step_code = 'B3' then coalesce(bunches_count, 0) else 0 end)::double precision as b3_bunches
+  from gld.mv_prod_postharvest_step_flow_cur
+  group by post_date
+)
+select
+  work_date,
+  b1_stems,
+  b1a_stems,
+  b1c_stems,
+  b2_stems,
+  b2a_weight_kg,
+  b3_weight_kg,
+  b2a_bunches,
+  b3_bunches,
+  (b1c_stems + b1a_stems)::double precision as cls_upstream_stems,
+  b2_stems::double precision as cls_downstream_stems,
+  b1_stems::double precision as sb_upstream_stems,
+  b2_stems::double precision as sb_downstream_stems,
+  (b2a_weight_kg + b3_weight_kg)::double precision as emp_final_weight_kg,
+  (b2a_bunches + b3_bunches)::double precision as emp_final_bunches
+from base;
+
+create index if not exists idx_mv_prod_postharvest_day_universe_cur_work_date
+  on gld.mv_prod_postharvest_day_universe_cur (work_date);
+
+drop materialized view if exists gld.mv_prod_postharvest_lot_final_output_cur;
+
+create materialized view gld.mv_prod_postharvest_lot_final_output_cur as
+with final_steps as (
+  select
+    lot_date,
+    post_date,
+    path_post,
+    variety_canon,
+    final_destination,
+    sum(weight_kg)::double precision as weight_kg,
+    sum(coalesce(bunches_count, 0))::double precision as bunches_count,
+    sum(stems_count)::double precision as stems_count
+  from gld.mv_prod_postharvest_step_flow_cur
+  where (step_code = 'B2A' and path_post in ('APERTURA', 'GV'))
+     or (step_code = 'B3' and path_post = 'PRECLASIFICACION')
+  group by lot_date, post_date, path_post, variety_canon, final_destination
+),
+totals as (
+  select
+    lot_date,
+    path_post,
+    variety_canon,
+    final_destination,
+    sum(weight_kg)::double precision as lot_weight_total_kg,
+    sum(bunches_count)::double precision as lot_bunches_total,
+    sum(stems_count)::double precision as lot_stems_total
+  from final_steps
+  group by lot_date, path_post, variety_canon, final_destination
+)
+select
+  f.lot_date,
+  f.post_date,
+  f.path_post,
+  f.variety_canon,
+  f.final_destination,
+  f.weight_kg,
+  f.bunches_count,
+  f.stems_count,
+  t.lot_weight_total_kg,
+  t.lot_bunches_total,
+  t.lot_stems_total,
+  case
+    when coalesce(t.lot_weight_total_kg, 0) > 0 then f.weight_kg / t.lot_weight_total_kg
+    else 0
+  end as share_kg_to_post_date
+from final_steps f
+join totals t
+  on t.lot_date = f.lot_date
+ and t.path_post = f.path_post
+ and t.variety_canon = f.variety_canon
+ and t.final_destination = f.final_destination;
+
+create index if not exists idx_mv_prod_postharvest_lot_final_output_cur_lot_date
+  on gld.mv_prod_postharvest_lot_final_output_cur (lot_date);
+
+create index if not exists idx_mv_prod_postharvest_lot_final_output_cur_post_date
+  on gld.mv_prod_postharvest_lot_final_output_cur (post_date);
+
+create index if not exists idx_mv_prod_postharvest_lot_final_output_cur_path_destination
+  on gld.mv_prod_postharvest_lot_final_output_cur (path_post, final_destination);
+
+drop materialized view if exists gld.mv_prod_postharvest_period_universe_cur;
+
+create materialized view gld.mv_prod_postharvest_period_universe_cur as
+with final_output as (
+  select
+    path_post,
+    final_destination,
+    sum(weight_kg)::double precision as final_weight_kg,
+    sum(bunches_count)::double precision as final_bunches
+  from gld.mv_prod_postharvest_lot_final_output_cur
+  group by path_post, final_destination
+),
+b2_output as (
+  select
+    path_post,
+    final_destination,
+    sum(stems_count)::double precision as b2_stems
+  from gld.mv_prod_postharvest_step_flow_cur
+  where step_code = 'B2'
+  group by path_post, final_destination
+),
+universe as (
+  select
+    coalesce(f.path_post, b.path_post) as path_post,
+    coalesce(f.final_destination, b.final_destination) as final_destination,
+    coalesce(f.final_weight_kg, 0)::double precision as final_weight_kg,
+    coalesce(f.final_bunches, 0)::double precision as final_bunches,
+    coalesce(b.b2_stems, 0)::double precision as b2_stems
+  from final_output f
+  full join b2_output b
+    on b.path_post = f.path_post
+   and b.final_destination = f.final_destination
+),
+totals as (
+  select
+    sum(final_weight_kg)::double precision as total_final_weight_kg,
+    sum(final_bunches)::double precision as total_final_bunches,
+    sum(b2_stems)::double precision as total_b2_stems
+  from universe
+)
+select
+  u.path_post,
+  u.final_destination,
+  u.final_weight_kg,
+  u.final_bunches,
+  u.b2_stems,
+  case when coalesce(t.total_final_weight_kg, 0) > 0 then u.final_weight_kg / t.total_final_weight_kg else 0 end as share_final_weight,
+  case when coalesce(t.total_final_bunches, 0) > 0 then u.final_bunches / t.total_final_bunches else 0 end as share_final_bunches,
+  case when coalesce(t.total_b2_stems, 0) > 0 then u.b2_stems / t.total_b2_stems else 0 end as share_b2_stems
+from universe u
+cross join totals t;
+
+create index if not exists idx_mv_prod_postharvest_period_universe_cur_path_destination
+  on gld.mv_prod_postharvest_period_universe_cur (path_post, final_destination);
 
 -- Pending materialized layer 3:
 -- gld.mv_prod_postharvest_hours_box_detail_cur

@@ -187,6 +187,77 @@ Flags operativos incluidos:
 - `is_allowed_destination`
 - `is_projected_only_variety`
 
+### Vista helper - universos diarios
+
+Nombre:
+
+- `gld.mv_prod_postharvest_day_universe_cur`
+
+Rol:
+
+- consolidar universos diarios que usa la metodologia de reparto
+- dejar precalculados:
+  - `cls_upstream_stems = B1C + B1A`
+  - `cls_downstream_stems = B2`
+  - `sb_upstream_stems = B1`
+  - `sb_downstream_stems = B2`
+  - `emp_final_weight_kg = B2A + B3`
+  - `emp_final_bunches = B2A + B3`
+
+Estado:
+
+- ya implementada en SQL blueprint
+
+### Vista helper - salida final del lote
+
+Nombre:
+
+- `gld.mv_prod_postharvest_lot_final_output_cur`
+
+Rol:
+
+- consolidar la salida final del lote hacia `fecha_post`
+- unificar `B2A` y `B3`
+- exponer `share_kg_to_post_date` por:
+  - `lot_date`
+  - `post_date`
+  - `path_post`
+  - `variety_canon`
+  - `final_destination`
+
+Estado:
+
+- ya implementada en SQL blueprint
+
+### Vista helper - universo del periodo
+
+Nombre:
+
+- `gld.mv_prod_postharvest_period_universe_cur`
+
+Rol:
+
+- consolidar el universo del periodo por `path_post` y `final_destination`
+- dejar listas las participaciones para metodologias:
+  - `KG`
+  - `KG_CAPACIDAD`
+  - `BUNCHES`
+  - `TALLOS_DIRECT`
+  - `TALLOS_CAPACIDAD`
+
+Columnas clave:
+
+- `final_weight_kg`
+- `final_bunches`
+- `b2_stems`
+- `share_final_weight`
+- `share_final_bunches`
+- `share_b2_stems`
+
+Estado:
+
+- ya implementada en SQL blueprint
+
 ### Vista 3 - detalle horas/caja
 
 Nombre propuesto:
@@ -248,7 +319,13 @@ Si conviene materializar ambas capas principales:
 1. `gld.mv_prod_postharvest_step_flow_cur`
    - capa de flujo operativa reutilizable
    - sirve para debugging, auditoria y futuras metricas
-2. `gld.mv_prod_postharvest_hours_box_cur`
+2. `gld.mv_prod_postharvest_day_universe_cur`
+   - helper directo para `CLS`, `SB`, `EMP`
+3. `gld.mv_prod_postharvest_lot_final_output_cur`
+   - helper para viaje de `lot_date` a `post_date`
+4. `gld.mv_prod_postharvest_period_universe_cur`
+   - helper para reparto proporcional del periodo
+5. `gld.mv_prod_postharvest_hours_box_cur`
    - capa final de consumo para CoreX
 
 Y adicionalmente:
@@ -260,8 +337,11 @@ Y adicionalmente:
 
 1. `gld.mv_prod_postharvest_capacity_hours_cur`
 2. `gld.mv_prod_postharvest_step_flow_cur`
-3. `gld.mv_prod_postharvest_hours_box_detail_cur`
-4. `gld.mv_prod_postharvest_hours_box_cur`
+3. `gld.mv_prod_postharvest_day_universe_cur`
+4. `gld.mv_prod_postharvest_lot_final_output_cur`
+5. `gld.mv_prod_postharvest_period_universe_cur`
+6. `gld.mv_prod_postharvest_hours_box_detail_cur`
+7. `gld.mv_prod_postharvest_hours_box_cur`
 
 ## Indices minimos sugeridos
 

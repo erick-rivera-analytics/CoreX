@@ -56,7 +56,10 @@ try {
     where schemaname = 'gld'
       and matviewname in (
         'mv_prod_postharvest_capacity_hours_cur',
-        'mv_prod_postharvest_step_flow_cur'
+        'mv_prod_postharvest_step_flow_cur',
+        'mv_prod_postharvest_day_universe_cur',
+        'mv_prod_postharvest_lot_final_output_cur',
+        'mv_prod_postharvest_period_universe_cur'
       )
     order by matviewname
   `);
@@ -66,8 +69,8 @@ try {
     console.info(`  ${row.schemaname}.${row.matviewname}`);
   }
 
-  if (verification.rows.length !== 2) {
-    console.warn(`[SQL] Advertencia: se esperaban 2 materializadas y se verificaron ${verification.rows.length}.`);
+  if (verification.rows.length !== 5) {
+    console.warn(`[SQL] Advertencia: se esperaban 5 materializadas y se verificaron ${verification.rows.length}.`);
   }
 } finally {
   await pool.end();
