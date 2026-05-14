@@ -147,6 +147,42 @@ Estado:
 
 - ya implementada en SQL blueprint
 
+### Vista helper - horas por lado del flujo
+
+Nombre:
+
+- `gld.mv_prod_postharvest_rule_side_hours_cur`
+
+Rol:
+
+- tomar `mv_prod_postharvest_rule_hours_cur` como base de reglas vigentes
+- separar `effective_hours` entre `hours_upstream` y `hours_downstream`
+- dejar trazable la estrategia usada antes del reparto fino de `hours_box_detail`
+
+Columnas clave:
+
+- `work_date`
+- `rule_scope_area`
+- `rule_id`
+- `activity_id`
+- `split_strategy`
+- `upstream_share_raw`
+- `downstream_share_raw`
+- `hours_upstream`
+- `hours_downstream`
+
+Reglas especiales ya previstas:
+
+- `EMP` va 100% a downstream
+- `CLS` soporte `KG_CAPACIDAD` usa el modelo de estaciones con `M` empirico y segmentos de personas
+- `CLS` mixto con `TALLOS_CAPACIDAD` y multiples reglas por actividad usa `M_tallos productividad`
+- `SB` y el resto de mixtos usan masa diaria `upstream/downstream`
+- `applies_to` corta el lado no permitido aunque exista share teorico
+
+Estado:
+
+- ya implementada en SQL blueprint
+
 Fuente:
 
 - `slv.prod_fact_hours_cur`
@@ -373,7 +409,9 @@ Si conviene materializar ambas capas principales:
    - helper para viaje de `lot_date` a `post_date`
 4. `gld.mv_prod_postharvest_period_universe_cur`
    - helper para reparto proporcional del periodo
-5. `gld.mv_prod_postharvest_hours_box_cur`
+5. `gld.mv_prod_postharvest_rule_side_hours_cur`
+   - helper para separar horas upstream/downstream por regla
+6. `gld.mv_prod_postharvest_hours_box_cur`
    - capa final de consumo para CoreX
 
 Y adicionalmente:
@@ -388,8 +426,10 @@ Y adicionalmente:
 3. `gld.mv_prod_postharvest_day_universe_cur`
 4. `gld.mv_prod_postharvest_lot_final_output_cur`
 5. `gld.mv_prod_postharvest_period_universe_cur`
-6. `gld.mv_prod_postharvest_hours_box_detail_cur`
-7. `gld.mv_prod_postharvest_hours_box_cur`
+6. `gld.mv_prod_postharvest_rule_hours_cur`
+7. `gld.mv_prod_postharvest_rule_side_hours_cur`
+8. `gld.mv_prod_postharvest_hours_box_detail_cur`
+9. `gld.mv_prod_postharvest_hours_box_cur`
 
 ## Indices minimos sugeridos
 

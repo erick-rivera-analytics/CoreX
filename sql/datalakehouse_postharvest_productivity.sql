@@ -69,6 +69,12 @@ create index if not exists prod_dim_postharvest_productivity_rule_cur_scope_idx
 create index if not exists prod_dim_postharvest_productivity_rule_cur_method_idx
   on gld.prod_dim_postharvest_productivity_rule_cur (methodology_code, path_rule, anchor_final);
 
+drop materialized view if exists gld.mv_prod_postharvest_rule_side_hours_cur;
+drop materialized view if exists gld.mv_prod_postharvest_rule_hours_cur;
+drop materialized view if exists gld.mv_prod_postharvest_period_universe_cur;
+drop materialized view if exists gld.mv_prod_postharvest_lot_final_output_cur;
+drop materialized view if exists gld.mv_prod_postharvest_day_universe_cur;
+drop materialized view if exists gld.mv_prod_postharvest_step_flow_cur;
 drop materialized view if exists gld.mv_prod_postharvest_capacity_hours_cur;
 
 create materialized view gld.mv_prod_postharvest_capacity_hours_cur as
@@ -141,12 +147,6 @@ create index if not exists idx_mv_prod_postharvest_capacity_hours_cur_area_activ
 
 create index if not exists idx_mv_prod_postharvest_capacity_hours_cur_cycle
   on gld.mv_prod_postharvest_capacity_hours_cur (cycle_key);
-
-drop materialized view if exists gld.mv_prod_postharvest_period_universe_cur;
-drop materialized view if exists gld.mv_prod_postharvest_lot_final_output_cur;
-drop materialized view if exists gld.mv_prod_postharvest_day_universe_cur;
-drop materialized view if exists gld.mv_prod_postharvest_rule_hours_cur;
-drop materialized view if exists gld.mv_prod_postharvest_step_flow_cur;
 
 create materialized view gld.mv_prod_postharvest_step_flow_cur as
 with activity_dim_current as (
@@ -798,6 +798,337 @@ create index if not exists idx_mv_prod_postharvest_rule_hours_cur_scope_activity
 
 create index if not exists idx_mv_prod_postharvest_rule_hours_cur_rule
   on gld.mv_prod_postharvest_rule_hours_cur (rule_id);
+
+drop materialized view if exists gld.mv_prod_postharvest_rule_side_hours_cur;
+
+create materialized view gld.mv_prod_postharvest_rule_side_hours_cur as
+with activity_rule_counts as (
+  select
+    rule_scope_area,
+    activity_id,
+    count(*)::int as rule_count
+  from gld.prod_dim_postharvest_productivity_rule_cur
+  where is_active = true
+    and is_inactive = false
+  group by rule_scope_area, activity_id
+),
+cls_support_activity_set as (
+  select distinct activity_id
+  from gld.prod_dim_postharvest_productivity_rule_cur
+  where rule_scope_area = 'CLS'
+    and methodology_code = 'KG_CAPACIDAD'
+    and is_active = true
+    and is_inactive = false
+),
+cls_productive_activity_set as (
+  select distinct activity_id
+  from gld.prod_dim_postharvest_productivity_rule_cur
+  where rule_scope_area = 'CLS'
+    and is_active = true
+    and is_inactive = false
+    and is_misassigned = false
+    and methodology_code <> 'KG_CAPACIDAD'
+),
+cls_support_empirical_m as (
+  with day_hours as (
+    select
+      h.work_date,
+      sum(case when h.activity_id in (select activity_id from cls_productive_activity_set) then h.effective_hours else 0 end)::double precision as productive_hours,
+      sum(case when h.activity_id in (select activity_id from cls_support_activity_set) then h.effective_hours else 0 end)::double precision as support_hours
+    from gld.mv_prod_postharvest_capacity_hours_cur h
+    where h.area_id = 'CLS'
+    group by h.work_date
+  ),
+  ratios as (
+    select productive_hours / support_hours as ratio
+    from day_hours
+    where productive_hours > 0
+      and support_hours > 0
+  )
+  select coalesce(percentile_cont(0.5) within group (order by ratio), 1.0)::double precision as support_m
+  from ratios
+),
+cls_segment_people as (
+  with segment_rows as (
+    select distinct
+      h.work_date,
+      h.person_id,
+      case
+        when r.stage_side in ('UPSTREAM_ONLY', 'MIXED')
+          and r.applies_to in ('UPSTREAM', 'BOTH')
+          and r.path_rule = 'PRECLAS'
+          then 'UPSTREAM_PRECLAS'
+        when r.stage_side in ('UPSTREAM_ONLY', 'MIXED')
+          and r.applies_to in ('UPSTREAM', 'BOTH')
+          and r.path_rule in ('APERTURA', 'GV', 'APERTURA_GV_SPLIT', 'ALL_PATHS_SPLIT')
+          then 'UPSTREAM_AGV'
+        when r.stage_side in ('DOWNSTREAM_ONLY', 'MIXED')
+          and r.applies_to in ('DOWNSTREAM', 'BOTH')
+          then 'DOWNSTREAM'
+        else null
+      end as segment_name
+    from gld.mv_prod_postharvest_capacity_hours_cur h
+    join gld.prod_dim_postharvest_productivity_rule_cur r
+      on r.rule_scope_area = 'CLS'
+     and r.activity_id = h.activity_id
+    where h.area_id = 'CLS'
+      and r.is_active = true
+      and r.is_inactive = false
+      and r.is_misassigned = false
+      and r.methodology_code <> 'KG_CAPACIDAD'
+      and h.person_id is not null
+  )
+  select
+    work_date,
+    count(distinct person_id) filter (where segment_name = 'UPSTREAM_AGV')::int as upstream_agv_people,
+    count(distinct person_id) filter (where segment_name = 'UPSTREAM_PRECLAS')::int as upstream_preclas_people,
+    count(distinct person_id) filter (where segment_name = 'DOWNSTREAM')::int as downstream_people
+  from segment_rows
+  where segment_name is not null
+  group by work_date
+),
+cls_support_shares as (
+  select
+    d.work_date,
+    case when d.b1c_stems > 0 then 1.0 else 0.0 end as est_up_agv,
+    case when d.b1a_stems > 0 then 1.0 else 0.0 end as est_up_preclas,
+    coalesce(p.downstream_people, 0)::double precision / greatest(m.support_m, 0.000001) as est_down_pool,
+    (
+      case when d.b1c_stems > 0 then 1.0 else 0.0 end
+      + case when d.b1a_stems > 0 then 1.0 else 0.0 end
+      + coalesce(p.downstream_people, 0)::double precision / greatest(m.support_m, 0.000001)
+    ) as est_total,
+    case
+      when (
+        case when d.b1c_stems > 0 then 1.0 else 0.0 end
+        + case when d.b1a_stems > 0 then 1.0 else 0.0 end
+        + coalesce(p.downstream_people, 0)::double precision / greatest(m.support_m, 0.000001)
+      ) > 0
+      then (
+        case when d.b1c_stems > 0 then 1.0 else 0.0 end
+        + case when d.b1a_stems > 0 then 1.0 else 0.0 end
+      ) / (
+        case when d.b1c_stems > 0 then 1.0 else 0.0 end
+        + case when d.b1a_stems > 0 then 1.0 else 0.0 end
+        + coalesce(p.downstream_people, 0)::double precision / greatest(m.support_m, 0.000001)
+      )
+      else 0
+    end as share_up_support,
+    case
+      when (
+        case when d.b1c_stems > 0 then 1.0 else 0.0 end
+        + case when d.b1a_stems > 0 then 1.0 else 0.0 end
+        + coalesce(p.downstream_people, 0)::double precision / greatest(m.support_m, 0.000001)
+      ) > 0
+      then (
+        coalesce(p.downstream_people, 0)::double precision / greatest(m.support_m, 0.000001)
+      ) / (
+        case when d.b1c_stems > 0 then 1.0 else 0.0 end
+        + case when d.b1a_stems > 0 then 1.0 else 0.0 end
+        + coalesce(p.downstream_people, 0)::double precision / greatest(m.support_m, 0.000001)
+      )
+      else 0
+    end as share_down_support
+  from gld.mv_prod_postharvest_day_universe_cur d
+  cross join cls_support_empirical_m m
+  left join cls_segment_people p
+    on p.work_date = d.work_date
+),
+cls_m_tallos_productivity as (
+  with up_acts as (
+    select distinct activity_id
+    from gld.prod_dim_postharvest_productivity_rule_cur
+    where rule_scope_area = 'CLS'
+      and stage_side = 'UPSTREAM_ONLY'
+      and is_active = true
+      and is_inactive = false
+  ),
+  down_acts as (
+    select distinct activity_id
+    from gld.prod_dim_postharvest_productivity_rule_cur
+    where rule_scope_area = 'CLS'
+      and stage_side = 'DOWNSTREAM_ONLY'
+      and is_active = true
+      and is_inactive = false
+  ),
+  hours_totals as (
+    select
+      sum(case when activity_id in (select activity_id from up_acts) then effective_hours else 0 end)::double precision as up_hours,
+      sum(case when activity_id in (select activity_id from down_acts) then effective_hours else 0 end)::double precision as down_hours
+    from gld.mv_prod_postharvest_rule_hours_cur
+    where rule_scope_area = 'CLS'
+  ),
+  step_totals as (
+    select
+      sum(case when step_code = 'B1' and path_post = 'PRECLASIFICACION' then stems_count else 0 end)::double precision as up_stems,
+      sum(case when step_code = 'B2' then stems_count else 0 end)::double precision as down_stems
+    from gld.mv_prod_postharvest_step_flow_cur
+  )
+  select
+    case
+      when coalesce(h.up_hours, 0) > 0
+       and coalesce(h.down_hours, 0) > 0
+       and coalesce(s.up_stems, 0) > 0
+       and coalesce(s.down_stems, 0) > 0
+      then
+        (s.down_stems / h.down_hours)
+        / ((s.up_stems / h.up_hours) + (s.down_stems / h.down_hours))
+      else 0.5
+    end as share_up_m_tallos
+  from hours_totals h
+  cross join step_totals s
+),
+base_rule_side as (
+  select
+    r.work_date,
+    r.rule_scope_area,
+    r.rule_id,
+    r.rule_code,
+    r.activity_id,
+    r.activity_name,
+    r.baseline_actual_hours_q1,
+    r.path_rule,
+    r.variety_filter,
+    r.destination_filter,
+    r.methodology_code,
+    r.applies_to,
+    r.stage_side,
+    r.anchor_final,
+    r.allowed_steps,
+    r.path_split_basis,
+    r.step_split_basis,
+    r.is_misassigned,
+    r.is_inactive,
+    r.is_active,
+    r.confidence_level,
+    r.source_kind,
+    r.notes,
+    r.group_name,
+    r.cost_area,
+    r.sub_cost_center,
+    r.activity_type,
+    r.actual_hours,
+    r.effective_hours,
+    r.units_produced,
+    r.hours_event_count,
+    r.distinct_people,
+    arc.rule_count,
+    case
+      when r.rule_scope_area = 'EMP' then 'EMP_ALL_DOWNSTREAM'
+      when r.rule_scope_area = 'CLS' and r.methodology_code = 'KG_CAPACIDAD' then 'CLS_SUPPORT_STATIONS'
+      when r.rule_scope_area = 'CLS'
+        and r.stage_side = 'MIXED'
+        and r.methodology_code = 'TALLOS_CAPACIDAD'
+        and coalesce(arc.rule_count, 0) > 1 then 'CLS_M_TALLOS_PRODUCTIVITY'
+      when r.stage_side = 'UPSTREAM_ONLY' then 'UPSTREAM_ONLY'
+      when r.stage_side = 'DOWNSTREAM_ONLY' then 'DOWNSTREAM_ONLY'
+      when r.stage_side = 'MIXED' then 'DAY_UNIVERSE_SPLIT'
+      else 'UNCLASSIFIED'
+    end as split_strategy,
+    case
+      when r.rule_scope_area = 'EMP' then 0::double precision
+      when r.rule_scope_area = 'CLS' and r.methodology_code = 'KG_CAPACIDAD'
+        then coalesce(cs.share_up_support, 0)::double precision
+      when r.rule_scope_area = 'CLS'
+        and r.stage_side = 'MIXED'
+        and r.methodology_code = 'TALLOS_CAPACIDAD'
+        and coalesce(arc.rule_count, 0) > 1
+        then coalesce(mt.share_up_m_tallos, 0.5)::double precision
+      when r.stage_side = 'UPSTREAM_ONLY' then 1::double precision
+      when r.stage_side = 'DOWNSTREAM_ONLY' then 0::double precision
+      when r.rule_scope_area = 'CLS'
+        then coalesce(d.cls_upstream_stems / nullif(d.cls_upstream_stems + d.cls_downstream_stems, 0), 0)::double precision
+      when r.rule_scope_area = 'SB'
+        then coalesce(d.sb_upstream_stems / nullif(d.sb_upstream_stems + d.sb_downstream_stems, 0), 0)::double precision
+      else 0::double precision
+    end as upstream_share_raw,
+    case
+      when r.rule_scope_area = 'EMP' then 1::double precision
+      when r.rule_scope_area = 'CLS' and r.methodology_code = 'KG_CAPACIDAD'
+        then coalesce(cs.share_down_support, 0)::double precision
+      when r.rule_scope_area = 'CLS'
+        and r.stage_side = 'MIXED'
+        and r.methodology_code = 'TALLOS_CAPACIDAD'
+        and coalesce(arc.rule_count, 0) > 1
+        then (1 - coalesce(mt.share_up_m_tallos, 0.5))::double precision
+      when r.stage_side = 'UPSTREAM_ONLY' then 0::double precision
+      when r.stage_side = 'DOWNSTREAM_ONLY' then 1::double precision
+      when r.rule_scope_area = 'CLS'
+        then coalesce(d.cls_downstream_stems / nullif(d.cls_upstream_stems + d.cls_downstream_stems, 0), 0)::double precision
+      when r.rule_scope_area = 'SB'
+        then coalesce(d.sb_downstream_stems / nullif(d.sb_upstream_stems + d.sb_downstream_stems, 0), 0)::double precision
+      else 1::double precision
+    end as downstream_share_raw
+  from gld.mv_prod_postharvest_rule_hours_cur r
+  left join activity_rule_counts arc
+    on arc.rule_scope_area = r.rule_scope_area
+   and arc.activity_id = r.activity_id
+  left join gld.mv_prod_postharvest_day_universe_cur d
+    on d.work_date = r.work_date
+  left join cls_support_shares cs
+    on cs.work_date = r.work_date
+  cross join cls_m_tallos_productivity mt
+)
+select
+  b.*,
+  case
+    when b.applies_to = 'UPSTREAM' then 1::double precision
+    when b.applies_to = 'DOWNSTREAM' then 0::double precision
+    when coalesce(b.upstream_share_raw, 0) + coalesce(b.downstream_share_raw, 0) > 0
+      then coalesce(b.upstream_share_raw, 0)
+        / (coalesce(b.upstream_share_raw, 0) + coalesce(b.downstream_share_raw, 0))
+    when b.rule_scope_area = 'EMP' then 0::double precision
+    when b.stage_side = 'UPSTREAM_ONLY' then 1::double precision
+    when b.stage_side = 'DOWNSTREAM_ONLY' then 0::double precision
+    else 0.5::double precision
+  end as upstream_share,
+  case
+    when b.applies_to = 'UPSTREAM' then 0::double precision
+    when b.applies_to = 'DOWNSTREAM' then 1::double precision
+    when coalesce(b.upstream_share_raw, 0) + coalesce(b.downstream_share_raw, 0) > 0
+      then coalesce(b.downstream_share_raw, 0)
+        / (coalesce(b.upstream_share_raw, 0) + coalesce(b.downstream_share_raw, 0))
+    when b.rule_scope_area = 'EMP' then 1::double precision
+    when b.stage_side = 'UPSTREAM_ONLY' then 0::double precision
+    when b.stage_side = 'DOWNSTREAM_ONLY' then 1::double precision
+    else 0.5::double precision
+  end as downstream_share,
+  b.effective_hours * (
+    case
+      when b.applies_to = 'UPSTREAM' then 1::double precision
+      when b.applies_to = 'DOWNSTREAM' then 0::double precision
+      when coalesce(b.upstream_share_raw, 0) + coalesce(b.downstream_share_raw, 0) > 0
+        then coalesce(b.upstream_share_raw, 0)
+          / (coalesce(b.upstream_share_raw, 0) + coalesce(b.downstream_share_raw, 0))
+      when b.rule_scope_area = 'EMP' then 0::double precision
+      when b.stage_side = 'UPSTREAM_ONLY' then 1::double precision
+      when b.stage_side = 'DOWNSTREAM_ONLY' then 0::double precision
+      else 0.5::double precision
+    end
+  ) as hours_upstream,
+  b.effective_hours * (
+    case
+      when b.applies_to = 'UPSTREAM' then 0::double precision
+      when b.applies_to = 'DOWNSTREAM' then 1::double precision
+      when coalesce(b.upstream_share_raw, 0) + coalesce(b.downstream_share_raw, 0) > 0
+        then coalesce(b.downstream_share_raw, 0)
+          / (coalesce(b.upstream_share_raw, 0) + coalesce(b.downstream_share_raw, 0))
+      when b.rule_scope_area = 'EMP' then 1::double precision
+      when b.stage_side = 'UPSTREAM_ONLY' then 0::double precision
+      when b.stage_side = 'DOWNSTREAM_ONLY' then 1::double precision
+      else 0.5::double precision
+    end
+  ) as hours_downstream
+from base_rule_side b;
+
+create index if not exists idx_mv_prod_postharvest_rule_side_hours_cur_work_date
+  on gld.mv_prod_postharvest_rule_side_hours_cur (work_date);
+
+create index if not exists idx_mv_prod_postharvest_rule_side_hours_cur_scope_activity
+  on gld.mv_prod_postharvest_rule_side_hours_cur (rule_scope_area, activity_id);
+
+create index if not exists idx_mv_prod_postharvest_rule_side_hours_cur_rule
+  on gld.mv_prod_postharvest_rule_side_hours_cur (rule_id);
 
 -- Pending materialized layer 3:
 -- gld.mv_prod_postharvest_hours_box_detail_cur

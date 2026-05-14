@@ -104,6 +104,7 @@ Materializadas nuevas de esta fase:
 - `gld.mv_prod_postharvest_lot_final_output_cur`
 - `gld.mv_prod_postharvest_period_universe_cur`
 - `gld.mv_prod_postharvest_rule_hours_cur`
+- `gld.mv_prod_postharvest_rule_side_hours_cur`
 
 Archivo fuente:
 
@@ -146,6 +147,7 @@ Cobertura actual de esta etapa:
 - maestro formal de reglas de productividad en `db_postharvest`
 - espejo analitico de reglas en `datalakehouse.gld.prod_dim_postharvest_productivity_rule_cur`
 - horas agregadas por `dia + actividad + regla` listas para el reparto final
+- reparto preliminar de horas `upstream/downstream` por regla antes del `hours_box_detail`
 
 Pendiente antes del visualizador CoreX:
 
