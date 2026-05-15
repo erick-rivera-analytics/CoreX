@@ -62,7 +62,8 @@ try {
         'mv_prod_postharvest_period_universe_cur',
         'mv_prod_postharvest_rule_hours_cur',
         'mv_prod_postharvest_rule_side_hours_cur',
-        'mv_prod_postharvest_hours_box_detail_cur'
+        'mv_prod_postharvest_hours_box_detail_cur',
+        'mv_prod_postharvest_hours_box_cur'
       )
     order by matviewname
   `);
@@ -72,8 +73,8 @@ try {
     console.info(`  ${row.schemaname}.${row.matviewname}`);
   }
 
-  if (verification.rows.length !== 8) {
-    console.warn(`[SQL] Advertencia: se esperaban 8 materializadas y se verificaron ${verification.rows.length}.`);
+  if (verification.rows.length !== 9) {
+    console.warn(`[SQL] Advertencia: se esperaban 9 materializadas y se verificaron ${verification.rows.length}.`);
   }
 } finally {
   await pool.end();

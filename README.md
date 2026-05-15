@@ -150,17 +150,20 @@ Cobertura actual de esta etapa:
 - horas agregadas por `dia + actividad + regla` listas para el reparto final
 - reparto preliminar de horas `upstream/downstream` por regla antes del `hours_box_detail`
 - detalle granular `hours_box_detail` con `SPECIFIC`, `SPECIFIC_PERIOD`, `FALLBACK_MACRO` y `FALLBACK_DAY`
+- agregado final `hours_box_cur` por `post_date + path_post + final_destination + area_id`
 
 Nota operativa de esta capa:
 
 - `SPECIFIC` ya aterriza a `fecha_post` real por lote
 - `SPECIFIC_PERIOD` y `FALLBACK_MACRO` quedan compactadas con `post_date = work_date` como placeholder, igual que en el motor Python
-- la redistribucion de esas filas a `fecha_post` real queda reservada para `gld.mv_prod_postharvest_hours_box_cur`
+- la redistribucion de esas filas a `fecha_post` real ocurre en `gld.mv_prod_postharvest_hours_box_cur`
+- la agregada final no baja a `variety_canon` ni `lot_date`; ese drill-down vive en `detail`
 
 Pendiente antes del visualizador CoreX:
 
-- construir `gld.mv_prod_postharvest_hours_box_cur`
 - cerrar la metodologia de reparto numerico de `hours_per_box`
+- materializar/refrescar la cadena completa con la capa final `gld.mv_prod_postharvest_hours_box_cur`
+- montar el modulo CoreX sobre la salida final
 - definir en UI si `fecha_post`, `path_post`, `final_destination` y `variety_canon` viven primero como filtros, columnas base o ambas
 
 Validacion operativa de paridad:

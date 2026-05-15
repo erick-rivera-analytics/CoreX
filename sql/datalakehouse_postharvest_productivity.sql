@@ -1979,14 +1979,171 @@ create index if not exists idx_mv_prod_postharvest_hours_box_detail_cur_area_sli
 create index if not exists idx_mv_prod_postharvest_hours_box_detail_cur_activity
   on gld.mv_prod_postharvest_hours_box_detail_cur (activity_id);
 
--- Pending materialized layer 4:
--- gld.mv_prod_postharvest_hours_box_cur
+drop materialized view if exists gld.mv_prod_postharvest_hours_box_cur;
+
+create materialized view gld.mv_prod_postharvest_hours_box_cur as
+with area_universe as (
+  select unnest(array['CLS', 'SB', 'EMP'])::text as area_id
+),
+kg_post as (
+  select
+    post_date,
+    path_post,
+    final_destination,
+    sum(weight_kg)::double precision as weight_kg
+  from gld.mv_prod_postharvest_lot_final_output_cur
+  group by post_date, path_post, final_destination
+),
+kg_path_destination_total as (
+  select
+    path_post,
+    final_destination,
+    sum(weight_kg)::double precision as weight_total_kg
+  from kg_post
+  group by path_post, final_destination
+),
+kg_distribution as (
+  select
+    k.post_date,
+    k.path_post,
+    k.final_destination,
+    k.weight_kg,
+    case
+      when coalesce(t.weight_total_kg, 0) > 0 then k.weight_kg / t.weight_total_kg
+      else 0::double precision
+    end as share_post_date_in_path_destination
+  from kg_post k
+  join kg_path_destination_total t
+    on t.path_post = k.path_post
+   and t.final_destination = k.final_destination
+),
+detail_regular as (
+  select
+    post_date,
+    path_post,
+    final_destination,
+    area_id,
+    side,
+    match_kind,
+    sum(effective_hours_assigned)::double precision as effective_hours_assigned
+  from gld.mv_prod_postharvest_hours_box_detail_cur
+  where match_kind not in ('SPECIFIC_PERIOD', 'FALLBACK_MACRO')
+  group by
+    post_date,
+    path_post,
+    final_destination,
+    area_id,
+    side,
+    match_kind
+),
+detail_placeholder as (
+  select
+    path_post,
+    final_destination,
+    area_id,
+    side,
+    match_kind,
+    sum(effective_hours_assigned)::double precision as effective_hours_total
+  from gld.mv_prod_postharvest_hours_box_detail_cur
+  where match_kind in ('SPECIFIC_PERIOD', 'FALLBACK_MACRO')
+  group by
+    path_post,
+    final_destination,
+    area_id,
+    side,
+    match_kind
+),
+detail_placeholder_redistributed as (
+  select
+    k.post_date,
+    p.path_post,
+    p.final_destination,
+    p.area_id,
+    p.side,
+    p.match_kind,
+    (p.effective_hours_total * k.share_post_date_in_path_destination)::double precision as effective_hours_assigned
+  from detail_placeholder p
+  join kg_distribution k
+    on k.path_post = p.path_post
+   and k.final_destination = p.final_destination
+),
+detail_allocation as (
+  select * from detail_regular
+  union all
+  select * from detail_placeholder_redistributed
+),
+detail_grouped as (
+  select
+    post_date,
+    path_post,
+    final_destination,
+    area_id,
+    sum(effective_hours_assigned)::double precision as effective_hours_assigned,
+    sum(case when side = 'UPSTREAM' then effective_hours_assigned else 0 end)::double precision as effective_hours_upstream,
+    sum(case when side = 'DOWNSTREAM' then effective_hours_assigned else 0 end)::double precision as effective_hours_downstream,
+    sum(case when match_kind = 'SPECIFIC' then effective_hours_assigned else 0 end)::double precision as effective_hours_specific,
+    sum(case when match_kind = 'SPECIFIC_PERIOD' then effective_hours_assigned else 0 end)::double precision as effective_hours_specific_period,
+    sum(case when match_kind = 'FALLBACK_MACRO' then effective_hours_assigned else 0 end)::double precision as effective_hours_fallback_macro,
+    sum(case when match_kind = 'FALLBACK_DAY' then effective_hours_assigned else 0 end)::double precision as effective_hours_fallback_day
+  from detail_allocation
+  group by
+    post_date,
+    path_post,
+    final_destination,
+    area_id
+)
+select
+  k.post_date,
+  k.path_post,
+  k.final_destination,
+  a.area_id,
+  k.weight_kg,
+  (k.weight_kg / 10.0)::double precision as boxes10,
+  coalesce(d.effective_hours_assigned, 0)::double precision as effective_hours_assigned,
+  coalesce(d.effective_hours_upstream, 0)::double precision as effective_hours_upstream,
+  coalesce(d.effective_hours_downstream, 0)::double precision as effective_hours_downstream,
+  coalesce(d.effective_hours_specific, 0)::double precision as effective_hours_specific,
+  coalesce(d.effective_hours_specific_period, 0)::double precision as effective_hours_specific_period,
+  coalesce(d.effective_hours_fallback_macro, 0)::double precision as effective_hours_fallback_macro,
+  coalesce(d.effective_hours_fallback_day, 0)::double precision as effective_hours_fallback_day,
+  case
+    when coalesce(k.weight_kg, 0) > 0 then coalesce(d.effective_hours_assigned, 0) / (k.weight_kg / 10.0)
+    else null::double precision
+  end as hours_per_box,
+  case
+    when coalesce(k.weight_kg, 0) > 0 then coalesce(d.effective_hours_upstream, 0) / (k.weight_kg / 10.0)
+    else null::double precision
+  end as hours_per_box_upstream,
+  case
+    when coalesce(k.weight_kg, 0) > 0 then coalesce(d.effective_hours_downstream, 0) / (k.weight_kg / 10.0)
+    else null::double precision
+  end as hours_per_box_downstream
+from kg_post k
+cross join area_universe a
+left join detail_grouped d
+  on d.post_date = k.post_date
+ and d.path_post = k.path_post
+ and d.final_destination = k.final_destination
+ and d.area_id = a.area_id;
+
+create index if not exists idx_mv_prod_postharvest_hours_box_cur_post_date
+  on gld.mv_prod_postharvest_hours_box_cur (post_date);
+
+create index if not exists idx_mv_prod_postharvest_hours_box_cur_area_slice
+  on gld.mv_prod_postharvest_hours_box_cur (area_id, path_post, final_destination);
+
+create index if not exists idx_mv_prod_postharvest_hours_box_cur_path_destination
+  on gld.mv_prod_postharvest_hours_box_cur (path_post, final_destination);
+
+-- Final CoreX explorer contract.
 --
--- This is the final CoreX explorer contract.
--- It should aggregate the detail layer by post_date and operational slices.
---
--- Recommended refresh order:
+-- Refresh order:
 --   1. gld.mv_prod_postharvest_capacity_hours_cur
 --   2. gld.mv_prod_postharvest_step_flow_cur
---   3. gld.mv_prod_postharvest_hours_box_detail_cur
---   4. gld.mv_prod_postharvest_hours_box_cur
+--   3. gld.mv_prod_postharvest_day_universe_cur
+--   4. gld.mv_prod_postharvest_lot_final_output_cur
+--   5. gld.mv_prod_postharvest_period_universe_cur
+--   6. gld.mv_prod_postharvest_rule_hours_cur
+--   7. gld.mv_prod_postharvest_rule_side_hours_cur
+--   8. gld.mv_prod_postharvest_hours_box_detail_cur
+--   9. gld.mv_prod_postharvest_hours_box_cur

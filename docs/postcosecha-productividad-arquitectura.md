@@ -405,7 +405,36 @@ Rol:
 
 Estado:
 
-- pendiente de implementacion
+- implementada en SQL blueprint
+
+Grano final:
+
+- una fila por:
+  - `post_date`
+  - `path_post`
+  - `final_destination`
+  - `area_id`
+
+Columnas clave:
+
+- `weight_kg`
+- `boxes10`
+- `effective_hours_assigned`
+- `effective_hours_upstream`
+- `effective_hours_downstream`
+- `effective_hours_specific`
+- `effective_hours_specific_period`
+- `effective_hours_fallback_macro`
+- `effective_hours_fallback_day`
+- `hours_per_box`
+- `hours_per_box_upstream`
+- `hours_per_box_downstream`
+
+Regla importante de esta capa:
+
+- `SPECIFIC_PERIOD` y `FALLBACK_MACRO` se redistribuyen aqui sobre los `post_date` reales del universo `kg_post`
+- la redistribucion ocurre por share de `peso_kg` dentro de cada `(path_post, final_destination)`
+- por eso la capa final no baja a `variety_canon` ni `lot_date`; ese detalle queda reservado a `gld.mv_prod_postharvest_hours_box_detail_cur`
 
 ## Estrategia recomendada
 

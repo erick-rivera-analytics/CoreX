@@ -310,6 +310,11 @@ const API_ACCESS_RULES_UNSORTED: ApiAccessRule[] = [
     requiredResources: ["/dashboard/postcosecha/balanzas"],
   },
   {
+    pathnamePrefix: "/api/postcosecha/productividad",
+    policy: "resource-bound",
+    requiredResources: ["/dashboard/postcosecha/productividad"],
+  },
+  {
     // Cubre todos los sub-paths del solver: /run, /pdf, etc.
     pathnamePrefix: "/api/postcosecha/planificacion/solver/clasificacion-en-blanco",
     policy: "resource-bound",
