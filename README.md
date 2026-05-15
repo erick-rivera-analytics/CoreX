@@ -157,7 +157,11 @@ Nota operativa de esta capa:
 - `SPECIFIC` ya aterriza a `fecha_post` real por lote
 - `SPECIFIC_PERIOD` y `FALLBACK_MACRO` quedan compactadas con `post_date = work_date` como placeholder, igual que en el motor Python
 - la redistribucion de esas filas a `fecha_post` real ocurre en `gld.mv_prod_postharvest_hours_box_cur`
-- la agregada final ya expone `variety_canon`
+- la agregada final canonica sigue el motor origen por `fecha_post + camino_post + destino_lote`
+- la logica SQL vive en `gld.vw_prod_postharvest_*_cur`
+- la `gld.mv_prod_postharvest_*_cur` es solo la copia materializada para el visualizador
+- `PRECLAS` debe canonizarse a `PRECLASIFICACION` en la capa analitica visible
+- la columna `variety_canon` puede existir en la salida final como compatibilidad tecnica, pero la metodologia canonica no debe redistribuir horas finales por variedad hasta cerrar una regla validada
 - `lot_date` sigue viviendo en `detail` para drill-down fino
 
 Pendiente antes del visualizador CoreX:
@@ -187,6 +191,7 @@ Regla de fuente para CoreX:
 - `Analitica / Postcosecha / Indicadores & KPI / Productividad` debe consumir una sola fuente: PostgreSQL
 - no se debe mezclar con parquet, CSV ni salidas intermedias del proyecto Python dentro del CoreX
 - si `gld.mv_prod_postharvest_hours_box_cur` no existe o el rebuild sigue corriendo, el modulo debe fallar con mensaje claro de materializacion en curso
+- mientras la agregada canonica siga replicando el motor origen sin segmentacion final por variedad, el filtro `Variedad` no debe devolver una lectura inventada o estimada dentro del dashboard principal
 
 ## Comercial - Fotos de reclamos
 

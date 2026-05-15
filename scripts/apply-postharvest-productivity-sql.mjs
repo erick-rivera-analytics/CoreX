@@ -68,13 +68,40 @@ try {
     order by matviewname
   `);
 
+  const viewVerification = await pool.query(`
+    select table_schema as schemaname, table_name as viewname
+    from information_schema.views
+    where table_schema = 'gld'
+      and table_name in (
+        'vw_prod_postharvest_capacity_hours_cur',
+        'vw_prod_postharvest_step_flow_cur',
+        'vw_prod_postharvest_day_universe_cur',
+        'vw_prod_postharvest_lot_final_output_cur',
+        'vw_prod_postharvest_period_universe_cur',
+        'vw_prod_postharvest_rule_hours_cur',
+        'vw_prod_postharvest_rule_side_hours_cur',
+        'vw_prod_postharvest_hours_box_detail_cur',
+        'vw_prod_postharvest_hours_box_cur'
+      )
+    order by viewname
+  `);
+
   console.info("[SQL] Materializadas verificadas:");
   for (const row of verification.rows) {
     console.info(`  ${row.schemaname}.${row.matviewname}`);
   }
 
+  console.info("[SQL] Vistas verificadas:");
+  for (const row of viewVerification.rows) {
+    console.info(`  ${row.schemaname}.${row.viewname}`);
+  }
+
   if (verification.rows.length !== 9) {
     console.warn(`[SQL] Advertencia: se esperaban 9 materializadas y se verificaron ${verification.rows.length}.`);
+  }
+
+  if (viewVerification.rows.length !== 9) {
+    console.warn(`[SQL] Advertencia: se esperaban 9 vistas y se verificaron ${viewVerification.rows.length}.`);
   }
 } finally {
   await pool.end();

@@ -78,8 +78,17 @@ drop materialized view if exists gld.mv_prod_postharvest_lot_final_output_cur;
 drop materialized view if exists gld.mv_prod_postharvest_day_universe_cur;
 drop materialized view if exists gld.mv_prod_postharvest_step_flow_cur;
 drop materialized view if exists gld.mv_prod_postharvest_capacity_hours_cur;
+drop view if exists gld.vw_prod_postharvest_hours_box_cur;
+drop view if exists gld.vw_prod_postharvest_hours_box_detail_cur;
+drop view if exists gld.vw_prod_postharvest_rule_side_hours_cur;
+drop view if exists gld.vw_prod_postharvest_rule_hours_cur;
+drop view if exists gld.vw_prod_postharvest_period_universe_cur;
+drop view if exists gld.vw_prod_postharvest_lot_final_output_cur;
+drop view if exists gld.vw_prod_postharvest_day_universe_cur;
+drop view if exists gld.vw_prod_postharvest_step_flow_cur;
+drop view if exists gld.vw_prod_postharvest_capacity_hours_cur;
 
-create materialized view gld.mv_prod_postharvest_capacity_hours_cur as
+create view gld.vw_prod_postharvest_capacity_hours_cur as
 with target_areas as (
   select unnest(array['CLS', 'EMP', 'SB'])::text as area_id
 ),
@@ -141,6 +150,10 @@ where coalesce(h.is_valid, true) = true
   and h.work_date is not null
   and extract(year from h.work_date)::int >= 2024;
 
+create materialized view gld.mv_prod_postharvest_capacity_hours_cur as
+select *
+from gld.vw_prod_postharvest_capacity_hours_cur;
+
 create index if not exists idx_mv_prod_postharvest_capacity_hours_cur_work_date
   on gld.mv_prod_postharvest_capacity_hours_cur (work_date);
 
@@ -150,7 +163,7 @@ create index if not exists idx_mv_prod_postharvest_capacity_hours_cur_area_activ
 create index if not exists idx_mv_prod_postharvest_capacity_hours_cur_cycle
   on gld.mv_prod_postharvest_capacity_hours_cur (cycle_key);
 
-create materialized view gld.mv_prod_postharvest_step_flow_cur as
+create view gld.vw_prod_postharvest_step_flow_cur as
 with activity_dim_current as (
   select distinct on (activity_id)
     activity_id,
@@ -551,6 +564,10 @@ where post_date is not null
   and stems_count > 0
   and weight_kg > 0;
 
+create materialized view gld.mv_prod_postharvest_step_flow_cur as
+select *
+from gld.vw_prod_postharvest_step_flow_cur;
+
 create index if not exists idx_mv_prod_postharvest_step_flow_cur_post_date
   on gld.mv_prod_postharvest_step_flow_cur (post_date);
 
@@ -567,8 +584,9 @@ create index if not exists idx_mv_prod_postharvest_step_flow_cur_step
   on gld.mv_prod_postharvest_step_flow_cur (step_code);
 
 drop materialized view if exists gld.mv_prod_postharvest_day_universe_cur;
+drop view if exists gld.vw_prod_postharvest_day_universe_cur;
 
-create materialized view gld.mv_prod_postharvest_day_universe_cur as
+create view gld.vw_prod_postharvest_day_universe_cur as
 with base as (
   select
     post_date as work_date,
@@ -601,12 +619,17 @@ select
   (b2a_bunches + b3_bunches)::double precision as emp_final_bunches
 from base;
 
+create materialized view gld.mv_prod_postharvest_day_universe_cur as
+select *
+from gld.vw_prod_postharvest_day_universe_cur;
+
 create index if not exists idx_mv_prod_postharvest_day_universe_cur_work_date
   on gld.mv_prod_postharvest_day_universe_cur (work_date);
 
 drop materialized view if exists gld.mv_prod_postharvest_lot_final_output_cur;
+drop view if exists gld.vw_prod_postharvest_lot_final_output_cur;
 
-create materialized view gld.mv_prod_postharvest_lot_final_output_cur as
+create view gld.vw_prod_postharvest_lot_final_output_cur as
 with final_steps as (
   select
     lot_date,
@@ -657,6 +680,10 @@ join totals t
  and t.variety_canon = f.variety_canon
  and t.final_destination = f.final_destination;
 
+create materialized view gld.mv_prod_postharvest_lot_final_output_cur as
+select *
+from gld.vw_prod_postharvest_lot_final_output_cur;
+
 create index if not exists idx_mv_prod_postharvest_lot_final_output_cur_lot_date
   on gld.mv_prod_postharvest_lot_final_output_cur (lot_date);
 
@@ -667,8 +694,9 @@ create index if not exists idx_mv_prod_postharvest_lot_final_output_cur_path_des
   on gld.mv_prod_postharvest_lot_final_output_cur (path_post, final_destination);
 
 drop materialized view if exists gld.mv_prod_postharvest_period_universe_cur;
+drop view if exists gld.vw_prod_postharvest_period_universe_cur;
 
-create materialized view gld.mv_prod_postharvest_period_universe_cur as
+create view gld.vw_prod_postharvest_period_universe_cur as
 with final_output as (
   select
     path_post,
@@ -718,12 +746,17 @@ select
 from universe u
 cross join totals t;
 
+create materialized view gld.mv_prod_postharvest_period_universe_cur as
+select *
+from gld.vw_prod_postharvest_period_universe_cur;
+
 create index if not exists idx_mv_prod_postharvest_period_universe_cur_path_destination
   on gld.mv_prod_postharvest_period_universe_cur (path_post, final_destination);
 
 drop materialized view if exists gld.mv_prod_postharvest_rule_hours_cur;
+drop view if exists gld.vw_prod_postharvest_rule_hours_cur;
 
-create materialized view gld.mv_prod_postharvest_rule_hours_cur as
+create view gld.vw_prod_postharvest_rule_hours_cur as
 select
   h.work_date,
   r.rule_scope_area,
@@ -793,6 +826,10 @@ group by
   h.sub_cost_center,
   h.activity_type;
 
+create materialized view gld.mv_prod_postharvest_rule_hours_cur as
+select *
+from gld.vw_prod_postharvest_rule_hours_cur;
+
 create index if not exists idx_mv_prod_postharvest_rule_hours_cur_work_date
   on gld.mv_prod_postharvest_rule_hours_cur (work_date);
 
@@ -803,8 +840,9 @@ create index if not exists idx_mv_prod_postharvest_rule_hours_cur_rule
   on gld.mv_prod_postharvest_rule_hours_cur (rule_id);
 
 drop materialized view if exists gld.mv_prod_postharvest_rule_side_hours_cur;
+drop view if exists gld.vw_prod_postharvest_rule_side_hours_cur;
 
-create materialized view gld.mv_prod_postharvest_rule_side_hours_cur as
+create view gld.vw_prod_postharvest_rule_side_hours_cur as
 with activity_rule_counts as (
   select
     rule_scope_area,
@@ -1132,6 +1170,10 @@ select
     as hours_downstream
 from base_rule_side b;
 
+create materialized view gld.mv_prod_postharvest_rule_side_hours_cur as
+select *
+from gld.vw_prod_postharvest_rule_side_hours_cur;
+
 create index if not exists idx_mv_prod_postharvest_rule_side_hours_cur_work_date
   on gld.mv_prod_postharvest_rule_side_hours_cur (work_date);
 
@@ -1142,8 +1184,9 @@ create index if not exists idx_mv_prod_postharvest_rule_side_hours_cur_rule
   on gld.mv_prod_postharvest_rule_side_hours_cur (rule_id);
 
 drop materialized view if exists gld.mv_prod_postharvest_hours_box_detail_cur;
+drop view if exists gld.vw_prod_postharvest_hours_box_detail_cur;
 
-create materialized view gld.mv_prod_postharvest_hours_box_detail_cur as
+create view gld.vw_prod_postharvest_hours_box_detail_cur as
 with final_day_universe as (
   select
     post_date as work_date,
@@ -1970,6 +2013,10 @@ select
 from detail_grouped
 where effective_hours_assigned > 0;
 
+create materialized view gld.mv_prod_postharvest_hours_box_detail_cur as
+select *
+from gld.vw_prod_postharvest_hours_box_detail_cur;
+
 create index if not exists idx_mv_prod_postharvest_hours_box_detail_cur_post_date
   on gld.mv_prod_postharvest_hours_box_detail_cur (post_date);
 
@@ -1980,8 +2027,9 @@ create index if not exists idx_mv_prod_postharvest_hours_box_detail_cur_activity
   on gld.mv_prod_postharvest_hours_box_detail_cur (activity_id);
 
 drop materialized view if exists gld.mv_prod_postharvest_hours_box_cur;
+drop view if exists gld.vw_prod_postharvest_hours_box_cur;
 
-create materialized view gld.mv_prod_postharvest_hours_box_cur as
+create view gld.vw_prod_postharvest_hours_box_cur as
 with area_universe as (
   select unnest(array['CLS', 'SB', 'EMP'])::text as area_id
 ),
@@ -1990,27 +2038,24 @@ kg_post as (
     post_date,
     path_post,
     final_destination,
-    variety_canon,
     sum(weight_kg)::double precision as weight_kg
   from gld.mv_prod_postharvest_lot_final_output_cur
-  group by post_date, path_post, final_destination, variety_canon
+  where post_date >= date '2025-04-29'
+  group by post_date, path_post, final_destination
 ),
 kg_path_destination_total as (
   select
     path_post,
     final_destination,
-    variety_canon,
     sum(weight_kg)::double precision as weight_total_kg
   from kg_post
-  group by path_post, final_destination, variety_canon
+  group by path_post, final_destination
 ),
 kg_distribution as (
   select
     k.post_date,
     k.path_post,
     k.final_destination,
-    k.variety_canon,
-    k.weight_kg,
     case
       when coalesce(t.weight_total_kg, 0) > 0 then k.weight_kg / t.weight_total_kg
       else 0::double precision
@@ -2019,63 +2064,55 @@ kg_distribution as (
   join kg_path_destination_total t
     on t.path_post = k.path_post
    and t.final_destination = k.final_destination
-   and t.variety_canon = k.variety_canon
 ),
 detail_regular as (
   select
     post_date,
     path_post,
     final_destination,
-    variety_canon,
     area_id,
     side,
-    match_kind,
     sum(effective_hours_assigned)::double precision as effective_hours_assigned
   from gld.mv_prod_postharvest_hours_box_detail_cur
   where match_kind not in ('SPECIFIC_PERIOD', 'FALLBACK_MACRO')
+    and post_date >= date '2025-04-29'
   group by
     post_date,
     path_post,
     final_destination,
-    variety_canon,
     area_id,
-    side,
-    match_kind
+    area_id,
+    side
 ),
 detail_placeholder as (
   select
     path_post,
     final_destination,
-    variety_canon,
     area_id,
     side,
-    match_kind,
     sum(effective_hours_assigned)::double precision as effective_hours_total
   from gld.mv_prod_postharvest_hours_box_detail_cur
   where match_kind in ('SPECIFIC_PERIOD', 'FALLBACK_MACRO')
+    and post_date >= date '2025-04-29'
   group by
     path_post,
     final_destination,
-    variety_canon,
     area_id,
-    side,
-    match_kind
+    area_id,
+    side
 ),
 detail_placeholder_redistributed as (
   select
     k.post_date,
     p.path_post,
     p.final_destination,
-    p.variety_canon,
     p.area_id,
     p.side,
-    p.match_kind,
     (p.effective_hours_total * k.share_post_date_in_path_destination)::double precision as effective_hours_assigned
   from detail_placeholder p
   join kg_distribution k
     on k.path_post = p.path_post
    and k.final_destination = p.final_destination
-   and k.variety_canon = p.variety_canon
 ),
 detail_allocation as (
   select * from detail_regular
@@ -2087,38 +2124,32 @@ detail_grouped as (
     post_date,
     path_post,
     final_destination,
-    variety_canon,
     area_id,
     sum(effective_hours_assigned)::double precision as effective_hours_assigned,
     sum(case when side = 'UPSTREAM' then effective_hours_assigned else 0 end)::double precision as effective_hours_upstream,
-    sum(case when side = 'DOWNSTREAM' then effective_hours_assigned else 0 end)::double precision as effective_hours_downstream,
-    sum(case when match_kind = 'SPECIFIC' then effective_hours_assigned else 0 end)::double precision as effective_hours_specific,
-    sum(case when match_kind = 'SPECIFIC_PERIOD' then effective_hours_assigned else 0 end)::double precision as effective_hours_specific_period,
-    sum(case when match_kind = 'FALLBACK_MACRO' then effective_hours_assigned else 0 end)::double precision as effective_hours_fallback_macro,
-    sum(case when match_kind = 'FALLBACK_DAY' then effective_hours_assigned else 0 end)::double precision as effective_hours_fallback_day
+    sum(case when side = 'DOWNSTREAM' then effective_hours_assigned else 0 end)::double precision as effective_hours_downstream
   from detail_allocation
   group by
     post_date,
     path_post,
     final_destination,
-    variety_canon,
     area_id
 )
 select
   k.post_date,
   k.path_post,
   k.final_destination,
-  k.variety_canon,
+  null::text as variety_canon,
   a.area_id,
   k.weight_kg,
   (k.weight_kg / 10.0)::double precision as boxes10,
   coalesce(d.effective_hours_assigned, 0)::double precision as effective_hours_assigned,
   coalesce(d.effective_hours_upstream, 0)::double precision as effective_hours_upstream,
   coalesce(d.effective_hours_downstream, 0)::double precision as effective_hours_downstream,
-  coalesce(d.effective_hours_specific, 0)::double precision as effective_hours_specific,
-  coalesce(d.effective_hours_specific_period, 0)::double precision as effective_hours_specific_period,
-  coalesce(d.effective_hours_fallback_macro, 0)::double precision as effective_hours_fallback_macro,
-  coalesce(d.effective_hours_fallback_day, 0)::double precision as effective_hours_fallback_day,
+  null::double precision as effective_hours_specific,
+  null::double precision as effective_hours_specific_period,
+  null::double precision as effective_hours_fallback_macro,
+  null::double precision as effective_hours_fallback_day,
   case
     when coalesce(k.weight_kg, 0) > 0 then coalesce(d.effective_hours_assigned, 0) / (k.weight_kg / 10.0)
     else null::double precision
@@ -2137,8 +2168,11 @@ left join detail_grouped d
   on d.post_date = k.post_date
  and d.path_post = k.path_post
  and d.final_destination = k.final_destination
- and d.variety_canon = k.variety_canon
  and d.area_id = a.area_id;
+
+create materialized view gld.mv_prod_postharvest_hours_box_cur as
+select *
+from gld.vw_prod_postharvest_hours_box_cur;
 
 create index if not exists idx_mv_prod_postharvest_hours_box_cur_post_date
   on gld.mv_prod_postharvest_hours_box_cur (post_date);
