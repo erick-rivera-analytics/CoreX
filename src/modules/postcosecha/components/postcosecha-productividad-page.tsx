@@ -34,6 +34,7 @@ function buildQueryString(filters: PostharvestProductivityFilters) {
   params.set("area", filters.area);
   params.set("pathPost", filters.pathPost);
   params.set("finalDestination", filters.finalDestination);
+  params.set("variety", filters.variety);
   if (filters.dateFrom) params.set("dateFrom", filters.dateFrom);
   if (filters.dateTo) params.set("dateTo", filters.dateTo);
   return params.toString();
@@ -82,6 +83,7 @@ export function PostcosechaProductividadPage({
   );
 
   const data = dashboardData ?? initialData;
+  const hasVarietyDimension = data.options.varieties.length > 0;
 
   useEffect(() => {
     if (error) {
@@ -111,13 +113,7 @@ export function PostcosechaProductividadPage({
       )}
     >
       <FilterPanel>
-        {data.dataSource === "parquet-fallback" ? (
-          <div className="rounded-[16px] border border-amber-300/60 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-            Visual cargado desde el agregado del proyecto fuente mientras termina la materialización en PostgreSQL.
-          </div>
-        ) : null}
-
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-7">
+        <div className={`grid gap-3 md:grid-cols-2 ${hasVarietyDimension ? "xl:grid-cols-8" : "xl:grid-cols-7"}`}>
           <DateField id="post-date-from" label="Fecha post desde" value={filters.dateFrom} onChange={(value) => update("dateFrom", value)} />
           <DateField id="post-date-to" label="Fecha post hasta" value={filters.dateTo} onChange={(value) => update("dateTo", value)} />
           <SingleSelectField
@@ -156,6 +152,15 @@ export function PostcosechaProductividadPage({
             options={data.options.finalDestinations}
             onChange={(value) => update("finalDestination", value)}
           />
+          {hasVarietyDimension ? (
+            <MultiSelectField
+              id="post-variety"
+              label="Variedad"
+              value={filters.variety}
+              options={data.options.varieties}
+              onChange={(value) => update("variety", value)}
+            />
+          ) : null}
         </div>
 
         <div className="flex justify-end">
@@ -164,7 +169,8 @@ export function PostcosechaProductividadPage({
           </Button>
         </div>
 
-        <KpiGrid columns={5}>
+        <KpiGrid columns={6}>
+          <MetricTile label="Fechas post" value={formatDecimal(data.summary.postDateCount, 0)} />
           <MetricTile label="Horas asignadas" value={formatHours(data.summary.totalHours)} />
           <MetricTile label="Cajas 10kg" value={formatDecimal(data.summary.totalBoxes10, 2)} />
           <MetricTile label="Horas / caja" value={formatDecimal(data.summary.weightedHoursPerBox, 4)} />
@@ -174,13 +180,14 @@ export function PostcosechaProductividadPage({
 
         {data.rows.length ? (
           <ScrollFadeTable topScrollbar className="rounded-[18px] border border-border/60 bg-card/70">
-            <table className="min-w-[1400px] w-full border-collapse">
+            <table className={`${hasVarietyDimension ? "min-w-[1540px]" : "min-w-[1440px]"} w-full border-collapse`}>
               <thead>
                 <tr>
                   <TH>Fecha post</TH>
                   <TH>Área</TH>
                   <TH>Camino</TH>
                   <TH>Destino</TH>
+                  {hasVarietyDimension ? <TH>Variedad</TH> : null}
                   <TH right>Kg</TH>
                   <TH right>Cajas10</TH>
                   <TH right>Horas</TH>
@@ -195,11 +202,12 @@ export function PostcosechaProductividadPage({
               </thead>
               <tbody>
                 {data.rows.map((row) => (
-                  <tr key={`${row.postDate}-${row.pathPost}-${row.finalDestination}-${row.areaId}`}>
+                  <tr key={`${row.postDate}-${row.pathPost}-${row.finalDestination}-${row.varietyCanon}-${row.areaId}`}>
                     <TD>{row.postDate}</TD>
                     <TD>{row.areaId}</TD>
                     <TD>{row.pathPost}</TD>
                     <TD>{row.finalDestination}</TD>
+                    {hasVarietyDimension ? <TD>{row.varietyCanon}</TD> : null}
                     <TD right>{formatDecimal(row.weightKg, 2)}</TD>
                     <TD right>{formatDecimal(row.boxes10, 2)}</TD>
                     <TD right>{formatHours(row.effectiveHoursAssigned)}</TD>

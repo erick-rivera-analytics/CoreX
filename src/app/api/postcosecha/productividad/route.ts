@@ -20,6 +20,7 @@ export async function GET(request: NextRequest) {
       area: request.nextUrl.searchParams.get("area") ?? undefined,
       pathPost: request.nextUrl.searchParams.get("pathPost") ?? undefined,
       finalDestination: request.nextUrl.searchParams.get("finalDestination") ?? undefined,
+      variety: request.nextUrl.searchParams.get("variety") ?? undefined,
       dateFrom: request.nextUrl.searchParams.get("dateFrom") ?? undefined,
       dateTo: request.nextUrl.searchParams.get("dateTo") ?? undefined,
     });

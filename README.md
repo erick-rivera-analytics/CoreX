@@ -150,14 +150,15 @@ Cobertura actual de esta etapa:
 - horas agregadas por `dia + actividad + regla` listas para el reparto final
 - reparto preliminar de horas `upstream/downstream` por regla antes del `hours_box_detail`
 - detalle granular `hours_box_detail` con `SPECIFIC`, `SPECIFIC_PERIOD`, `FALLBACK_MACRO` y `FALLBACK_DAY`
-- agregado final `hours_box_cur` por `post_date + path_post + final_destination + area_id`
+- agregado final `hours_box_cur` por `post_date + path_post + final_destination + variety_canon + area_id`
 
 Nota operativa de esta capa:
 
 - `SPECIFIC` ya aterriza a `fecha_post` real por lote
 - `SPECIFIC_PERIOD` y `FALLBACK_MACRO` quedan compactadas con `post_date = work_date` como placeholder, igual que en el motor Python
 - la redistribucion de esas filas a `fecha_post` real ocurre en `gld.mv_prod_postharvest_hours_box_cur`
-- la agregada final no baja a `variety_canon` ni `lot_date`; ese drill-down vive en `detail`
+- la agregada final ya expone `variety_canon`
+- `lot_date` sigue viviendo en `detail` para drill-down fino
 
 Pendiente antes del visualizador CoreX:
 
@@ -181,17 +182,11 @@ Validacion operativa de paridad:
   - cajas10: `126,276.28`
   - KPI total: `4.3716 h/caja`
 
-Fallback temporal del visual:
+Regla de fuente para CoreX:
 
-- si `gld.mv_prod_postharvest_hours_box_cur` no existe o el rebuild de `datalakehouse` esta en curso, el modulo `Analitica / Postcosecha / Indicadores & KPI / Productividad` carga desde:
-  - `horas_caja_cls_agregado.parquet`
-  - `horas_caja_sb_agregado.parquet`
-  - `horas_caja_emp_agregado.parquet`
-- raiz por defecto:
-  - `C:\Users\paul.loja\PYPROYECTOS\Poscosecha\analisis_horas\poscosecha_capacity`
-- override opcional:
-  - `POSTHARVEST_PRODUCTIVITY_FALLBACK_ROOT`
-- el frontend muestra una banda amarilla cuando esta usando este fallback
+- `Analitica / Postcosecha / Indicadores & KPI / Productividad` debe consumir una sola fuente: PostgreSQL
+- no se debe mezclar con parquet, CSV ni salidas intermedias del proyecto Python dentro del CoreX
+- si `gld.mv_prod_postharvest_hours_box_cur` no existe o el rebuild sigue corriendo, el modulo debe fallar con mensaje claro de materializacion en curso
 
 ## Comercial - Fotos de reclamos
 

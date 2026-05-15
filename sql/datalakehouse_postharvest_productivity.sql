@@ -1990,23 +1990,26 @@ kg_post as (
     post_date,
     path_post,
     final_destination,
+    variety_canon,
     sum(weight_kg)::double precision as weight_kg
   from gld.mv_prod_postharvest_lot_final_output_cur
-  group by post_date, path_post, final_destination
+  group by post_date, path_post, final_destination, variety_canon
 ),
 kg_path_destination_total as (
   select
     path_post,
     final_destination,
+    variety_canon,
     sum(weight_kg)::double precision as weight_total_kg
   from kg_post
-  group by path_post, final_destination
+  group by path_post, final_destination, variety_canon
 ),
 kg_distribution as (
   select
     k.post_date,
     k.path_post,
     k.final_destination,
+    k.variety_canon,
     k.weight_kg,
     case
       when coalesce(t.weight_total_kg, 0) > 0 then k.weight_kg / t.weight_total_kg
@@ -2016,12 +2019,14 @@ kg_distribution as (
   join kg_path_destination_total t
     on t.path_post = k.path_post
    and t.final_destination = k.final_destination
+   and t.variety_canon = k.variety_canon
 ),
 detail_regular as (
   select
     post_date,
     path_post,
     final_destination,
+    variety_canon,
     area_id,
     side,
     match_kind,
@@ -2032,6 +2037,7 @@ detail_regular as (
     post_date,
     path_post,
     final_destination,
+    variety_canon,
     area_id,
     side,
     match_kind
@@ -2040,6 +2046,7 @@ detail_placeholder as (
   select
     path_post,
     final_destination,
+    variety_canon,
     area_id,
     side,
     match_kind,
@@ -2049,6 +2056,7 @@ detail_placeholder as (
   group by
     path_post,
     final_destination,
+    variety_canon,
     area_id,
     side,
     match_kind
@@ -2058,6 +2066,7 @@ detail_placeholder_redistributed as (
     k.post_date,
     p.path_post,
     p.final_destination,
+    p.variety_canon,
     p.area_id,
     p.side,
     p.match_kind,
@@ -2066,6 +2075,7 @@ detail_placeholder_redistributed as (
   join kg_distribution k
     on k.path_post = p.path_post
    and k.final_destination = p.final_destination
+   and k.variety_canon = p.variety_canon
 ),
 detail_allocation as (
   select * from detail_regular
@@ -2077,6 +2087,7 @@ detail_grouped as (
     post_date,
     path_post,
     final_destination,
+    variety_canon,
     area_id,
     sum(effective_hours_assigned)::double precision as effective_hours_assigned,
     sum(case when side = 'UPSTREAM' then effective_hours_assigned else 0 end)::double precision as effective_hours_upstream,
@@ -2090,12 +2101,14 @@ detail_grouped as (
     post_date,
     path_post,
     final_destination,
+    variety_canon,
     area_id
 )
 select
   k.post_date,
   k.path_post,
   k.final_destination,
+  k.variety_canon,
   a.area_id,
   k.weight_kg,
   (k.weight_kg / 10.0)::double precision as boxes10,
@@ -2124,16 +2137,17 @@ left join detail_grouped d
   on d.post_date = k.post_date
  and d.path_post = k.path_post
  and d.final_destination = k.final_destination
+ and d.variety_canon = k.variety_canon
  and d.area_id = a.area_id;
 
 create index if not exists idx_mv_prod_postharvest_hours_box_cur_post_date
   on gld.mv_prod_postharvest_hours_box_cur (post_date);
 
 create index if not exists idx_mv_prod_postharvest_hours_box_cur_area_slice
-  on gld.mv_prod_postharvest_hours_box_cur (area_id, path_post, final_destination);
+  on gld.mv_prod_postharvest_hours_box_cur (area_id, path_post, final_destination, variety_canon);
 
 create index if not exists idx_mv_prod_postharvest_hours_box_cur_path_destination
-  on gld.mv_prod_postharvest_hours_box_cur (path_post, final_destination);
+  on gld.mv_prod_postharvest_hours_box_cur (path_post, final_destination, variety_canon);
 
 -- Final CoreX explorer contract.
 --

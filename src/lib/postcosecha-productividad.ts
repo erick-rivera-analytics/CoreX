@@ -1,9 +1,5 @@
 import "server-only";
 
-import { execFile } from "node:child_process";
-import path from "node:path";
-import { promisify } from "node:util";
-
 import { query } from "@/lib/db";
 import { decodeMultiSelectValue, encodeMultiSelectValue } from "@/lib/multi-select";
 import { cachedAsync } from "@/lib/server-cache";
@@ -11,13 +7,12 @@ import { toNumber } from "@/shared/lib/number-utils";
 
 const POSTHARVEST_PRODUCTIVITY_SOURCE = "gld.mv_prod_postharvest_hours_box_cur";
 const POSTHARVEST_PRODUCTIVITY_TTL_MS = 60 * 1000;
-const DEFAULT_POSTHARVEST_FALLBACK_ROOT = String.raw`C:\Users\paul.loja\PYPROYECTOS\Poscosecha\analisis_horas\poscosecha_capacity`;
-const execFileAsync = promisify(execFile);
 
 type PostharvestProductivityQueryRow = {
   post_date: string;
   path_post: string;
   final_destination: string;
+  variety_canon?: string | null;
   area_id: string;
   weight_kg: number | string | null;
   boxes10: number | string | null;
@@ -39,6 +34,11 @@ type PostharvestProductivityOptionsRow = {
   areas: string[] | null;
   paths: string[] | null;
   destinations: string[] | null;
+  varieties: string[] | null;
+};
+
+type PostharvestProductivityCapabilities = {
+  hasVarietyCanon: boolean;
 };
 
 export type PostharvestProductivityFilters = {
@@ -47,6 +47,7 @@ export type PostharvestProductivityFilters = {
   area: string;
   pathPost: string;
   finalDestination: string;
+  variety: string;
   dateFrom: string;
   dateTo: string;
 };
@@ -55,6 +56,7 @@ export type PostharvestProductivityRow = {
   postDate: string;
   pathPost: string;
   finalDestination: string;
+  varietyCanon: string;
   areaId: string;
   weightKg: number;
   boxes10: number;
@@ -76,11 +78,11 @@ export type PostharvestProductivityFilterOptions = {
   areas: string[];
   paths: string[];
   finalDestinations: string[];
+  varieties: string[];
 };
 
 export type PostharvestProductivityDashboardData = {
   generatedAt: string;
-  dataSource: "datalakehouse" | "parquet-fallback";
   filters: PostharvestProductivityFilters;
   options: PostharvestProductivityFilterOptions;
   rows: PostharvestProductivityRow[];
@@ -104,6 +106,7 @@ export const defaultPostharvestProductivityFilters: PostharvestProductivityFilte
   area: "all",
   pathPost: "all",
   finalDestination: "all",
+  variety: "all",
   dateFrom: "",
   dateTo: "",
 };
@@ -117,6 +120,7 @@ export function normalizePostharvestProductivityFilters(
     area: normalizeSelectValue(raw.area),
     pathPost: normalizeSelectValue(raw.pathPost),
     finalDestination: normalizeSelectValue(raw.finalDestination),
+    variety: normalizeSelectValue(raw.variety),
     dateFrom: normalizeDateValue(raw.dateFrom),
     dateTo: normalizeDateValue(raw.dateTo),
   };
@@ -151,35 +155,51 @@ async function ensureMaterializedViewExists() {
     [POSTHARVEST_PRODUCTIVITY_SOURCE],
   );
 
-  if (!result.rows[0]?.relation_name) {
+  if (result.rows[0]?.relation_name) {
+    return;
+  }
+
+  const activeRebuild = await query<{ active_count: number | string }>(
+    `
+      select count(*)::int as active_count
+      from pg_stat_activity
+      where datname = current_database()
+        and state <> 'idle'
+        and query like '%Postharvest productivity blueprint for datalakehouse%'
+    `,
+  );
+
+  const activeCount = toNumber(activeRebuild.rows[0]?.active_count) ?? 0;
+  if (activeCount > 0) {
     throw new Error(
-      "La capa analitica de postcosecha productividad aun no esta materializada en datalakehouse. Reejecuta la cadena SQL antes de abrir el modulo.",
+      "La materialización de productividad de postcosecha sigue ejecutándose en datalakehouse. CoreX solo usará PostgreSQL; espera a que termine el rebuild y vuelve a abrir el módulo.",
     );
   }
+
+  throw new Error(
+    "La capa analítica de productividad de postcosecha aún no existe en datalakehouse. CoreX solo usa PostgreSQL en este módulo; primero debe completarse la materialización.",
+  );
 }
 
-type FallbackPayload = {
-  rows: Array<{
-    fecha_post: string;
-    camino_post: string;
-    destino_lote: string;
-    area_id: string;
-    peso_kg_total: number;
-    cajas10: number;
-    horas_asignadas: number;
-    horas_upstream: number;
-    horas_downstream: number;
-    effective_hours_specific: number;
-    effective_hours_specific_period: number;
-    effective_hours_fallback_macro: number;
-    effective_hours_fallback_day: number;
-    hours_per_box: number | null;
-    hours_per_box_upstream: number | null;
-    hours_per_box_downstream: number | null;
-  }>;
-  options: PostharvestProductivityFilterOptions;
-  source: "parquet-fallback";
-};
+async function detectCapabilities(): Promise<PostharvestProductivityCapabilities> {
+  const result = await query<{ has_variety_canon: boolean }>(
+    `
+      select exists (
+        select 1
+        from pg_attribute
+        where attrelid = $1::regclass
+          and attname = 'variety_canon'
+          and attnum > 0
+          and not attisdropped
+      ) as has_variety_canon
+    `,
+    [POSTHARVEST_PRODUCTIVITY_SOURCE],
+  );
+
+  return {
+    hasVarietyCanon: Boolean(result.rows[0]?.has_variety_canon),
+  };
+}
 
 function pushArrayFilter(
   clauses: string[],
@@ -207,7 +227,11 @@ function toSafeNumber(value: number | string | null | undefined) {
   return toNumber(value) ?? 0;
 }
 
-async function loadOptions(): Promise<PostharvestProductivityFilterOptions> {
+function normalizePostDateOutput(value: string) {
+  return value.slice(0, 10);
+}
+
+async function loadOptions(capabilities: PostharvestProductivityCapabilities): Promise<PostharvestProductivityFilterOptions> {
   const result = await query<PostharvestProductivityOptionsRow>(`
     select
       array(
@@ -234,7 +258,16 @@ async function loadOptions(): Promise<PostharvestProductivityFilterOptions> {
         select distinct final_destination
         from ${POSTHARVEST_PRODUCTIVITY_SOURCE}
         order by 1
-      ) as destinations
+      ) as destinations,
+      ${
+        capabilities.hasVarietyCanon
+          ? `array(
+        select distinct variety_canon
+        from ${POSTHARVEST_PRODUCTIVITY_SOURCE}
+        order by 1
+      )`
+          : "null::text[]"
+      } as varieties
   `);
 
   const row = result.rows[0];
@@ -245,10 +278,14 @@ async function loadOptions(): Promise<PostharvestProductivityFilterOptions> {
     areas: row?.areas ?? [],
     paths: row?.paths ?? [],
     finalDestinations: row?.destinations ?? [],
+    varieties: row?.varieties ?? [],
   };
 }
 
-async function loadRows(filters: PostharvestProductivityFilters): Promise<PostharvestProductivityRow[]> {
+async function loadRows(
+  filters: PostharvestProductivityFilters,
+  capabilities: PostharvestProductivityCapabilities,
+): Promise<PostharvestProductivityRow[]> {
   const clauses: string[] = [];
   const values: unknown[] = [];
 
@@ -271,6 +308,9 @@ async function loadRows(filters: PostharvestProductivityFilters): Promise<Postha
   pushArrayFilter(clauses, values, "area_id", filters.area);
   pushArrayFilter(clauses, values, "path_post", filters.pathPost);
   pushArrayFilter(clauses, values, "final_destination", filters.finalDestination);
+  if (capabilities.hasVarietyCanon) {
+    pushArrayFilter(clauses, values, "variety_canon", filters.variety);
+  }
 
   const whereClause = clauses.length ? `where ${clauses.join(" and ")}` : "";
   const result = await query<PostharvestProductivityQueryRow>(
@@ -279,6 +319,7 @@ async function loadRows(filters: PostharvestProductivityFilters): Promise<Postha
         post_date,
         path_post,
         final_destination,
+        ${capabilities.hasVarietyCanon ? "variety_canon," : "null::text as variety_canon,"}
         area_id,
         weight_kg,
         boxes10,
@@ -300,9 +341,10 @@ async function loadRows(filters: PostharvestProductivityFilters): Promise<Postha
   );
 
   return result.rows.map((row) => ({
-    postDate: row.post_date,
+    postDate: normalizePostDateOutput(row.post_date),
     pathPost: row.path_post,
     finalDestination: row.final_destination,
+    varietyCanon: row.variety_canon ?? "ALL",
     areaId: row.area_id,
     weightKg: toSafeNumber(row.weight_kg),
     boxes10: toSafeNumber(row.boxes10),
@@ -319,43 +361,6 @@ async function loadRows(filters: PostharvestProductivityFilters): Promise<Postha
   }));
 }
 
-async function loadFallbackData(
-  filters: PostharvestProductivityFilters,
-): Promise<{
-  rows: PostharvestProductivityRow[];
-  options: PostharvestProductivityFilterOptions;
-}> {
-  const scriptPath = path.resolve(process.cwd(), "scripts/load_postharvest_productivity_fallback.py");
-  const fallbackRoot = process.env.POSTHARVEST_PRODUCTIVITY_FALLBACK_ROOT || DEFAULT_POSTHARVEST_FALLBACK_ROOT;
-  const { stdout } = await execFileAsync("python", [scriptPath, JSON.stringify(filters), fallbackRoot], {
-    cwd: process.cwd(),
-    maxBuffer: 20 * 1024 * 1024,
-  });
-  const payload = JSON.parse(stdout) as FallbackPayload;
-
-  return {
-    options: payload.options,
-    rows: payload.rows.map((row) => ({
-      postDate: row.fecha_post,
-      pathPost: row.camino_post,
-      finalDestination: row.destino_lote,
-      areaId: row.area_id,
-      weightKg: toSafeNumber(row.peso_kg_total),
-      boxes10: toSafeNumber(row.cajas10),
-      effectiveHoursAssigned: toSafeNumber(row.horas_asignadas),
-      effectiveHoursUpstream: toSafeNumber(row.horas_upstream),
-      effectiveHoursDownstream: toSafeNumber(row.horas_downstream),
-      effectiveHoursSpecific: toSafeNumber(row.effective_hours_specific),
-      effectiveHoursSpecificPeriod: toSafeNumber(row.effective_hours_specific_period),
-      effectiveHoursFallbackMacro: toSafeNumber(row.effective_hours_fallback_macro),
-      effectiveHoursFallbackDay: toSafeNumber(row.effective_hours_fallback_day),
-      hoursPerBox: toNumber(row.hours_per_box),
-      hoursPerBoxUpstream: toNumber(row.hours_per_box_upstream),
-      hoursPerBoxDownstream: toNumber(row.hours_per_box_downstream),
-    })),
-  };
-}
-
 export async function getPostharvestProductivityDashboardData(
   rawFilters: Partial<PostharvestProductivityFilters> = defaultPostharvestProductivityFilters,
 ): Promise<PostharvestProductivityDashboardData> {
@@ -365,19 +370,12 @@ export async function getPostharvestProductivityDashboardData(
     `postharvest-productivity:${buildCacheKey(filters)}`,
     POSTHARVEST_PRODUCTIVITY_TTL_MS,
     async () => {
-      let dataSource: PostharvestProductivityDashboardData["dataSource"] = "datalakehouse";
-      let options: PostharvestProductivityFilterOptions;
-      let rows: PostharvestProductivityRow[];
-
-      try {
-        await ensureMaterializedViewExists();
-        [options, rows] = await Promise.all([loadOptions(), loadRows(filters)]);
-      } catch {
-        const fallback = await loadFallbackData(filters);
-        options = fallback.options;
-        rows = fallback.rows;
-        dataSource = "parquet-fallback";
-      }
+      await ensureMaterializedViewExists();
+      const capabilities = await detectCapabilities();
+      const [options, rows] = await Promise.all([
+        loadOptions(capabilities),
+        loadRows(filters, capabilities),
+      ]);
 
       const summary = rows.reduce(
         (acc, row) => {
@@ -403,7 +401,6 @@ export async function getPostharvestProductivityDashboardData(
 
       return {
         generatedAt: new Date().toISOString(),
-        dataSource,
         filters,
         options,
         rows,

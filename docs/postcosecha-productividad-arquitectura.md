@@ -413,6 +413,7 @@ Grano final:
   - `post_date`
   - `path_post`
   - `final_destination`
+  - `variety_canon`
   - `area_id`
 
 Columnas clave:
@@ -500,12 +501,8 @@ Para `gld.mv_prod_postharvest_hours_box_detail_cur`:
 - contra la fuente viva actual, el baseline operativo correcto del mismo rango es `4.3716 h/caja`
 - la paridad de la migracion SQL debe medirse contra ese baseline vivo mientras no exista otra foto oficial congelada
 
-## Fallback operativo temporal
+## Regla de fuente en CoreX
 
-- mientras `gld.mv_prod_postharvest_hours_box_cur` no exista, CoreX puede cargar el primer visual desde los agregados parquet del proyecto fuente
-- archivos usados:
-  - `horas_caja_cls_agregado.parquet`
-  - `horas_caja_sb_agregado.parquet`
-  - `horas_caja_emp_agregado.parquet`
-- ese fallback sirve solo para no bloquear la UI mientras termina el rebuild del `datalakehouse`
-- cuando la materializada final vuelva a existir, el loader retoma automaticamente PostgreSQL como fuente principal
+- el modulo `Analitica / Postcosecha / Indicadores & KPI / Productividad` debe consumir solo PostgreSQL
+- no se deben mezclar parquets del proyecto fuente dentro del visual de CoreX
+- si la familia `mv_prod_postharvest_*` esta reconstruyendose y la materializada final no existe, la pantalla debe devolver un mensaje claro de rebuild en curso
