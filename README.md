@@ -181,6 +181,18 @@ Validacion operativa de paridad:
   - cajas10: `126,276.28`
   - KPI total: `4.3716 h/caja`
 
+Fallback temporal del visual:
+
+- si `gld.mv_prod_postharvest_hours_box_cur` no existe o el rebuild de `datalakehouse` esta en curso, el modulo `Analitica / Postcosecha / Indicadores & KPI / Productividad` carga desde:
+  - `horas_caja_cls_agregado.parquet`
+  - `horas_caja_sb_agregado.parquet`
+  - `horas_caja_emp_agregado.parquet`
+- raiz por defecto:
+  - `C:\Users\paul.loja\PYPROYECTOS\Poscosecha\analisis_horas\poscosecha_capacity`
+- override opcional:
+  - `POSTHARVEST_PRODUCTIVITY_FALLBACK_ROOT`
+- el frontend muestra una banda amarilla cuando esta usando este fallback
+
 ## Comercial - Fotos de reclamos
 
 El modulo `Gestion / Comercial / Reclamos` guarda fotos por API y este flujo debe quedar desacoplado del usuario final.

@@ -1,5 +1,9 @@
 import "server-only";
 
+import { execFile } from "node:child_process";
+import path from "node:path";
+import { promisify } from "node:util";
+
 import { query } from "@/lib/db";
 import { decodeMultiSelectValue, encodeMultiSelectValue } from "@/lib/multi-select";
 import { cachedAsync } from "@/lib/server-cache";
@@ -7,6 +11,8 @@ import { toNumber } from "@/shared/lib/number-utils";
 
 const POSTHARVEST_PRODUCTIVITY_SOURCE = "gld.mv_prod_postharvest_hours_box_cur";
 const POSTHARVEST_PRODUCTIVITY_TTL_MS = 60 * 1000;
+const DEFAULT_POSTHARVEST_FALLBACK_ROOT = String.raw`C:\Users\paul.loja\PYPROYECTOS\Poscosecha\analisis_horas\poscosecha_capacity`;
+const execFileAsync = promisify(execFile);
 
 type PostharvestProductivityQueryRow = {
   post_date: string;
@@ -74,6 +80,7 @@ export type PostharvestProductivityFilterOptions = {
 
 export type PostharvestProductivityDashboardData = {
   generatedAt: string;
+  dataSource: "datalakehouse" | "parquet-fallback";
   filters: PostharvestProductivityFilters;
   options: PostharvestProductivityFilterOptions;
   rows: PostharvestProductivityRow[];
@@ -150,6 +157,29 @@ async function ensureMaterializedViewExists() {
     );
   }
 }
+
+type FallbackPayload = {
+  rows: Array<{
+    fecha_post: string;
+    camino_post: string;
+    destino_lote: string;
+    area_id: string;
+    peso_kg_total: number;
+    cajas10: number;
+    horas_asignadas: number;
+    horas_upstream: number;
+    horas_downstream: number;
+    effective_hours_specific: number;
+    effective_hours_specific_period: number;
+    effective_hours_fallback_macro: number;
+    effective_hours_fallback_day: number;
+    hours_per_box: number | null;
+    hours_per_box_upstream: number | null;
+    hours_per_box_downstream: number | null;
+  }>;
+  options: PostharvestProductivityFilterOptions;
+  source: "parquet-fallback";
+};
 
 function pushArrayFilter(
   clauses: string[],
@@ -289,6 +319,43 @@ async function loadRows(filters: PostharvestProductivityFilters): Promise<Postha
   }));
 }
 
+async function loadFallbackData(
+  filters: PostharvestProductivityFilters,
+): Promise<{
+  rows: PostharvestProductivityRow[];
+  options: PostharvestProductivityFilterOptions;
+}> {
+  const scriptPath = path.resolve(process.cwd(), "scripts/load_postharvest_productivity_fallback.py");
+  const fallbackRoot = process.env.POSTHARVEST_PRODUCTIVITY_FALLBACK_ROOT || DEFAULT_POSTHARVEST_FALLBACK_ROOT;
+  const { stdout } = await execFileAsync("python", [scriptPath, JSON.stringify(filters), fallbackRoot], {
+    cwd: process.cwd(),
+    maxBuffer: 20 * 1024 * 1024,
+  });
+  const payload = JSON.parse(stdout) as FallbackPayload;
+
+  return {
+    options: payload.options,
+    rows: payload.rows.map((row) => ({
+      postDate: row.fecha_post,
+      pathPost: row.camino_post,
+      finalDestination: row.destino_lote,
+      areaId: row.area_id,
+      weightKg: toSafeNumber(row.peso_kg_total),
+      boxes10: toSafeNumber(row.cajas10),
+      effectiveHoursAssigned: toSafeNumber(row.horas_asignadas),
+      effectiveHoursUpstream: toSafeNumber(row.horas_upstream),
+      effectiveHoursDownstream: toSafeNumber(row.horas_downstream),
+      effectiveHoursSpecific: toSafeNumber(row.effective_hours_specific),
+      effectiveHoursSpecificPeriod: toSafeNumber(row.effective_hours_specific_period),
+      effectiveHoursFallbackMacro: toSafeNumber(row.effective_hours_fallback_macro),
+      effectiveHoursFallbackDay: toSafeNumber(row.effective_hours_fallback_day),
+      hoursPerBox: toNumber(row.hours_per_box),
+      hoursPerBoxUpstream: toNumber(row.hours_per_box_upstream),
+      hoursPerBoxDownstream: toNumber(row.hours_per_box_downstream),
+    })),
+  };
+}
+
 export async function getPostharvestProductivityDashboardData(
   rawFilters: Partial<PostharvestProductivityFilters> = defaultPostharvestProductivityFilters,
 ): Promise<PostharvestProductivityDashboardData> {
@@ -298,9 +365,19 @@ export async function getPostharvestProductivityDashboardData(
     `postharvest-productivity:${buildCacheKey(filters)}`,
     POSTHARVEST_PRODUCTIVITY_TTL_MS,
     async () => {
-      await ensureMaterializedViewExists();
+      let dataSource: PostharvestProductivityDashboardData["dataSource"] = "datalakehouse";
+      let options: PostharvestProductivityFilterOptions;
+      let rows: PostharvestProductivityRow[];
 
-      const [options, rows] = await Promise.all([loadOptions(), loadRows(filters)]);
+      try {
+        await ensureMaterializedViewExists();
+        [options, rows] = await Promise.all([loadOptions(), loadRows(filters)]);
+      } catch {
+        const fallback = await loadFallbackData(filters);
+        options = fallback.options;
+        rows = fallback.rows;
+        dataSource = "parquet-fallback";
+      }
 
       const summary = rows.reduce(
         (acc, row) => {
@@ -326,6 +403,7 @@ export async function getPostharvestProductivityDashboardData(
 
       return {
         generatedAt: new Date().toISOString(),
+        dataSource,
         filters,
         options,
         rows,

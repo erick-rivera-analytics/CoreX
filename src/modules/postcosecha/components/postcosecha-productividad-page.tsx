@@ -111,6 +111,12 @@ export function PostcosechaProductividadPage({
       )}
     >
       <FilterPanel>
+        {data.dataSource === "parquet-fallback" ? (
+          <div className="rounded-[16px] border border-amber-300/60 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            Visual cargado desde el agregado del proyecto fuente mientras termina la materialización en PostgreSQL.
+          </div>
+        ) : null}
+
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-7">
           <DateField id="post-date-from" label="Fecha post desde" value={filters.dateFrom} onChange={(value) => update("dateFrom", value)} />
           <DateField id="post-date-to" label="Fecha post hasta" value={filters.dateTo} onChange={(value) => update("dateTo", value)} />
