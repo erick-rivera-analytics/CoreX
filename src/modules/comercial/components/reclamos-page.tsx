@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
-import { Camera, CheckSquare, ClipboardList, RefreshCcw, Save, Search, Square, X } from "lucide-react";
+import { Camera, CheckSquare, ClipboardList, Plus, RefreshCcw, Save, Search, Square, Trash2, X } from "lucide-react";
 import Image from "next/image";
 import { toast } from "sonner";
 import useSWR from "swr";
@@ -44,12 +44,17 @@ const EMPTY_FORM: CommercialClaimFormInput = {
   accountExecutiveId: "",
   farmId: "",
   varietyId: "",
+  skuCode: "",
   processDestinationId: "",
   processNotApplicable: false,
   problemFamilyId: null,
   problemId: "",
   referenceOrderNumber: null,
   referenceInvoiceNumber: null,
+  customerCreditRequestDate: null,
+  customerDispatchDate: null,
+  claimedBunchesQty: null,
+  claimedAmountUsd: null,
   eventDate: null,
   subject: "",
   description: null,
@@ -60,6 +65,12 @@ const TAB_OPTIONS: Array<{ key: ModuleTab; label: string }> = [
   { key: "approvals", label: "Aprobaciones" },
   { key: "applications", label: "Aplicaciones" },
 ];
+
+const TAB_ACCESS_KEYS: Record<ModuleTab, keyof CommercialClaimModuleData["access"]> = {
+  registration: "canRegister",
+  approvals: "canApprove",
+  applications: "canApply",
+};
 
 const claimModuleFetcher = (url: string) =>
   fetchJson<CommercialClaimModuleData>(url, "No se pudo cargar el modulo de reclamos.");
@@ -78,6 +89,34 @@ function statusTone(statusKey: CommercialClaimRecord["statusKey"]) {
 
 function buildOptionLabel(option: CommercialClaimOption) {
   return option.meta ? `${option.label} · ${option.meta}` : option.label;
+}
+
+function formatOptionalDecimal(value: number | null, digits = 2) {
+  if (value === null || Number.isNaN(value)) {
+    return "-";
+  }
+
+  return new Intl.NumberFormat("es-EC", {
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+  }).format(value);
+}
+
+function formatOptionalCurrencyUsd(value: number | null) {
+  if (value === null || Number.isNaN(value)) {
+    return "-";
+  }
+
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(value);
+}
+
+function splitSkuEntries(value: string) {
+  return value.length > 0 ? value.split("\n") : [""];
 }
 
 function matchesOption(option: SearchableOption, search: string) {
@@ -334,6 +373,13 @@ export function ComercialReclamosPage({
   );
 
   const moduleData = data ?? initialData;
+  const availableTabs = useMemo(
+    () => TAB_OPTIONS.filter((tab) => moduleData.access[TAB_ACCESS_KEYS[tab.key]]),
+    [moduleData.access],
+  );
+  const resolvedActiveTab = availableTabs.some((tab) => tab.key === activeTab)
+    ? activeTab
+    : (availableTabs[0]?.key ?? null);
   const selectedExecutive = useMemo(
     () => moduleData.options.accountExecutives.find((item) => item.value === formValues.accountExecutiveId) ?? null,
     [formValues.accountExecutiveId, moduleData.options.accountExecutives],
@@ -356,6 +402,8 @@ export function ComercialReclamosPage({
     [formValues.problemFamilyId, moduleData.options.problemFamilies],
   );
 
+  const skuEntries = useMemo(() => splitSkuEntries(formValues.skuCode), [formValues.skuCode]);
+
   function updateField<Key extends keyof CommercialClaimFormInput>(
     field: Key,
     value: CommercialClaimFormInput[Key],
@@ -366,7 +414,14 @@ export function ComercialReclamosPage({
     }));
 
     setFormValues((current) => ({
-      ...(field === "processNotApplicable"
+      ...(field === "creditNoteApplicability"
+        ? {
+            ...current,
+            creditNoteApplicability: value as CommercialClaimFormInput["creditNoteApplicability"],
+            customerCreditRequestDate: value === "credit-note" ? current.customerCreditRequestDate : null,
+            claimedAmountUsd: value === "credit-note" ? current.claimedAmountUsd : null,
+          }
+        : field === "processNotApplicable"
         ? {
             ...current,
             processNotApplicable: Boolean(value),
@@ -391,6 +446,28 @@ export function ComercialReclamosPage({
     setPhotoFile(null);
   }
 
+  function updateSkuEntries(nextEntries: string[]) {
+    updateField("skuCode", nextEntries.join("\n"));
+  }
+
+  function updateSkuEntry(index: number, value: string) {
+    const nextEntries = [...skuEntries];
+    nextEntries[index] = value;
+    updateSkuEntries(nextEntries);
+  }
+
+  function addSkuEntry() {
+    updateSkuEntries([...skuEntries, ""]);
+  }
+
+  function removeSkuEntry(index: number) {
+    if (skuEntries.length <= 1) {
+      updateSkuEntries([""]);
+      return;
+    }
+    updateSkuEntries(skuEntries.filter((_, entryIndex) => entryIndex !== index));
+  }
+
   function validateForm(values: CommercialClaimFormInput): ClaimFormErrors {
     const errors: ClaimFormErrors = {};
 
@@ -399,6 +476,7 @@ export function ComercialReclamosPage({
     if (!values.accountExecutiveId.trim()) errors.accountExecutiveId = "Debes seleccionar un ejecutivo de venta.";
     if (!values.farmId.trim()) errors.farmId = "Debes seleccionar una finca.";
     if (!values.varietyId.trim()) errors.varietyId = "Debes seleccionar una variedad.";
+    if (!values.skuCode.trim()) errors.skuCode = "Debes registrar el SKU.";
     if (!values.processNotApplicable && !String(values.processDestinationId ?? "").trim()) {
       errors.processDestinationId = "Debes seleccionar un proceso o marcar no aplica.";
     }
@@ -408,6 +486,10 @@ export function ComercialReclamosPage({
     const orderNumber = (values.referenceOrderNumber ?? "").trim();
     const invoiceNumber = (values.referenceInvoiceNumber ?? "").trim();
     const eventDate = (values.eventDate ?? "").trim();
+    const customerCreditRequestDate = (values.customerCreditRequestDate ?? "").trim();
+    const customerDispatchDate = (values.customerDispatchDate ?? "").trim();
+    const claimedBunchesQty = (values.claimedBunchesQty ?? "").trim();
+    const claimedAmountUsd = (values.claimedAmountUsd ?? "").trim();
 
     if (!/^\d{8}$/.test(orderNumber)) {
       errors.referenceOrderNumber = "El número de pedido debe tener exactamente 8 dígitos.";
@@ -419,6 +501,22 @@ export function ComercialReclamosPage({
 
     if (!eventDate) {
       errors.eventDate = "Debes registrar la fecha del caso.";
+    }
+
+    if (values.creditNoteApplicability === "credit-note" && !customerCreditRequestDate) {
+      errors.customerCreditRequestDate = "Debes registrar la fecha de solicitud del cliente.";
+    }
+
+    if (!customerDispatchDate) {
+      errors.customerDispatchDate = "Debes registrar la fecha de despacho al cliente.";
+    }
+
+    if (!claimedBunchesQty) {
+      errors.claimedBunchesQty = "Debes registrar la cantidad reclamada en bunches.";
+    }
+
+    if (values.creditNoteApplicability === "credit-note" && !claimedAmountUsd) {
+      errors.claimedAmountUsd = "Debes registrar la cantidad reclamada en dolares.";
     }
 
     return errors;
@@ -457,8 +555,13 @@ export function ComercialReclamosPage({
     try {
       const payload: CommercialClaimFormInput = {
         ...formValues,
+        skuCode: formValues.skuCode.trim(),
         referenceOrderNumber: formValues.referenceOrderNumber?.trim() || null,
         referenceInvoiceNumber: formValues.referenceInvoiceNumber?.trim() || null,
+        customerCreditRequestDate: formValues.customerCreditRequestDate?.trim() || null,
+        customerDispatchDate: formValues.customerDispatchDate?.trim() || null,
+        claimedBunchesQty: formValues.claimedBunchesQty?.trim() || null,
+        claimedAmountUsd: formValues.claimedAmountUsd?.trim() || null,
         eventDate: formValues.eventDate?.trim() || null,
         subject: formValues.subject.trim(),
         description: formValues.description?.trim() || null,
@@ -589,11 +692,11 @@ export function ComercialReclamosPage({
       </SectionPageShell>
 
       <div className="flex flex-wrap gap-2">
-        {TAB_OPTIONS.map((tab) => (
+        {availableTabs.map((tab) => (
           <Button
             key={tab.key}
             type="button"
-            variant={activeTab === tab.key ? "default" : "outline"}
+            variant={resolvedActiveTab === tab.key ? "default" : "outline"}
             className="rounded-full"
             onClick={() => setActiveTab(tab.key)}
           >
@@ -602,7 +705,23 @@ export function ComercialReclamosPage({
         ))}
       </div>
 
-      {activeTab === "registration" ? (
+      {!resolvedActiveTab ? (
+        <Card className="starter-panel border-border/70 bg-card/84">
+          <CardHeader>
+            <CardTitle className="text-lg">Sin permisos operativos</CardTitle>
+            <CardDescription>
+              Tu usuario puede entrar al modulo, pero no tiene habilitado ningun catalogo operativo de Reclamos.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="rounded-[20px] border border-dashed border-border/70 bg-background/80 px-4 py-8 text-center text-sm text-muted-foreground">
+              Solicita en Seguridad de usuarios el permiso puntual que corresponda: Registro, Aprobaciones o Aplicaciones.
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {resolvedActiveTab === "registration" ? (
         <div className="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
           <Card className="starter-panel border-border/70 bg-card/84">
             <CardHeader>
@@ -680,35 +799,41 @@ export function ComercialReclamosPage({
                     {formErrors.customerId ? <p className="mt-2 text-xs text-destructive">{formErrors.customerId}</p> : null}
                   </div>
 
-                  <div className="md:col-span-2">
-                    <SearchableSelectField
-                      fieldId="claim-commercializer"
-                      label="Comercializadora *"
+                  <div className="space-y-2 md:col-span-2">
+                    <Label htmlFor="claim-commercializer">Comercializadora *</Label>
+                    <select
+                      id="claim-commercializer"
+                      className="flex h-10 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm"
                       value={formValues.commercializerId}
-                      options={moduleData.options.commercializers}
-                      placeholder="Buscar por nombre o codigo…"
-                      emptyText="No hay comercializadoras que coincidan con el filtro."
-                      onChange={(value) => updateField("commercializerId", value)}
-                      onClear={() => updateField("commercializerId", "")}
-                      showSuggestionsOnFocus
-                    />
-                    {formErrors.commercializerId ? <p className="mt-2 text-xs text-destructive">{formErrors.commercializerId}</p> : null}
+                      onChange={(event) => updateField("commercializerId", event.target.value)}
+                    >
+                      <option value="">Selecciona una comercializadora</option>
+                      {moduleData.options.commercializers.map((option) => (
+                        <option key={option.value} value={option.value}>{buildOptionLabel(option)}</option>
+                      ))}
+                    </select>
+                    {formErrors.commercializerId ? <p className="text-xs text-destructive">{formErrors.commercializerId}</p> : null}
                   </div>
 
-                  <div className="md:col-span-2">
-                    <SearchableSelectField
-                      fieldId="claim-executive"
-                      label="Ejecutivo de venta *"
+                  <div className="space-y-2 md:col-span-2">
+                    <Label htmlFor="claim-executive">Ejecutivo de venta *</Label>
+                    <select
+                      id="claim-executive"
+                      className="flex h-10 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm"
                       value={formValues.accountExecutiveId}
-                      options={moduleData.options.accountExecutives}
-                      placeholder="Buscar por codigo, nombre o correo…"
-                      emptyText="No hay ejecutivos que coincidan con el filtro."
-                      helperText={selectedExecutive?.meta ? `Codigo seleccionado: ${selectedExecutive.meta}` : undefined}
-                      onChange={(value) => updateField("accountExecutiveId", value)}
-                      onClear={() => updateField("accountExecutiveId", "")}
-                      showSuggestionsOnFocus
-                    />
-                    {formErrors.accountExecutiveId ? <p className="mt-2 text-xs text-destructive">{formErrors.accountExecutiveId}</p> : null}
+                      onChange={(event) => updateField("accountExecutiveId", event.target.value)}
+                    >
+                      <option value="">Selecciona un ejecutivo</option>
+                      {moduleData.options.accountExecutives
+                        .filter((option) => option.value === formValues.accountExecutiveId || option.value !== "")
+                        .map((option) => (
+                          <option key={option.value} value={option.value}>{buildOptionLabel(option)}</option>
+                        ))}
+                    </select>
+                    <p className="text-xs text-muted-foreground">
+                      {selectedExecutive?.meta ? `Codigo seleccionado: ${selectedExecutive.meta}` : "Solo se muestran ejecutivos activos."}
+                    </p>
+                    {formErrors.accountExecutiveId ? <p className="text-xs text-destructive">{formErrors.accountExecutiveId}</p> : null}
                   </div>
 
                   <div className="space-y-2">
@@ -772,6 +897,45 @@ export function ComercialReclamosPage({
                       <span>No aplica</span>
                     </label>
                     {formErrors.processDestinationId ? <p className="text-xs text-destructive">{formErrors.processDestinationId}</p> : null}
+                  </div>
+
+                  <div className="space-y-2 md:col-span-2">
+                    <Label htmlFor="claim-sku">SKU reclamado *</Label>
+                    <div className="space-y-2">
+                      {skuEntries.map((skuEntry, index) => (
+                        <div key={`sku-entry-${index}`} className="flex items-center gap-2">
+                          <Input
+                            id={index === 0 ? "claim-sku" : `claim-sku-${index}`}
+                            className="rounded-xl"
+                            placeholder="PEGUE EL SKU DESDE LA FACTURA"
+                            value={skuEntry}
+                            onChange={(event) => updateSkuEntry(index, event.target.value)}
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="rounded-full"
+                            onClick={addSkuEntry}
+                            aria-label="Agregar SKU"
+                          >
+                            <Plus className="size-4" />
+                          </Button>
+                          {skuEntries.length > 1 ? (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              className="rounded-full"
+                              onClick={() => removeSkuEntry(index)}
+                              aria-label="Quitar SKU"
+                            >
+                              <Trash2 className="size-4" />
+                            </Button>
+                          ) : null}
+                        </div>
+                      ))}
+                    </div>
+                    <p className="text-xs text-muted-foreground">Agrega cada SKU con el botón `+`. El reclamo guarda la lista completa como JSON y evita duplicados al persistir.</p>
+                    {formErrors.skuCode ? <p className="text-xs text-destructive">{formErrors.skuCode}</p> : null}
                   </div>
 
                   <div className="space-y-2 md:col-span-2">
@@ -851,6 +1015,58 @@ export function ComercialReclamosPage({
                       onChange={(event) => updateField("eventDate", event.target.value)}
                     />
                     {formErrors.eventDate ? <p className="text-xs text-destructive">{formErrors.eventDate}</p> : null}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="claim-credit-request-date">Fecha Solicitud Credito por el Cliente *</Label>
+                    <Input
+                      id="claim-credit-request-date"
+                      type="date"
+                      className="rounded-xl"
+                      disabled={formValues.creditNoteApplicability !== "credit-note"}
+                      value={formValues.customerCreditRequestDate ?? ""}
+                      onChange={(event) => updateField("customerCreditRequestDate", event.target.value)}
+                    />
+                    {formErrors.customerCreditRequestDate ? <p className="text-xs text-destructive">{formErrors.customerCreditRequestDate}</p> : null}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="claim-dispatch-date">Fecha Despacho a Cliente *</Label>
+                    <Input
+                      id="claim-dispatch-date"
+                      type="date"
+                      className="rounded-xl"
+                      value={formValues.customerDispatchDate ?? ""}
+                      onChange={(event) => updateField("customerDispatchDate", event.target.value)}
+                    />
+                    {formErrors.customerDispatchDate ? <p className="text-xs text-destructive">{formErrors.customerDispatchDate}</p> : null}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="claim-bunches-qty">Cantidad en Bunches *</Label>
+                    <Input
+                      id="claim-bunches-qty"
+                      className="rounded-xl"
+                      inputMode="numeric"
+                      value={formValues.claimedBunchesQty ?? ""}
+                      onChange={(event) => updateField("claimedBunchesQty", event.target.value.replace(/\D/g, ""))}
+                    />
+                    <p className="text-xs text-muted-foreground">Solo se permiten numeros enteros.</p>
+                    {formErrors.claimedBunchesQty ? <p className="text-xs text-destructive">{formErrors.claimedBunchesQty}</p> : null}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="claim-amount-usd">Cantidad en Dolares *</Label>
+                    <Input
+                      id="claim-amount-usd"
+                      className="rounded-xl"
+                      inputMode="decimal"
+                      disabled={formValues.creditNoteApplicability !== "credit-note"}
+                      value={formValues.claimedAmountUsd ?? ""}
+                      onChange={(event) => updateField("claimedAmountUsd", event.target.value.replace(/[^0-9.,]/g, ""))}
+                    />
+                    <p className="text-xs text-muted-foreground">Formato monetario en USD. Si no aplica nota de credito, este campo queda nulo.</p>
+                    {formErrors.claimedAmountUsd ? <p className="text-xs text-destructive">{formErrors.claimedAmountUsd}</p> : null}
                   </div>
 
                   <div className="space-y-2 md:col-span-2">
@@ -966,7 +1182,7 @@ export function ComercialReclamosPage({
         </div>
       ) : null}
 
-      {activeTab === "approvals" ? (
+      {resolvedActiveTab === "approvals" ? (
         <Card className="starter-panel border-border/70 bg-card/84">
           <CardHeader>
             <CardTitle className="text-lg">Aprobaciones</CardTitle>
@@ -1017,7 +1233,7 @@ export function ComercialReclamosPage({
         </Card>
       ) : null}
 
-      {activeTab === "applications" ? (
+      {resolvedActiveTab === "applications" ? (
         <Card className="starter-panel border-border/70 bg-card/84">
           <CardHeader>
             <CardTitle className="text-lg">Aplicaciones</CardTitle>
@@ -1110,6 +1326,20 @@ export function ComercialReclamosPage({
                       <p className="mt-1 font-medium">{selectedClaimDetail.record.processDestinationName ?? "NO APLICA"}</p>
                     </div>
                     <div className="rounded-[18px] border border-border/70 bg-background/80 px-4 py-3 text-sm">
+                      <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">SKU reclamado</p>
+                      {selectedClaimDetail.record.skuCodes.length ? (
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {selectedClaimDetail.record.skuCodes.map((sku) => (
+                            <Badge key={sku} variant="outline" className="rounded-full px-3 py-1 font-mono">
+                              {sku}
+                            </Badge>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="mt-1 font-medium">{selectedClaimDetail.record.skuCode ?? "-"}</p>
+                      )}
+                    </div>
+                    <div className="rounded-[18px] border border-border/70 bg-background/80 px-4 py-3 text-sm">
                       <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Tipo de problema</p>
                       <p className="mt-1 font-medium">{selectedClaimDetail.record.problemFamilyName ?? "-"}</p>
                     </div>
@@ -1122,12 +1352,28 @@ export function ComercialReclamosPage({
                       <p className="mt-1 font-medium">{selectedClaimDetail.record.eventDate ?? "-"}</p>
                     </div>
                     <div className="rounded-[18px] border border-border/70 bg-background/80 px-4 py-3 text-sm">
+                      <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Fecha solicitud credito cliente</p>
+                      <p className="mt-1 font-medium">{selectedClaimDetail.record.customerCreditRequestDate ?? "-"}</p>
+                    </div>
+                    <div className="rounded-[18px] border border-border/70 bg-background/80 px-4 py-3 text-sm">
+                      <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Fecha despacho a cliente</p>
+                      <p className="mt-1 font-medium">{selectedClaimDetail.record.customerDispatchDate ?? "-"}</p>
+                    </div>
+                    <div className="rounded-[18px] border border-border/70 bg-background/80 px-4 py-3 text-sm">
                       <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Pedido</p>
                       <p className="mt-1 font-medium">{selectedClaimDetail.record.referenceOrderNumber ?? "-"}</p>
                     </div>
                     <div className="rounded-[18px] border border-border/70 bg-background/80 px-4 py-3 text-sm">
                       <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Factura comercializadora</p>
                       <p className="mt-1 font-medium">{selectedClaimDetail.record.referenceInvoiceNumber ?? "-"}</p>
+                    </div>
+                    <div className="rounded-[18px] border border-border/70 bg-background/80 px-4 py-3 text-sm">
+                      <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Cantidad reclamada bunches</p>
+                      <p className="mt-1 font-medium">{formatOptionalDecimal(selectedClaimDetail.record.claimedBunchesQty, 0)}</p>
+                    </div>
+                    <div className="rounded-[18px] border border-border/70 bg-background/80 px-4 py-3 text-sm">
+                      <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Cantidad reclamada dolares</p>
+                      <p className="mt-1 font-medium">{formatOptionalCurrencyUsd(selectedClaimDetail.record.claimedAmountUsd)}</p>
                     </div>
                     <div className="rounded-[18px] border border-border/70 bg-background/80 px-4 py-3 text-sm">
                       <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Creado</p>

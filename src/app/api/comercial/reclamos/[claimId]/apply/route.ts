@@ -2,7 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 
 import { formatZodIssue } from "@/lib/admin-masters-schemas";
 import { handleApiError } from "@/lib/api-error";
-import { requireAuth } from "@/lib/api-auth";
+import { requireAuth, requireResourceAccess } from "@/lib/api-auth";
 import { getSession } from "@/lib/auth";
 import {
   applyCommercialClaim,
@@ -24,6 +24,9 @@ export async function PATCH(
 ) {
   const authError = await requireAuth(request);
   if (authError) return authError;
+
+  const resourceError = await requireResourceAccess("panel:commercial.claims.application");
+  if (resourceError) return resourceError;
 
   try {
     const { claimId } = await context.params;

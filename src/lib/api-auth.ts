@@ -39,6 +39,20 @@ export async function requirePageAccess(resourceKey: string) {
   return access;
 }
 
+export async function requireResourceAccess(resourceKey: string, requestId?: string) {
+  const access = await getCurrentUserAccess();
+
+  if (!access || !access.isActive) {
+    return apiJsonError("Missing authentication token", 401, requestId);
+  }
+
+  if (!canAccessResource(resourceKey, access.allowedResources, access.isSuperadmin)) {
+    return apiJsonError("No tienes acceso a este recurso.", 403, requestId);
+  }
+
+  return null;
+}
+
 export async function requireAuth(request: NextRequest): Promise<NextResponse | null> {
   const requestId = getRequestId(request);
   const originError = validateMutationOrigin(request, requestId);

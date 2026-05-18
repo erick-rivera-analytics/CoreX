@@ -2,7 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 
 import { formatZodIssue } from "@/lib/admin-masters-schemas";
 import { handleApiError } from "@/lib/api-error";
-import { requireAuth } from "@/lib/api-auth";
+import { requireAuth, requireResourceAccess } from "@/lib/api-auth";
 import { getSession } from "@/lib/auth";
 import {
   createCommercialClaim,
@@ -46,6 +46,9 @@ export async function POST(request: NextRequest) {
   const authError = await requireAuth(request);
   if (authError) return authError;
 
+  const resourceError = await requireResourceAccess("panel:commercial.claims.registration");
+  if (resourceError) return resourceError;
+
   const rl = checkRateLimit(`commercial-claims:${readRequesterIp(request)}`, 30, 60_000);
   if (!rl.allowed) {
     return jsonError(
@@ -65,11 +68,16 @@ export async function POST(request: NextRequest) {
     const actorId = await readActorId("commercial_claim_create");
     const data = await createCommercialClaim({
       ...parsed.data,
+      skuCode: parsed.data.skuCode ?? "",
       processDestinationId: parsed.data.processDestinationId ?? null,
       processNotApplicable: parsed.data.processNotApplicable ?? false,
       problemFamilyId: parsed.data.problemFamilyId ?? null,
       referenceOrderNumber: parsed.data.referenceOrderNumber ?? null,
       referenceInvoiceNumber: parsed.data.referenceInvoiceNumber ?? null,
+      customerCreditRequestDate: parsed.data.customerCreditRequestDate ?? null,
+      customerDispatchDate: parsed.data.customerDispatchDate ?? null,
+      claimedBunchesQty: parsed.data.claimedBunchesQty ?? null,
+      claimedAmountUsd: parsed.data.claimedAmountUsd ?? null,
       eventDate: parsed.data.eventDate ?? null,
       subject: parsed.data.subject ?? "",
       description: parsed.data.description ?? null,

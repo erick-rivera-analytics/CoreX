@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 
 import { handleApiError } from "@/lib/api-error";
-import { requireAuth } from "@/lib/api-auth";
+import { requireAuth, requireResourceAccess } from "@/lib/api-auth";
 import { getSession } from "@/lib/auth";
 import { attachCommercialClaimPhoto } from "@/lib/comercial-reclamos";
 import { checkRateLimit } from "@/server/security/rate-limit";
@@ -26,6 +26,9 @@ export async function POST(
 ) {
   const authError = await requireAuth(request);
   if (authError) return authError;
+
+  const resourceError = await requireResourceAccess("panel:commercial.claims.registration");
+  if (resourceError) return resourceError;
 
   const rl = checkRateLimit(`commercial-claim-photo:${readRequesterIp(request)}`, 20, 60_000);
   if (!rl.allowed) {

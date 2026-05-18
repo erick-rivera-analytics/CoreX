@@ -4,6 +4,8 @@ import path from "path";
 import type { PoolClient } from "pg";
 import sharp from "sharp";
 
+import { canAccessResource } from "@/lib/access-control";
+import { getSessionUser } from "@/lib/auth";
 import { listCurrentGeneralSimpleMasterRecords } from "@/lib/general-masters";
 import { listCurrentPostharvestDestinations } from "@/lib/postcosecha-destinos";
 import {
@@ -30,12 +32,17 @@ export type CommercialClaimFormInput = {
   accountExecutiveId: string;
   farmId: string;
   varietyId: string;
+  skuCode: string;
   processDestinationId: string | null;
   processNotApplicable?: boolean;
   problemFamilyId: string | null;
   problemId: string;
   referenceOrderNumber: string | null;
   referenceInvoiceNumber: string | null;
+  customerCreditRequestDate: string | null;
+  customerDispatchDate: string | null;
+  claimedBunchesQty: string | null;
+  claimedAmountUsd: string | null;
   eventDate: string | null;
   subject: string;
   description: string | null;
@@ -76,6 +83,8 @@ export type CommercialClaimRecord = {
   farmName: string | null;
   varietyId: string | null;
   varietyName: string | null;
+  skuCode: string | null;
+  skuCodes: string[];
   processDestinationId: string | null;
   processDestinationName: string | null;
   problemFamilyId: string | null;
@@ -84,6 +93,10 @@ export type CommercialClaimRecord = {
   problemName: string | null;
   referenceOrderNumber: string | null;
   referenceInvoiceNumber: string | null;
+  customerCreditRequestDate: string | null;
+  customerDispatchDate: string | null;
+  claimedBunchesQty: number | null;
+  claimedAmountUsd: number | null;
   eventDate: string | null;
   subject: string;
   description: string | null;
@@ -95,6 +108,11 @@ export type CommercialClaimRecord = {
 };
 
 export type CommercialClaimModuleData = {
+  access: {
+    canRegister: boolean;
+    canApprove: boolean;
+    canApply: boolean;
+  };
   readiness: {
     customers: number;
     commercializers: number;
@@ -129,6 +147,11 @@ export type CommercialClaimModuleData = {
   lastCreatedClaimId?: string | null;
 };
 
+type SanitizedCommercialClaimInput = CommercialClaimFormInput & {
+  primarySkuCode: string;
+  skuCodesJson: string;
+};
+
 type ClaimRow = {
   claim_id: string;
   claim_code: string;
@@ -140,11 +163,17 @@ type ClaimRow = {
   account_executive_id: string | null;
   farm_id: string | null;
   variety_id: string | null;
+  sku_code: string | null;
+  claimed_skus_json: unknown | null;
   process_destination_id: string | null;
   problem_family_id: string | null;
   problem_id: string | null;
   reference_order_number: string | null;
   reference_invoice_number: string | null;
+  customer_credit_request_date: string | null;
+  customer_dispatch_date: string | null;
+  claimed_bunches_qty: number | string | null;
+  claimed_amount_usd: number | string | null;
   event_date: string | null;
   subject: string;
   description: string | null;
@@ -198,14 +227,94 @@ function normalizeText(value: string) {
   return value.trim().replace(/\s+/g, " ");
 }
 
+async function getCommercialClaimAccess() {
+  const user = await getSessionUser();
+  const allowedResources = user?.allowedResources ?? [];
+  const isSuperadmin = user?.roleCode === "superadmin";
+
+  return {
+    canRegister: canAccessResource("panel:commercial.claims.registration", allowedResources, isSuperadmin),
+    canApprove: canAccessResource("panel:commercial.claims.approval", allowedResources, isSuperadmin),
+    canApply: canAccessResource("panel:commercial.claims.application", allowedResources, isSuperadmin),
+  };
+}
+
 function normalizeOptionalText(value: string | null | undefined) {
   const normalized = normalizeText(value ?? "");
   return normalized || null;
 }
 
+function parseSkuCodes(rawValue: string | null | undefined) {
+  const raw = String(rawValue ?? "")
+    .replace(/\r/g, "\n")
+    .split(/[\n,;]+/)
+    .map((item) => normalizeText(item))
+    .filter(Boolean);
+
+  const unique: string[] = [];
+  const seen = new Set<string>();
+  for (const item of raw) {
+    const key = item.toUpperCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    unique.push(item);
+  }
+
+  return unique;
+}
+
+function coerceSkuCodesJson(value: unknown, fallbackSkuCode: string | null) {
+  if (Array.isArray(value)) {
+    return value.map((item) => String(item ?? "").trim()).filter(Boolean);
+  }
+
+  if (fallbackSkuCode) {
+    return [fallbackSkuCode];
+  }
+
+  return [];
+}
+
 function toDateOnly(value: string | null) {
   if (!value) return null;
   return new Date(value).toISOString().slice(0, 10);
+}
+
+function parseOptionalDecimal(value: string | null | undefined, fieldLabel: string) {
+  const normalized = normalizeOptionalText(value);
+  if (!normalized) {
+    return null;
+  }
+
+  const sanitized = normalized.replace(",", ".");
+  if (!/^\d+(\.\d+)?$/.test(sanitized)) {
+    throw new Error(`${fieldLabel} debe ser numerico.`);
+  }
+
+  const numericValue = Number(sanitized);
+  if (!Number.isFinite(numericValue) || numericValue < 0) {
+    throw new Error(`${fieldLabel} debe ser un numero valido mayor o igual a cero.`);
+  }
+
+  return numericValue;
+}
+
+function parseOptionalInteger(value: string | null | undefined, fieldLabel: string) {
+  const normalized = normalizeOptionalText(value);
+  if (!normalized) {
+    return null;
+  }
+
+  if (!/^\d+$/.test(normalized)) {
+    throw new Error(`${fieldLabel} debe ser un numero entero.`);
+  }
+
+  const numericValue = Number(normalized);
+  if (!Number.isInteger(numericValue) || numericValue < 0) {
+    throw new Error(`${fieldLabel} debe ser un numero entero valido mayor o igual a cero.`);
+  }
+
+  return numericValue;
 }
 
 function makeClaimId() {
@@ -284,11 +393,17 @@ async function ensureCommercialClaimTables(client?: PoolClient) {
       account_executive_id text null,
       farm_id text null,
       variety_id text null,
+      sku_code text null,
+      claimed_skus_json jsonb null,
       process_destination_id text null,
       problem_family_id text null,
       problem_id text null,
       reference_order_number text null,
       reference_invoice_number text null,
+      customer_credit_request_date date null,
+      customer_dispatch_date date null,
+      claimed_bunches_qty numeric(18,2) null,
+      claimed_amount_usd numeric(18,2) null,
       event_date date null,
       subject text not null,
       description text null,
@@ -306,6 +421,34 @@ async function ensureCommercialClaimTables(client?: PoolClient) {
   await runQuery(`
     create unique index if not exists sls_claim_case_cur_code_unique_idx
       on ${CLAIM_TABLE} (lower(claim_code))
+  `);
+
+  await runQuery(`
+    alter table ${CLAIM_TABLE}
+      add column if not exists sku_code text null,
+      add column if not exists claimed_skus_json jsonb null,
+      add column if not exists customer_credit_request_date date null,
+      add column if not exists customer_dispatch_date date null,
+      add column if not exists claimed_bunches_qty numeric(18,2) null,
+      add column if not exists claimed_amount_usd numeric(18,2) null
+  `);
+
+  await runQuery(`
+    alter table ${CLAIM_TABLE}
+      alter column claimed_bunches_qty type integer
+      using case
+        when claimed_bunches_qty is null then null
+        else round(claimed_bunches_qty)::integer
+      end
+  `);
+
+  await runQuery(`
+    alter table ${CLAIM_TABLE}
+      alter column claimed_amount_usd type numeric(18,2)
+      using case
+        when claimed_amount_usd is null then null
+        else round(claimed_amount_usd::numeric, 2)
+      end
   `);
 
   await runQuery(`
@@ -364,7 +507,7 @@ async function initializeCommercialClaims() {
   return global.__dashboardCommercialClaimsSetup;
 }
 
-function sanitizeClaimInput(input: CommercialClaimFormInput) {
+function sanitizeClaimInput(input: CommercialClaimFormInput): SanitizedCommercialClaimInput {
   const subject = normalizeOptionalText(input.subject) ?? "SIN ASUNTO";
 
   const customerId = normalizeOptionalText(input.customerId);
@@ -372,6 +515,8 @@ function sanitizeClaimInput(input: CommercialClaimFormInput) {
   const accountExecutiveId = normalizeOptionalText(input.accountExecutiveId);
   const farmId = normalizeOptionalText(input.farmId);
   const varietyId = normalizeOptionalText(input.varietyId);
+  const skuCodes = parseSkuCodes(input.skuCode);
+  const skuCode = skuCodes[0] ?? null;
   const processDestinationId = normalizeOptionalText(input.processDestinationId);
   const problemFamilyId = normalizeOptionalText(input.problemFamilyId);
   const problemId = normalizeOptionalText(input.problemId);
@@ -381,6 +526,7 @@ function sanitizeClaimInput(input: CommercialClaimFormInput) {
   if (!accountExecutiveId) throw new Error("Debes seleccionar un ejecutivo de cuenta.");
   if (!farmId) throw new Error("Debes seleccionar una finca.");
   if (!varietyId) throw new Error("Debes seleccionar una variedad.");
+  if (skuCodes.length === 0) throw new Error("Debes registrar al menos un SKU.");
   if (!input.processNotApplicable && !processDestinationId) {
     throw new Error("Debes seleccionar un proceso o marcar que no aplica.");
   }
@@ -399,8 +545,27 @@ function sanitizeClaimInput(input: CommercialClaimFormInput) {
   }
 
   const eventDate = normalizeOptionalText(input.eventDate);
+  const customerCreditRequestDate = normalizeOptionalText(input.customerCreditRequestDate);
+  const customerDispatchDate = normalizeOptionalText(input.customerDispatchDate);
   if (!eventDate) {
     throw new Error("Debes registrar la fecha del caso.");
+  }
+  if (input.creditNoteApplicability === "credit-note" && !customerCreditRequestDate) {
+    throw new Error("Debes registrar la fecha de solicitud de credito por el cliente.");
+  }
+  if (!customerDispatchDate) {
+    throw new Error("Debes registrar la fecha de despacho a cliente.");
+  }
+
+  const claimedBunchesQty = parseOptionalInteger(input.claimedBunchesQty, "Cantidad en bunches");
+  const claimedAmountUsd = input.creditNoteApplicability === "credit-note"
+    ? parseOptionalDecimal(input.claimedAmountUsd, "Cantidad en dolares")
+    : null;
+  if (claimedBunchesQty === null) {
+    throw new Error("Debes registrar la cantidad en bunches.");
+  }
+  if (input.creditNoteApplicability === "credit-note" && claimedAmountUsd === null) {
+    throw new Error("Debes registrar la cantidad en dolares.");
   }
 
   return {
@@ -411,16 +576,23 @@ function sanitizeClaimInput(input: CommercialClaimFormInput) {
     accountExecutiveId,
     farmId,
     varietyId,
+    skuCode: skuCodes.join("\n"),
+    primarySkuCode: skuCode,
+    skuCodesJson: JSON.stringify(skuCodes),
     processDestinationId: input.processNotApplicable ? null : processDestinationId,
     processNotApplicable: Boolean(input.processNotApplicable),
     problemFamilyId,
     problemId,
     referenceOrderNumber,
     referenceInvoiceNumber,
+    customerCreditRequestDate: input.creditNoteApplicability === "credit-note" ? customerCreditRequestDate : null,
+    customerDispatchDate,
+    claimedBunchesQty: String(claimedBunchesQty),
+    claimedAmountUsd: claimedAmountUsd === null ? null : String(claimedAmountUsd),
     eventDate,
     subject,
     description: normalizeOptionalText(input.description),
-  } satisfies CommercialClaimFormInput;
+  };
 }
 
 function mapClaimRow(
@@ -453,6 +625,8 @@ function mapClaimRow(
     farmName: row.farm_id ? maps.farms.get(row.farm_id)?.label ?? null : null,
     varietyId: row.variety_id,
     varietyName: row.variety_id ? maps.varieties.get(row.variety_id)?.label ?? null : null,
+    skuCode: row.sku_code,
+    skuCodes: coerceSkuCodesJson(row.claimed_skus_json, row.sku_code),
     processDestinationId: row.process_destination_id,
     processDestinationName: row.process_destination_id ? maps.destinations.get(row.process_destination_id)?.label ?? null : "NO APLICA",
     problemFamilyId: row.problem_family_id,
@@ -461,6 +635,10 @@ function mapClaimRow(
     problemName: row.problem_id ? maps.problems.get(row.problem_id)?.label ?? null : null,
     referenceOrderNumber: row.reference_order_number,
     referenceInvoiceNumber: row.reference_invoice_number,
+    customerCreditRequestDate: toDateOnly(row.customer_credit_request_date),
+    customerDispatchDate: toDateOnly(row.customer_dispatch_date),
+    claimedBunchesQty: row.claimed_bunches_qty === null ? null : Number(row.claimed_bunches_qty),
+    claimedAmountUsd: row.claimed_amount_usd === null ? null : Number(row.claimed_amount_usd),
     eventDate: toDateOnly(row.event_date),
     subject: row.subject,
     description: row.description,
@@ -487,11 +665,17 @@ async function listCurrentClaimRows() {
         claim.account_executive_id,
         claim.farm_id,
         claim.variety_id,
+        claim.sku_code,
+        claim.claimed_skus_json,
         claim.process_destination_id,
         claim.problem_family_id,
         claim.problem_id,
         claim.reference_order_number,
         claim.reference_invoice_number,
+        claim.customer_credit_request_date,
+        claim.customer_dispatch_date,
+        claim.claimed_bunches_qty,
+        claim.claimed_amount_usd,
         claim.event_date,
         claim.subject,
         claim.description,
@@ -531,11 +715,17 @@ async function getCommercialClaimRowById(claimId: string) {
         account_executive_id,
         farm_id,
         variety_id,
+        sku_code,
+        claimed_skus_json,
         process_destination_id,
         problem_family_id,
         problem_id,
         reference_order_number,
         reference_invoice_number,
+        customer_credit_request_date,
+        customer_dispatch_date,
+        claimed_bunches_qty,
+        claimed_amount_usd,
         event_date,
         subject,
         description,
@@ -596,6 +786,7 @@ function mapAttachmentRow(row: ClaimAttachmentRow): CommercialClaimAttachmentRec
 
 export async function getCommercialClaimModuleData(): Promise<CommercialClaimModuleData> {
   const [
+    access,
     customers,
     commercializers,
     accountExecutives,
@@ -605,6 +796,7 @@ export async function getCommercialClaimModuleData(): Promise<CommercialClaimMod
     claimProblems,
     claimRows,
   ] = await Promise.all([
+    getCommercialClaimAccess(),
     listCurrentCommercialSimpleMasterRecords("customers"),
     listCurrentCommercialSimpleMasterRecords("commercializers"),
     listCurrentCommercialSimpleMasterRecords("account-executives"),
@@ -617,7 +809,9 @@ export async function getCommercialClaimModuleData(): Promise<CommercialClaimMod
 
   const customerOptions = customers.map((item) => ({ value: item.entityId, label: item.name, meta: item.code }));
   const commercializerOptions = commercializers.map((item) => ({ value: item.entityId, label: item.name, meta: item.code }));
-  const executiveOptions = accountExecutives.map((item) => ({ value: item.entityId, label: item.name, meta: item.code }));
+  const executiveOptions = accountExecutives
+    .filter((item) => item.isActive)
+    .map((item) => ({ value: item.entityId, label: item.name, meta: item.code }));
   const farmOptions = farms.map((item) => ({ value: item.entityId, label: item.name, meta: item.code }));
   const varietyOptions = varieties.map((item) => ({ value: item.entityId, label: item.name, meta: item.code }));
   const destinationOptions = destinations.map((item) => ({ value: item.entityId, label: item.name, meta: item.code }));
@@ -648,6 +842,7 @@ export async function getCommercialClaimModuleData(): Promise<CommercialClaimMod
   const claims = claimRows.map((row) => mapClaimRow(row, maps));
 
   return {
+    access,
     readiness: {
       customers: customerOptions.length,
       commercializers: commercializerOptions.length,
@@ -780,11 +975,17 @@ export async function createCommercialClaim(input: CommercialClaimFormInput, act
           account_executive_id,
           farm_id,
           variety_id,
+          sku_code,
+          claimed_skus_json,
           process_destination_id,
           problem_family_id,
           problem_id,
           reference_order_number,
           reference_invoice_number,
+          customer_credit_request_date,
+          customer_dispatch_date,
+          claimed_bunches_qty,
+          claimed_amount_usd,
           event_date,
           subject,
           description,
@@ -794,7 +995,7 @@ export async function createCommercialClaim(input: CommercialClaimFormInput, act
           created_by,
           updated_by
         ) values (
-          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16::date, $17, $18, true, $19, $19, $20, $20
+          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12::jsonb, $13, $14, $15, $16, $17, $18::date, $19::date, $20::numeric, $21::numeric, $22::date, $23, $24, true, $25, $25, $26, $26
         )
       `,
       [
@@ -808,11 +1009,17 @@ export async function createCommercialClaim(input: CommercialClaimFormInput, act
         sanitized.accountExecutiveId,
         sanitized.farmId,
         sanitized.varietyId,
+        sanitized.primarySkuCode,
+        sanitized.skuCodesJson,
         sanitized.processDestinationId,
         sanitized.problemFamilyId,
         sanitized.problemId,
         sanitized.referenceOrderNumber,
         sanitized.referenceInvoiceNumber,
+        sanitized.customerCreditRequestDate,
+        sanitized.customerDispatchDate,
+        sanitized.claimedBunchesQty,
+        sanitized.claimedAmountUsd,
         sanitized.eventDate,
         sanitized.subject,
         sanitized.description,

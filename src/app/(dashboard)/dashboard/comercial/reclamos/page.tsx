@@ -10,6 +10,11 @@ export default async function ComercialReclamosPageRoute() {
     loader: getCommercialClaimModuleData,
     fallbackMessage: "No se pudo cargar el modulo de reclamos.",
     fallbackData: {
+      access: {
+        canRegister: false,
+        canApprove: false,
+        canApply: false,
+      },
       readiness: {
         customers: 0,
         commercializers: 0,
