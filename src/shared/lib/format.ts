@@ -338,7 +338,7 @@ const MONTH_NAMES_ES_PADDED: Record<string, string> = {
 
 /** Convierte mes numérico ("1"–"12") al nombre en español. Uso: filtros de productividad. */
 export function formatMonthNumeric(value: string): string {
-  return MONTH_NAMES_ES[value] ?? value;
+  return MONTH_NAMES_ES[value] ?? MONTH_NAMES_ES_PADDED[value] ?? value;
 }
 
 /** Convierte "YYYY-MM" al formato "Nombre Año" (e.g. "2026-04" → "Abril 2026"). Uso: filtros de calidad. */

@@ -48,7 +48,19 @@ export type CanonTemplateKey =
   | "orden_trabajo_clasificacion"
   | "tthh_agenda_seguimientos"
   | "bodega_programacion_drench"
-  | "calidad_punto_apertura";
+  | "calidad_punto_apertura"
+  | "postcosecha_productividad";
+
+export type GeneratePdfAsset = {
+  /**
+   * Nombre de archivo que quedara disponible dentro de ./assets en el job latex.
+   */
+  fileName: string;
+  /**
+   * Contenido binario del asset.
+   */
+  content: Buffer;
+};
 
 export type GeneratePdfPayload = {
   /**
@@ -77,6 +89,11 @@ export type GeneratePdfPayload = {
    * @default 2 — necesario para referencias cruzadas y longtable
    */
   passes?: 1 | 2;
+  /**
+   * Assets dinamicos del job. Se escriben en ./assets dentro del directorio temporal
+   * para poder ser usados con \\includegraphics.
+   */
+  assets?: GeneratePdfAsset[];
 };
 
 export type GeneratePdfResult = {
@@ -123,6 +140,7 @@ export async function generateCanonicalPdf(
   payload: GeneratePdfPayload,
 ): Promise<GeneratePdfResult> {
   const { templateName, dataTexContent, jobId, passes = 2 } = payload;
+  const assets = payload.assets ?? [];
 
   const templatePath = resolve(PDF_CANON_ROOT, "templates", `${templateName}.tex`);
 
@@ -165,6 +183,11 @@ export async function generateCanonicalPdf(
       resolve(PDF_CANON_ROOT, "assets", "logo.pdf"),
       join(workDir, "assets", "logo.pdf"),
     ).catch(() => {/* logo ausente es aceptable */});
+
+    for (const asset of assets) {
+      const fileName = basename(asset.fileName);
+      await writeFile(join(workDir, "assets", fileName), asset.content);
+    }
 
     // Escribir _data.tex
     await writeFile(join(workDir, "_data.tex"), dataTexContent, "utf-8");

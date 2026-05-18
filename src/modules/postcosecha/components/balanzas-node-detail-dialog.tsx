@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { Download, LoaderCircle } from "lucide-react";
 import useSWR from "swr";
-import * as XLSX from "xlsx";
 
 import type { BalanzasFilters, BalanzasNodeDetail, BalanzasNodeSummary } from "@/lib/postcosecha-balanzas";
 import { fetchJson } from "@/lib/fetch-json";
@@ -101,39 +100,48 @@ function buildDetailUrl(nodeKey: string, filters: BalanzasFilters, local: LocalF
  * Valores numéricos mantienen su tipo (no string), así Excel los formatea
  * y permite operar con ellos.
  */
-function downloadXlsx(detail: BalanzasNodeDetail) {
+function escapeCsvCell(value: string | number | null) {
+  if (value === null) return "";
+  const text = String(value);
+  if (/[",\n;]/.test(text)) {
+    return `"${text.replace(/"/g, '""')}"`;
+  }
+  return text;
+}
+
+function downloadCsv(detail: BalanzasNodeDetail) {
   const exportColumns = detail.columns.filter((c) => !c.isHidden);
 
-  // Array de arrays: primera fila headers, resto data.
-  const aoa: (string | number | null)[][] = [
-    exportColumns.map((column) => column.label),
+  const lines = [
+    exportColumns.map((column) => escapeCsvCell(column.label)).join(","),
     ...detail.rows.map((row) =>
-      exportColumns.map((column) => {
-        const value = row[column.key];
-        if (value === null || value === undefined) return null;
-        if (typeof value === "number") return Number.isFinite(value) ? value : null;
-        if (typeof value === "string" && /^-?\d+(\.\d+)?$/.test(value)) {
-          const n = Number(value);
-          return Number.isFinite(n) ? n : value;
-        }
-        return String(value);
-      }),
+      exportColumns
+        .map((column) => {
+          const value = row[column.key];
+          if (value === null || value === undefined) return "";
+          if (typeof value === "number") return escapeCsvCell(Number.isFinite(value) ? value : null);
+          if (typeof value === "string" && /^-?\d+(\.\d+)?$/.test(value)) {
+            const numeric = Number(value);
+            return escapeCsvCell(Number.isFinite(numeric) ? numeric : value);
+          }
+          return escapeCsvCell(String(value));
+        })
+        .join(","),
     ),
   ];
 
-  const ws = XLSX.utils.aoa_to_sheet(aoa);
-  // Auto-ajustar ancho de columnas a contenido (aprox).
-  ws["!cols"] = exportColumns.map((c) => ({
-    wch: Math.max(c.label.length + 2, 14),
-  }));
-
-  const wb = XLSX.utils.book_new();
-  // Sheet name no admite ciertos caracteres; sanear.
-  const sheetName = detail.nodeKey.replace(/[\\/?*[\]:]/g, "_").slice(0, 31) || "Balanzas";
-  XLSX.utils.book_append_sheet(wb, ws, sheetName);
-
   const stamp = new Date().toISOString().slice(0, 10);
-  XLSX.writeFile(wb, `balanzas-${detail.nodeKey}-${stamp}.xlsx`);
+  const blob = new Blob([`\uFEFF${lines.join("\r\n")}`], {
+    type: "text/csv;charset=utf-8;",
+  });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `balanzas-${detail.nodeKey}-${stamp}.csv`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
 }
 
 export function BalanzasNodeDetailDialog({ node, filters, open, presetDestination, onClose }: Props) {
@@ -188,10 +196,10 @@ export function BalanzasNodeDetailDialog({ node, filters, open, presetDestinatio
             variant="outline"
             size="sm"
             className="rounded-xl"
-            onClick={() => downloadXlsx(detail)}
+            onClick={() => downloadCsv(detail)}
           >
             <Download className="size-4" aria-hidden="true" />
-            XLSX
+            CSV
           </Button>
         ) : undefined
       }

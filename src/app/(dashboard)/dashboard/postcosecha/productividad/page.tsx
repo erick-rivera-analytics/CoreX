@@ -1,7 +1,7 @@
 import {
-  defaultPostharvestProductivityFilters,
   getPostharvestProductivityDashboardData,
 } from "@/lib/postcosecha-productividad";
+import { defaultPostharvestProductivityFilters } from "@/lib/postcosecha-productividad-contract";
 import { PostcosechaProductividadPage } from "@/modules/postcosecha/components/postcosecha-productividad-page";
 import { DashboardRouteError, loadProtectedPageData } from "@/modules/core/server-page";
 

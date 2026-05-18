@@ -90,24 +90,6 @@ function buildCacheKey(filters: PostharvestProductivityFilters) {
 }
 
 async function ensureMaterializedSourcesExist() {
-  const activeRebuild = await query<{ active_count: number | string }>(
-    `
-      select count(*)::int as active_count
-      from pg_stat_activity
-      where datname = current_database()
-        and pid <> pg_backend_pid()
-        and state <> 'idle'
-        and query like '%Postharvest productivity blueprint for datalakehouse%'
-    `,
-  );
-
-  const activeCount = toNumber(activeRebuild.rows[0]?.active_count) ?? 0;
-  if (activeCount > 0) {
-    throw new Error(
-      "La materializacion de productividad de postcosecha sigue ejecutandose en datalakehouse. Espera a que termine el rebuild y vuelve a abrir el modulo.",
-    );
-  }
-
   const result = await query<{ detail_relation: string | null; lot_relation: string | null; final_relation: string | null }>(
     `
       select
@@ -123,26 +105,18 @@ async function ensureMaterializedSourcesExist() {
   );
 
   if (!result.rows[0]?.detail_relation || !result.rows[0]?.lot_relation || !result.rows[0]?.final_relation) {
-    throw new Error(
-      "La capa analitica de productividad de postcosecha aun no esta lista en datalakehouse. Primero debe completarse la materializacion.",
-    );
+    if (!result.rows[0]?.detail_relation || !result.rows[0]?.lot_relation) {
+      throw new Error(
+        "La capa analitica de productividad de postcosecha aun no esta lista en datalakehouse. Primero debe completarse la materializacion.",
+      );
+    }
   }
 
-  const finalColumns = await query<{ column_name: string }>(
-    `
-      select column_name
-      from information_schema.columns
-      where table_schema = 'gld'
-        and table_name = 'mv_prod_postharvest_hours_box_cur'
-    `,
-  );
-
-  const columnSet = new Set(finalColumns.rows.map((row) => row.column_name));
-  if (!columnSet.has("variety_canon")) {
-    throw new Error(
-      "La materializada final de productividad de postcosecha sigue en una version anterior. Debe republicarse gld.mv_prod_postharvest_hours_box_cur antes de usar el modulo.",
-    );
-  }
+  return {
+    detailReady: Boolean(result.rows[0]?.detail_relation),
+    lotReady: Boolean(result.rows[0]?.lot_relation),
+    finalReady: Boolean(result.rows[0]?.final_relation),
+  };
 }
 
 function pushArrayFilter(
@@ -188,6 +162,7 @@ function aggregateRowsForView(rows: PostharvestProductivityRow[]): PostharvestPr
       row.postDate,
       row.pathPost,
       row.finalDestination,
+      row.varietyCanon,
     ].join("|");
 
     const current = grouped.get(key);
@@ -211,7 +186,10 @@ function aggregateRowsForView(rows: PostharvestProductivityRow[]): PostharvestPr
   return Array.from(grouped.values()).sort((left, right) => {
     if (left.postDate !== right.postDate) return right.postDate.localeCompare(left.postDate);
     if (left.pathPost !== right.pathPost) return left.pathPost.localeCompare(right.pathPost, "es-EC");
-    return left.finalDestination.localeCompare(right.finalDestination, "es-EC");
+    if (left.finalDestination !== right.finalDestination) {
+      return left.finalDestination.localeCompare(right.finalDestination, "es-EC");
+    }
+    return left.varietyCanon.localeCompare(right.varietyCanon, "es-EC");
   });
 }
 
@@ -274,14 +252,15 @@ async function loadOptions(): Promise<PostharvestProductivityFilterOptions> {
 }
 
 async function loadRowsForSlice(filters: PostharvestProductivityFilters): Promise<PostharvestProductivityRow[]> {
-  if (decodeMultiSelectValue(filters.variety).length > 0) {
-    throw new Error(
-      "La agregada canonica de productividad de postcosecha aun no soporta segmentacion confiable por variedad. Usa el filtro de variedad en 'Todos' mientras cerramos esa metodologia.",
-    );
-  }
+  return loadRowsForSliceFromFinal(filters);
+}
 
+async function loadRowsForSliceFromFinal(filters: PostharvestProductivityFilters): Promise<PostharvestProductivityRow[]> {
   const clauses: string[] = [];
   const values: unknown[] = [];
+
+  values.push(SUPPORTED_POSTHARVEST_VARIETIES);
+  clauses.push(`upper(coalesce(v.variety_canon, '')) = any($${values.length}::text[])`);
 
   pushScalarFilter(clauses, values, `v.post_date >= ?::date`, filters.dateFrom || POSTHARVEST_PRODUCTIVITY_START_DATE);
 
@@ -293,6 +272,7 @@ async function loadRowsForSlice(filters: PostharvestProductivityFilters): Promis
   pushArrayFilter(clauses, values, "lpad(c.calendar_month::int::text, 2, '0')", filters.month);
   pushArrayFilter(clauses, values, "v.path_post", filters.pathPost);
   pushArrayFilter(clauses, values, "v.final_destination", filters.finalDestination);
+  pushArrayFilter(clauses, values, "v.variety_canon", filters.variety);
   pushArrayFilter(clauses, values, "v.area_id", filters.area);
 
   const whereClause = clauses.length ? `where ${clauses.join(" and ")}` : "";
@@ -306,9 +286,9 @@ async function loadRowsForSlice(filters: PostharvestProductivityFilters): Promis
         coalesce(c.iso_week_id, concat(c.iso_year::text, '-', lpad(c.iso_week::text, 2, '0'))) as iso_week_id,
         v.path_post,
         v.final_destination,
-        null::text as variety_canon,
-        sum(v.weight_kg)::double precision as weight_kg,
-        sum(v.boxes10)::double precision as boxes10,
+        v.variety_canon,
+        max(v.weight_kg)::double precision as weight_kg,
+        max(v.boxes10)::double precision as boxes10,
         sum(case when v.area_id = 'CLS' then v.effective_hours_assigned else 0 end)::double precision as hours_cls,
         sum(case when v.area_id = 'SB' then v.effective_hours_assigned else 0 end)::double precision as hours_sb,
         sum(case when v.area_id = 'EMP' then v.effective_hours_assigned else 0 end)::double precision as hours_emp,
@@ -324,11 +304,13 @@ async function loadRowsForSlice(filters: PostharvestProductivityFilters): Promis
         c.iso_year,
         c.iso_week,
         v.path_post,
-        v.final_destination
+        v.final_destination,
+        v.variety_canon
       order by
         v.post_date::date desc,
         v.path_post asc,
-        v.final_destination asc
+        v.final_destination asc,
+        v.variety_canon asc
     `,
     values,
   );
@@ -347,6 +329,246 @@ async function loadRowsForSlice(filters: PostharvestProductivityFilters): Promis
       postDate: normalizePostDateOutput(row.post_date),
       pathPost: row.path_post,
       finalDestination: row.final_destination,
+      varietyCanon: row.variety_canon?.trim() || "Sin variedad",
+      weightKg: toSafeNumber(row.weight_kg),
+      boxes10,
+      hoursCls,
+      hoursSb,
+      hoursEmp,
+      totalHours,
+      hoursPerBoxTotal: boxes10 > 0 ? totalHours / boxes10 : null,
+      hoursPerBoxCls: boxes10 > 0 ? hoursCls / boxes10 : null,
+      hoursPerBoxSb: boxes10 > 0 ? hoursSb / boxes10 : null,
+      hoursPerBoxEmp: boxes10 > 0 ? hoursEmp / boxes10 : null,
+    };
+  });
+
+  return aggregateRowsForView(rows);
+}
+
+async function loadRowsForSliceFromDetailFallback(filters: PostharvestProductivityFilters): Promise<PostharvestProductivityRow[]> {
+  const lotClauses: string[] = [];
+  const lotValues: unknown[] = [];
+  const hourClauses: string[] = [];
+  const hourValues: unknown[] = [];
+
+  lotValues.push(SUPPORTED_POSTHARVEST_VARIETIES);
+  lotClauses.push(`upper(coalesce(l.variety_canon, '')) = any($${lotValues.length}::text[])`);
+  pushScalarFilter(lotClauses, lotValues, `l.post_date >= ?::date`, filters.dateFrom || POSTHARVEST_PRODUCTIVITY_START_DATE);
+
+  if (filters.dateTo) {
+    pushScalarFilter(lotClauses, lotValues, `l.post_date <= ?::date`, filters.dateTo);
+  }
+
+  pushArrayFilter(lotClauses, lotValues, "c.calendar_year::int::text", filters.year);
+  pushArrayFilter(lotClauses, lotValues, "lpad(c.calendar_month::int::text, 2, '0')", filters.month);
+  pushArrayFilter(lotClauses, lotValues, "l.path_post", filters.pathPost);
+  pushArrayFilter(lotClauses, lotValues, "l.final_destination", filters.finalDestination);
+  pushArrayFilter(lotClauses, lotValues, "l.variety_canon", filters.variety);
+
+  const hourOffset = lotValues.length;
+  hourValues.push([...SUPPORTED_POSTHARVEST_VARIETIES, "ALL"]);
+  hourClauses.push(`upper(coalesce(d.variety_canon, '')) = any($${hourOffset + hourValues.length}::text[])`);
+  pushScalarFilter(hourClauses, hourValues, `d.post_date >= ?::date`, filters.dateFrom || POSTHARVEST_PRODUCTIVITY_START_DATE, hourOffset);
+
+  if (filters.dateTo) {
+    pushScalarFilter(hourClauses, hourValues, `d.post_date <= ?::date`, filters.dateTo, hourOffset);
+  }
+
+  pushArrayFilter(hourClauses, hourValues, "c.calendar_year::int::text", filters.year, hourOffset);
+  pushArrayFilter(hourClauses, hourValues, "lpad(c.calendar_month::int::text, 2, '0')", filters.month, hourOffset);
+  pushArrayFilter(hourClauses, hourValues, "d.path_post", filters.pathPost, hourOffset);
+  pushArrayFilter(hourClauses, hourValues, "d.final_destination", filters.finalDestination, hourOffset);
+  pushArrayFilter(hourClauses, hourValues, "d.variety_canon", filters.variety, hourOffset);
+  pushArrayFilter(hourClauses, hourValues, "d.area_id", filters.area, hourOffset);
+
+  const lotWhereClause = lotClauses.length ? `where ${lotClauses.join(" and ")}` : "";
+  const hourWhereClause = hourClauses.length ? `where ${hourClauses.join(" and ")}` : "";
+
+  const result = await query<PostharvestProductivityAggregateRow>(
+    `
+      with area_universe as (
+        select unnest(array['CLS', 'SB', 'EMP'])::text as area_id
+      ),
+      kg_post as (
+        select
+          l.post_date::date as post_date,
+          l.path_post,
+          l.final_destination,
+          l.variety_canon,
+          sum(l.weight_kg)::double precision as weight_kg
+        from ${POSTHARVEST_PRODUCTIVITY_LOT_SOURCE} l
+        left join ${CALENDAR_SOURCE} c on c.calendar_date = l.post_date::date
+        ${lotWhereClause}
+        group by l.post_date::date, l.path_post, l.final_destination, l.variety_canon
+      ),
+      kg_path_destination_total as (
+        select
+          path_post,
+          final_destination,
+          sum(weight_kg)::double precision as weight_total_kg
+        from kg_post
+        group by path_post, final_destination
+      ),
+      kg_path_destination_variety_total as (
+        select
+          path_post,
+          final_destination,
+          variety_canon,
+          sum(weight_kg)::double precision as weight_total_kg
+        from kg_post
+        group by path_post, final_destination, variety_canon
+      ),
+      kg_distribution as (
+        select
+          k.post_date,
+          k.path_post,
+          k.final_destination,
+          k.variety_canon,
+          case
+            when coalesce(t.weight_total_kg, 0) > 0 then k.weight_kg / t.weight_total_kg
+            else 0::double precision
+          end as share_post_date_in_path_destination,
+          case
+            when coalesce(tv.weight_total_kg, 0) > 0 then k.weight_kg / tv.weight_total_kg
+            else 0::double precision
+          end as share_post_date_in_path_destination_variety
+        from kg_post k
+        join kg_path_destination_total t
+          on t.path_post = k.path_post
+         and t.final_destination = k.final_destination
+        join kg_path_destination_variety_total tv
+          on tv.path_post = k.path_post
+         and tv.final_destination = k.final_destination
+         and tv.variety_canon = k.variety_canon
+      ),
+      detail_regular as (
+        select
+          d.post_date::date as post_date,
+          d.path_post,
+          d.final_destination,
+          d.variety_canon,
+          d.area_id,
+          d.side,
+          sum(d.effective_hours_assigned)::double precision as effective_hours_assigned
+        from ${POSTHARVEST_PRODUCTIVITY_DETAIL_SOURCE} d
+        left join ${CALENDAR_SOURCE} c on c.calendar_date = d.post_date::date
+        ${hourWhereClause}
+          ${hourWhereClause ? "and" : "where"} d.match_kind not in ('SPECIFIC_PERIOD', 'FALLBACK_MACRO')
+        group by d.post_date::date, d.path_post, d.final_destination, d.variety_canon, d.area_id, d.side
+      ),
+      detail_placeholder as (
+        select
+          d.path_post,
+          d.final_destination,
+          d.variety_canon,
+          d.area_id,
+          d.side,
+          sum(d.effective_hours_assigned)::double precision as effective_hours_total
+        from ${POSTHARVEST_PRODUCTIVITY_DETAIL_SOURCE} d
+        left join ${CALENDAR_SOURCE} c on c.calendar_date = d.post_date::date
+        ${hourWhereClause}
+          ${hourWhereClause ? "and" : "where"} d.match_kind in ('SPECIFIC_PERIOD', 'FALLBACK_MACRO')
+        group by d.path_post, d.final_destination, d.variety_canon, d.area_id, d.side
+      ),
+      detail_placeholder_redistributed as (
+        select
+          k.post_date,
+          p.path_post,
+          p.final_destination,
+          case
+            when p.variety_canon = 'ALL' then k.variety_canon
+            else p.variety_canon
+          end as variety_canon,
+          p.area_id,
+          p.side,
+          (
+            p.effective_hours_total
+            * case
+                when p.variety_canon = 'ALL' then k.share_post_date_in_path_destination
+                else k.share_post_date_in_path_destination_variety
+              end
+          )::double precision as effective_hours_assigned
+        from detail_placeholder p
+        join kg_distribution k
+          on k.path_post = p.path_post
+         and k.final_destination = p.final_destination
+         and (p.variety_canon = 'ALL' or k.variety_canon = p.variety_canon)
+      ),
+      detail_allocation as (
+        select * from detail_regular
+        union all
+        select * from detail_placeholder_redistributed
+      ),
+      detail_grouped as (
+        select
+          post_date,
+          path_post,
+          final_destination,
+          variety_canon,
+          area_id,
+          sum(effective_hours_assigned)::double precision as effective_hours_assigned
+        from detail_allocation
+        group by post_date, path_post, final_destination, variety_canon, area_id
+      )
+      select
+        k.post_date::text as post_date,
+        c.calendar_year,
+        c.calendar_month,
+        coalesce(c.iso_week_id, concat(c.iso_year::text, '-', lpad(c.iso_week::text, 2, '0'))) as iso_week_id,
+        k.path_post,
+        k.final_destination,
+        k.variety_canon,
+        k.weight_kg,
+        (k.weight_kg / 10.0)::double precision as boxes10,
+        sum(case when a.area_id = 'CLS' then coalesce(d.effective_hours_assigned, 0) else 0 end)::double precision as hours_cls,
+        sum(case when a.area_id = 'SB' then coalesce(d.effective_hours_assigned, 0) else 0 end)::double precision as hours_sb,
+        sum(case when a.area_id = 'EMP' then coalesce(d.effective_hours_assigned, 0) else 0 end)::double precision as hours_emp,
+        sum(coalesce(d.effective_hours_assigned, 0))::double precision as total_hours
+      from kg_post k
+      cross join area_universe a
+      left join detail_grouped d
+        on d.post_date = k.post_date
+       and d.path_post = k.path_post
+       and d.final_destination = k.final_destination
+       and d.variety_canon = k.variety_canon
+       and d.area_id = a.area_id
+      left join ${CALENDAR_SOURCE} c on c.calendar_date = k.post_date
+      group by
+        k.post_date,
+        c.calendar_year,
+        c.calendar_month,
+        c.iso_week_id,
+        c.iso_year,
+        c.iso_week,
+        k.path_post,
+        k.final_destination,
+        k.variety_canon,
+        k.weight_kg
+      order by
+        k.post_date desc,
+        k.path_post asc,
+        k.final_destination asc,
+        k.variety_canon asc
+    `,
+    [...lotValues, ...hourValues],
+  );
+
+  const rows = result.rows.map((row) => {
+    const boxes10 = toSafeNumber(row.boxes10);
+    const hoursCls = toSafeNumber(row.hours_cls);
+    const hoursSb = toSafeNumber(row.hours_sb);
+    const hoursEmp = toSafeNumber(row.hours_emp);
+    const totalHours = toSafeNumber(row.total_hours);
+
+    return {
+      year: toNumber(row.calendar_year),
+      month: toNumber(row.calendar_month),
+      isoWeekId: row.iso_week_id?.trim() || "Sin semana",
+      postDate: normalizePostDateOutput(row.post_date),
+      pathPost: row.path_post,
+      finalDestination: row.final_destination,
+      varietyCanon: row.variety_canon?.trim() || "Sin variedad",
       weightKg: toSafeNumber(row.weight_kg),
       boxes10,
       hoursCls,
@@ -366,21 +588,29 @@ async function loadRowsForSlice(filters: PostharvestProductivityFilters): Promis
 async function loadRows(
   filters: PostharvestProductivityFilters,
   availableYears: string[],
+  finalReady: boolean,
 ): Promise<PostharvestProductivityRow[]> {
   const selectedYears = decodeMultiSelectValue(filters.year);
   const yearsToResolve = selectedYears.length ? selectedYears : availableYears;
 
   if (yearsToResolve.length <= 1) {
     const yearValue = yearsToResolve.length ? encodeMultiSelectValue(yearsToResolve) : filters.year;
-    return loadRowsForSlice({ ...filters, year: yearValue });
+    return finalReady
+      ? loadRowsForSliceFromFinal({ ...filters, year: yearValue })
+      : loadRowsForSliceFromDetailFallback({ ...filters, year: yearValue });
   }
 
   const slices = await Promise.all(
     yearsToResolve.map((year) =>
-      loadRowsForSlice({
-        ...filters,
-        year: encodeMultiSelectValue([year]),
-      }),
+      finalReady
+        ? loadRowsForSliceFromFinal({
+            ...filters,
+            year: encodeMultiSelectValue([year]),
+          })
+        : loadRowsForSliceFromDetailFallback({
+            ...filters,
+            year: encodeMultiSelectValue([year]),
+          }),
     ),
   );
 
@@ -396,9 +626,9 @@ export async function getPostharvestProductivityDashboardData(
     `postharvest-productivity:${buildCacheKey(filters)}`,
     POSTHARVEST_PRODUCTIVITY_TTL_MS,
     async () => {
-      await ensureMaterializedSourcesExist();
+      const readiness = await ensureMaterializedSourcesExist();
       const options = await loadOptions();
-      const rows = await loadRows(filters, options.years);
+      const rows = await loadRows(filters, options.years, readiness.finalReady);
 
       const summary = rows.reduce(
         (acc, row) => {
@@ -450,9 +680,13 @@ export function normalizePostharvestProductivityActivityDetailFilters(
 ): PostharvestProductivityActivityDetailFilters {
   return {
     ...normalizePostharvestProductivityFilters(raw),
+    yearScope: (raw.yearScope ?? "").trim(),
+    monthScope: (raw.monthScope ?? "").trim(),
     isoWeekId: normalizeIsoWeekValue(raw.isoWeekId),
+    areaScope: (raw.areaScope ?? "").trim(),
     pathPostScope: (raw.pathPostScope ?? "").trim(),
     finalDestinationScope: (raw.finalDestinationScope ?? "").trim(),
+    varietyScope: (raw.varietyScope ?? "").trim(),
   };
 }
 
@@ -461,16 +695,6 @@ export async function getPostharvestProductivityActivityDetailData(
 ): Promise<PostharvestProductivityActivityDetailData> {
   const filters = normalizePostharvestProductivityActivityDetailFilters(rawFilters);
 
-  if (decodeMultiSelectValue(filters.variety).length > 0) {
-    throw new Error(
-      "El detalle canonico de productividad de postcosecha aun no soporta segmentacion confiable por variedad. Usa el filtro de variedad en 'Todos' mientras cerramos esa metodologia.",
-    );
-  }
-
-  if (!filters.pathPostScope || !filters.finalDestinationScope) {
-    throw new Error("Faltan camino o destino para consultar el detalle de actividades.");
-  }
-
   const lotClauses: string[] = [];
   const lotValues: unknown[] = [];
   const hourClauses: string[] = [];
@@ -478,9 +702,6 @@ export async function getPostharvestProductivityActivityDetailData(
 
   lotValues.push(SUPPORTED_POSTHARVEST_VARIETIES);
   lotClauses.push(`upper(coalesce(l.variety_canon, '')) = any($${lotValues.length}::text[])`);
-  pushScalarFilter(lotClauses, lotValues, `l.path_post = ?`, filters.pathPostScope);
-  pushScalarFilter(lotClauses, lotValues, `l.final_destination = ?`, filters.finalDestinationScope);
-
   pushScalarFilter(lotClauses, lotValues, `l.post_date >= ?::date`, filters.dateFrom || POSTHARVEST_PRODUCTIVITY_START_DATE);
 
   if (filters.dateTo) {
@@ -490,6 +711,17 @@ export async function getPostharvestProductivityActivityDetailData(
   pushArrayFilter(lotClauses, lotValues, "c.calendar_year::int::text", filters.year);
   pushArrayFilter(lotClauses, lotValues, "lpad(c.calendar_month::int::text, 2, '0')", filters.month);
   pushArrayFilter(lotClauses, lotValues, "l.variety_canon", filters.variety);
+  if (filters.varietyScope) {
+    pushScalarFilter(lotClauses, lotValues, `l.variety_canon = ?`, filters.varietyScope);
+  }
+
+  if (filters.yearScope) {
+    pushScalarFilter(lotClauses, lotValues, `c.calendar_year::int::text = ?`, filters.yearScope);
+  }
+
+  if (filters.monthScope) {
+    pushScalarFilter(lotClauses, lotValues, `lpad(c.calendar_month::int::text, 2, '0') = ?`, filters.monthScope);
+  }
 
   if (filters.isoWeekId) {
     pushScalarFilter(
@@ -500,10 +732,15 @@ export async function getPostharvestProductivityActivityDetailData(
     );
   }
 
-  const hourOffset = lotValues.length;
-  pushScalarFilter(hourClauses, hourValues, `d.path_post = ?`, filters.pathPostScope, hourOffset);
-  pushScalarFilter(hourClauses, hourValues, `d.final_destination = ?`, filters.finalDestinationScope, hourOffset);
+  if (filters.pathPostScope) {
+    pushScalarFilter(lotClauses, lotValues, `l.path_post = ?`, filters.pathPostScope);
+  }
 
+  if (filters.finalDestinationScope) {
+    pushScalarFilter(lotClauses, lotValues, `l.final_destination = ?`, filters.finalDestinationScope);
+  }
+
+  const hourOffset = lotValues.length;
   pushScalarFilter(hourClauses, hourValues, `d.post_date >= ?::date`, filters.dateFrom || POSTHARVEST_PRODUCTIVITY_START_DATE, hourOffset);
 
   if (filters.dateTo) {
@@ -513,6 +750,23 @@ export async function getPostharvestProductivityActivityDetailData(
   pushArrayFilter(hourClauses, hourValues, "c.calendar_year::int::text", filters.year, hourOffset);
   pushArrayFilter(hourClauses, hourValues, "lpad(c.calendar_month::int::text, 2, '0')", filters.month, hourOffset);
   pushArrayFilter(hourClauses, hourValues, "d.area_id", filters.area, hourOffset);
+  if (filters.areaScope) {
+    pushScalarFilter(hourClauses, hourValues, `d.area_id = ?`, filters.areaScope, hourOffset);
+  }
+  if (filters.varietyScope) {
+    hourValues.push(filters.varietyScope);
+    hourClauses.push(
+      `(d.variety_canon = $${hourOffset + hourValues.length} or d.variety_canon = 'ALL')`,
+    );
+  }
+
+  if (filters.yearScope) {
+    pushScalarFilter(hourClauses, hourValues, `c.calendar_year::int::text = ?`, filters.yearScope, hourOffset);
+  }
+
+  if (filters.monthScope) {
+    pushScalarFilter(hourClauses, hourValues, `lpad(c.calendar_month::int::text, 2, '0') = ?`, filters.monthScope, hourOffset);
+  }
 
   if (filters.isoWeekId) {
     pushScalarFilter(
@@ -522,6 +776,14 @@ export async function getPostharvestProductivityActivityDetailData(
       filters.isoWeekId,
       hourOffset,
     );
+  }
+
+  if (filters.pathPostScope) {
+    pushScalarFilter(hourClauses, hourValues, `d.path_post = ?`, filters.pathPostScope, hourOffset);
+  }
+
+  if (filters.finalDestinationScope) {
+    pushScalarFilter(hourClauses, hourValues, `d.final_destination = ?`, filters.finalDestinationScope, hourOffset);
   }
 
   const lotWhereClause = lotClauses.length ? `where ${lotClauses.join(" and ")}` : "";

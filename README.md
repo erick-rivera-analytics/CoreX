@@ -193,6 +193,22 @@ Regla de fuente para CoreX:
 - si `gld.mv_prod_postharvest_hours_box_cur` no existe o el rebuild sigue corriendo, el modulo debe fallar con mensaje claro de materializacion en curso
 - mientras la agregada canonica siga replicando el motor origen sin segmentacion final por variedad, el filtro `Variedad` no debe devolver una lectura inventada o estimada dentro del dashboard principal
 
+Exportacion PDF de esta etapa:
+
+- el modulo ya debe exponer `Exportar PDF` desde la propia cabecera de `Analitica / Postcosecha / Indicadores & KPI / Productividad`
+- la exportacion debe seguir el patron canonico de `pdf-canon`, igual que `Calidad / Punto de apertura`
+- no se debe generar un reporte ad hoc fuera del sistema
+- el PDF debe incluir como minimo:
+  - resumen ejecutivo del KPI visible
+  - comparacion por area `CLS / SB / EMP`
+  - consolidado por `camino x destino`
+  - analisis semanal de `H/Caja`
+  - graficos semanales renderizados desde la misma fuente PostgreSQL del modulo
+- los assets graficos del PDF deben generarse dentro del job del reporte y no depender de archivos manuales sueltos en disco
+- si la metodologia visible del dashboard cambia, el builder del PDF debe actualizarse en la misma rama para no romper paridad entre pantalla y exportacion
+- en desarrollo local, si no existe engine LaTeX (`pdflatex` o `tectonic`), la ruta de PDF debe caer a un fallback con `reportlab` sin bloquear el trabajo del modulo
+- en servidor se debe priorizar siempre la salida canónica de `pdf-canon`
+
 ## Comercial - Fotos de reclamos
 
 El modulo `Gestion / Comercial / Reclamos` guarda fotos por API y este flujo debe quedar desacoplado del usuario final.
