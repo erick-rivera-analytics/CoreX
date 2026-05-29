@@ -11,6 +11,9 @@ import { formatInteger, formatDate, parseDateOnly } from "@/shared/lib/format";
 import { EmptyState } from "@/shared/data-display/empty-state";
 import { AREA_PALETTE, FUMIGATION_DRONE_BADGE_COLOR, SPTYPE_ACCENT_COLORS, VARIETY_COLORS } from "@/config/programaciones-palettes";
 import { fetchJson } from "@/lib/fetch-json";
+import {
+  getFumigationActivityFamily,
+} from "@/lib/fumigation-activity-family";
 import { decodeMultiSelectValue } from "@/lib/multi-select";
 import { cn } from "@/lib/utils";
 import type { ProgramacionRecord } from "@/lib/programaciones";
@@ -18,7 +21,7 @@ import type { ProgramacionRecord } from "@/lib/programaciones";
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 type ProgramacionTab = "plantas_muertas" | "iluminacion" | "fumigacion" | "drench" | "aplicacion_ga3" | "riego";
-type FumigacionFilter = "todos" | "dron" | "regular";
+type FumigacionFilter = "todos" | "dron" | "lanza_normal" | "lanzas_eficientes";
 
 const TABS: {
   key: ProgramacionTab;
@@ -139,7 +142,8 @@ function EventPill({ record, onClick, highlighted }: { record: ProgramacionRecor
   const varietyColor = getVarietyColor(record.variety);
   const spAccent     = getSpTypeAccent(record.spType);
   const abbr         = getVarietyAbbr(record.variety);
-  const isDron       = record.activityCode === "03VAFIFMG";
+  const fumigationFamily = getFumigationActivityFamily(record.activityCode);
+  const isDron = fumigationFamily === "DRON";
 
   return (
     <div
@@ -176,6 +180,11 @@ function EventPill({ record, onClick, highlighted }: { record: ProgramacionRecor
       {isDron && (
         <span style={{ color: FUMIGATION_DRONE_BADGE_COLOR, fontSize: "12px", fontWeight: 700, flexShrink: 0, textTransform: "uppercase", letterSpacing: "0.04em" }}>
           D
+        </span>
+      )}
+      {fumigationFamily === "LANZAS_EFICIENTES" && (
+        <span style={{ color: spAccent, fontSize: "11px", fontWeight: 700, flexShrink: 0, textTransform: "uppercase", letterSpacing: "0.04em" }}>
+          LE
         </span>
       )}
       {/* ilumLabel badge (Inicio / Fin) */}
@@ -263,12 +272,13 @@ export function ProgramacionesExplorer({
   const filtered = useMemo(() => {
     if (activeTab === "riego" || (!activeCode && activeTab !== "fumigacion")) return [];
     return allRecords.filter((r) => {
-      // Fumigación: match both dron (03VAFIFMG) and regular (FMGYP)
+      // Fumigación: match the full activity family set
       if (activeTab === "fumigacion") {
-        if (r.activityCode !== "03VAFIFMG" && r.activityCode !== "FMGYP") return false;
-        // Apply dron filter
-        if (fumigacionFilter === "dron" && r.activityCode !== "03VAFIFMG") return false;
-        if (fumigacionFilter === "regular" && r.activityCode !== "FMGYP") return false;
+        const family = getFumigationActivityFamily(r.activityCode);
+        if (!family) return false;
+        if (fumigacionFilter === "dron" && family !== "DRON") return false;
+        if (fumigacionFilter === "lanza_normal" && family !== "LANZA_NORMAL") return false;
+        if (fumigacionFilter === "lanzas_eficientes" && family !== "LANZAS_EFICIENTES") return false;
       } else {
         if (r.activityCode !== activeCode) return false;
       }
@@ -337,7 +347,7 @@ export function ProgramacionesExplorer({
               const active = activeTab === tab.key;
               let hasData = false;
               if (tab.key === "fumigacion") {
-                hasData = allRecords.some((r) => r.activityCode === "03VAFIFMG" || r.activityCode === "FMGYP");
+                hasData = allRecords.some((r) => Boolean(getFumigationActivityFamily(r.activityCode)));
               } else if (tab.key === "aplicacion_ga3") {
                 hasData = true; // FM13 is in the database, never show PRONTO
               } else if (tab.activityCode) {
@@ -440,13 +450,23 @@ export function ProgramacionesExplorer({
                   </button>
                   <button
                     type="button"
-                    onClick={() => setFumigacionFilter("regular")}
+                    onClick={() => setFumigacionFilter("lanza_normal")}
                     className={cn(
                       "rounded-lg px-3 py-1.5 text-xs font-medium transition-colors",
-                      fumigacionFilter === "regular" ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground",
+                      fumigacionFilter === "lanza_normal" ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground",
                     )}
                   >
-                    Regular
+                    Lanza normal
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFumigacionFilter("lanzas_eficientes")}
+                    className={cn(
+                      "rounded-lg px-3 py-1.5 text-xs font-medium transition-colors",
+                      fumigacionFilter === "lanzas_eficientes" ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    Lanzas eficientes
                   </button>
                 </div>
               </div>

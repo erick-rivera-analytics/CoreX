@@ -21,6 +21,7 @@ import {
   UserSquare,
   UserX,
   Beaker,
+  SprayCan,
 } from "lucide-react";
 
 export type ModuleStatus = "active" | "hidden" | "internal";
@@ -34,6 +35,7 @@ export type CatalogModule = {
   eyebrow: string;
   summary: string;
   href: string;
+  navigationResourceKey?: string;
   icon: LucideIcon;
   navigationGroup: ModuleNavigationGroup;
   trail: string[];
@@ -362,6 +364,21 @@ export const MODULE_CATALOG: CatalogModule[] = [
     quickAccess: true,
   },
   {
+    key: "gestion-fumigacion-program",
+    label: "Programación Fumigación",
+    title: "Programación Fumigación",
+    eyebrow: "Gestión / Campo / Planificación / Programación Fumigación",
+    summary: "Vista de validación tipo Excel para fumigación con ventanas Normal, Dron y Lanzas.",
+    href: "/dashboard/campo/planificacion/fumigacion",
+    navigationResourceKey: "/dashboard/programaciones",
+    icon: SprayCan,
+    navigationGroup: "Gestion",
+    trail: ["Campo", "Planificación"],
+    accessSection: "Gestion",
+    status: "active",
+    quickAccess: true,
+  },
+  {
     key: "campo-drench-program",
     label: "Programación Drench",
     title: "Programación Drench",
@@ -369,6 +386,21 @@ export const MODULE_CATALOG: CatalogModule[] = [
     summary: "Reglas editables de drench por semana fenologica, tipo de ciclo y variedad, vinculadas a productos FM11 de Bodega.",
     href: "/dashboard/campo/administrar-maestros/programacion-drench",
     icon: ClipboardList,
+    navigationGroup: "Administracion",
+    trail: ["Maestros por dominio", "Campo"],
+    accessSection: "Administracion",
+    status: "active",
+    mobileVisible: false,
+  },
+  {
+    key: "campo-fumigacion-program",
+    label: "Programación Fumigación",
+    title: "Programación Fumigación",
+    eyebrow: "Administración / Maestros por dominio / Campo / Programación Fumigación",
+    summary: "Propuesta visual tipo Excel para definir programas por variedad y semana ISO, con pares producto/cantidad hacia la derecha.",
+    href: "/dashboard/campo/administrar-maestros/programacion-fumigacion",
+    navigationResourceKey: "/dashboard/campo/administrar-maestros/programacion-drench",
+    icon: SprayCan,
     navigationGroup: "Administracion",
     trail: ["Maestros por dominio", "Campo"],
     accessSection: "Administracion",
@@ -503,12 +535,28 @@ export const MODULE_CATALOG: CatalogModule[] = [
   },
   {
     key: "bodega-programaciones",
-    label: "Programaciones",
-    title: "Programaciones",
+    label: "Drench",
+    title: "Drench",
     eyebrow: "Gestión / Bodega / Planificación",
     summary: "Calendarizacion semanal de drench por semana ISO para preparar la programacion que luego consume Bodega.",
     href: "/dashboard/bodega/planificacion/programaciones",
     icon: CalendarClock,
+    navigationGroup: "Gestion",
+    trail: ["Bodega", "Planificación"],
+    accessSection: "Gestion",
+    status: "active",
+    quickAccess: true,
+    mobileVisible: false,
+  },
+  {
+    key: "bodega-aplicaciones-fitosanitarias",
+    label: "Aplicaciones fitosanitarias",
+    title: "Aplicaciones fitosanitarias",
+    eyebrow: "Gestion / Bodega / Planificacion",
+    summary: "Salida semanal tentativa de recetas fitosanitarias por semana ISO, semana fenologica y aplicacion operativa.",
+    href: "/dashboard/bodega/planificacion/aplicaciones-fitosanitarias",
+    navigationResourceKey: "/dashboard/bodega/planificacion/programaciones",
+    icon: SprayCan,
     navigationGroup: "Gestion",
     trail: ["Bodega", "Planificación"],
     accessSection: "Gestion",
@@ -785,8 +833,14 @@ export function filterModulesByAccess<T extends { href: string }>(
 }
 
 export function findModuleByPath(pathname: string) {
-  return MODULE_CATALOG.find(
+  const matches = MODULE_CATALOG.filter(
     (catalogEntry) => pathname === catalogEntry.href || pathname.startsWith(`${catalogEntry.href}/`),
-  ) ?? null;
+  );
+
+  if (!matches.length) {
+    return null;
+  }
+
+  return matches.sort((left, right) => right.href.length - left.href.length)[0] ?? null;
 }
 

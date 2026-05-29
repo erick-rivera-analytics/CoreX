@@ -209,6 +209,20 @@ export function getPageContext(pathname: string) {
     return { eyebrow: starterName, title: "Inicio" };
   }
 
+  if (pathname === "/dashboard/campo/planificacion/fumigacion") {
+    return {
+      eyebrow: "Gestion / Campo / Planificacion",
+      title: "Programacion Fumigacion",
+    };
+  }
+
+  if (pathname === "/dashboard/campo/administrar-maestros/programacion-fumigacion") {
+    return {
+      eyebrow: "Administracion / Maestros por dominio / Campo",
+      title: "Programacion Fumigacion",
+    };
+  }
+
   const pageModule = findModuleByPath(pathname);
   if (!pageModule) {
     return { eyebrow: starterName, title: "Panel" };

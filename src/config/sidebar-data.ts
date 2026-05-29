@@ -33,6 +33,10 @@ export type NavGroup = {
   items: NavItem[];
 };
 
+const ALWAYS_VISIBLE_NAV_HREFS = new Set([
+  "/dashboard/campo/administrar-maestros/programacion-fumigacion",
+]);
+
 const GROUP_ICON_BY_LABEL: Record<string, LucideIcon> = {
   Indicadores: TrendingUp,
   "Indicadores & KPI": TrendingUp,
@@ -103,7 +107,7 @@ function buildGroupItems(groupTitle: "Dashboard" | "Gestion" | "Administracion")
     currentItems.push({
       label: catalogEntry.label,
       href: catalogEntry.href,
-      resourceKey: catalogEntry.href,
+      resourceKey: catalogEntry.navigationResourceKey ?? catalogEntry.href,
       icon: catalogEntry.icon,
     });
   }
@@ -196,6 +200,10 @@ export function filterSidebarGroupsByAccess(
         }
 
         if (item.href === "/dashboard") {
+          return item;
+        }
+
+        if (ALWAYS_VISIBLE_NAV_HREFS.has(item.href)) {
           return item;
         }
 

@@ -15,6 +15,11 @@ import { toast } from "sonner";
 import useSWR from "swr";
 
 import { fetchJson } from "@/lib/fetch-json";
+import {
+  FUMIGATION_ACTIVITY_FAMILIES,
+  getFumigationFamilyLabel,
+  type FumigationActivityFamily,
+} from "@/lib/fumigation-activity-family";
 import type {
   BodegaActivityRecord,
   BodegaCategoryRecord,
@@ -117,6 +122,14 @@ function findActivityCandidates(value: string, activities: BodegaActivityRecord[
   });
 }
 
+function buildAssignmentBranch(activityId: string, branchOrder: number): BodegaProductInput["assignments"][number] {
+  return {
+    _formKey: makeClientId("bodega_product_assignment"),
+    activityId,
+    branchOrder,
+  };
+}
+
 function mapRecordToFormValues(record: BodegaProductRecord): BodegaProductInput {
   return {
     productCode: record.productCode,
@@ -134,6 +147,26 @@ function mapRecordToFormValues(record: BodegaProductRecord): BodegaProductInput 
     })),
     changeReason: "",
   };
+}
+
+function mergeAssignmentsWithFamily(
+  currentAssignments: BodegaProductInput["assignments"],
+  family: FumigationActivityFamily,
+  activities: BodegaActivityRecord[],
+) {
+  const availableActivityIds = new Set(activities.map((activity) => activity.activityId));
+  const familyActivityIds = FUMIGATION_ACTIVITY_FAMILIES[family].filter((activityId) => availableActivityIds.has(activityId));
+  const currentIds = currentAssignments
+    .map((assignment) => assignment.activityId.trim().toUpperCase())
+    .filter(Boolean);
+
+  const nextIds = [...new Set([...currentIds, ...familyActivityIds])];
+
+  if (!nextIds.length) {
+    return currentAssignments;
+  }
+
+  return nextIds.map((activityId, index) => buildAssignmentBranch(activityId, index + 1));
 }
 
 function buildPayload(values: BodegaProductInput): BodegaProductInput {
@@ -379,6 +412,22 @@ export function BodegaProductosPage({
       };
     });
     setActivitySearchValues((current) => current.filter((_, assignmentIndex) => assignmentIndex !== index));
+  }
+
+  function addFumigationFamily(family: FumigationActivityFamily) {
+    const nextAssignments = mergeAssignmentsWithFamily(formValues.assignments, family, activities);
+
+    setFormValues((current) => ({
+      ...current,
+      assignments: mergeAssignmentsWithFamily(current.assignments, family, activities),
+    }));
+    setActivitySearchValues(
+      nextAssignments.map((assignment) => {
+        const match = activities.find((activity) => activity.activityId === assignment.activityId);
+        return match ? formatActivityOption(match) : assignment.activityId;
+      }),
+    );
+    setFormErrors((current) => ({ ...current, assignments: undefined }));
   }
 
   function openCreateMode() {
@@ -723,6 +772,22 @@ export function BodegaProductosPage({
                         <Plus className="size-4" />
                         Agregar rama
                       </Button>
+                    </div>
+
+                    <div className="flex flex-wrap gap-2">
+                      {(Object.keys(FUMIGATION_ACTIVITY_FAMILIES) as FumigationActivityFamily[]).map((family) => (
+                        <Button
+                          key={family}
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="rounded-full"
+                          onClick={() => addFumigationFamily(family)}
+                        >
+                          <Plus className="size-4" />
+                          Agregar familia {getFumigationFamilyLabel(family)}
+                        </Button>
+                      ))}
                     </div>
 
                     <div className="space-y-3">

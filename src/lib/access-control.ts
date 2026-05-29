@@ -275,6 +275,16 @@ const API_ACCESS_RULES_UNSORTED: ApiAccessRule[] = [
     requiredResources: ["/dashboard/bodega/planificacion/programaciones"],
   },
   {
+    pathnamePrefix: "/api/bodega/planificacion/aplicaciones-fitosanitarias",
+    policy: "resource-bound",
+    requiredResources: ["/dashboard/bodega/planificacion/programaciones"],
+  },
+  {
+    pathnamePrefix: "/api/campo/planificacion/programacion-fumigacion",
+    policy: "resource-bound",
+    requiredResources: ["/dashboard/programaciones"],
+  },
+  {
     pathnamePrefix: "/api/bodega/administrar-maestros/actividades-fuente",
     policy: "resource-bound",
     requiredResources: ["/dashboard/bodega/administrar-maestros/productos"],

@@ -31,6 +31,12 @@ const BUNDLED_TECTONIC_BIN = resolve(
   "bin",
   "tectonic.exe",
 );
+const LOCAL_TECTONIC_BIN = resolve(
+  process.cwd(),
+  ".tools",
+  "tectonic",
+  "tectonic.exe",
+);
 
 // ── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -293,6 +299,13 @@ async function resolveLatexEngine(): Promise<{
         ? "tectonic"
         : "pdflatex",
     };
+  }
+
+  try {
+    await access(LOCAL_TECTONIC_BIN);
+    return { bin: LOCAL_TECTONIC_BIN, engine: "tectonic" };
+  } catch {
+    // sigue con los siguientes fallbacks
   }
 
   try {

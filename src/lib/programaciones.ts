@@ -1,14 +1,17 @@
 ﻿import "server-only";
 
 import { query } from "@/lib/db";
+import { FUMIGATION_ACTIVITY_IDS } from "@/lib/fumigation-activity-family";
 import { cachedAsync } from "@/lib/server-cache";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const PROG_TTL_MS = 5 * 60 * 1000; // 5 min
 
-export const ACTIVITY_CODES = ["SPMC", "ILUMINACION", "FMGYP", "03VAFIFMG", "FM11", "FM13"] as const;
+export const ACTIVITY_CODES = ["SPMC", "ILUMINACION", ...FUMIGATION_ACTIVITY_IDS, "FM11", "FM13"] as const;
 export type ActivityCode = (typeof ACTIVITY_CODES)[number];
+
+const FUMIGATION_ACTIVITY_CODES_SQL = FUMIGATION_ACTIVITY_IDS.map((code) => `'${code}'`).join(", ");
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -84,10 +87,10 @@ export async function getProgramaciones(
 
           union all
 
-          -- FUMIGACION: todos los eventos en rango (FMGYP y 03VAFIFMG)
+          -- FUMIGACION: todos los eventos en rango para la familia completa
           select cycle_key, activity_code, event_date, null::text as ilum_label
           from mdl.prod_ref_vegetativo_subset_scd2
-          where activity_code IN ('FMGYP', '03VAFIFMG')
+          where activity_code IN (${FUMIGATION_ACTIVITY_CODES_SQL})
             and event_date >= $1::date
             and event_date <= $2::date
 
